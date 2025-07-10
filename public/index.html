@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JLPT Tracker - Theo dõi lộ trình N1</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-book-open"></i> JLPT Tracker Pro</h1>
+            <div class="subtitle">
+                Lộ trình học JLPT N1 từ 10/7/2025 đến 6/12/2025
+            </div>
+            <div class="date-range">
+                <i class="fas fa-calendar-alt"></i> <span id="currentDateRange">10/07/2025 - 06/12/2025</span>
+            </div>
+        </header>
+        
+        <div class="content">
+            <div class="card">
+                <h2 class="card-title"><i class="fas fa-calendar-week"></i> Lịch học tuần này</h2>
+                
+                <div class="week-selector">
+                    <button class="week-btn" id="prev-week"><i class="fas fa-chevron-left"></i> Tuần trước</button>
+                    <div class="current-week" id="currentWeekDisplay">Tuần 1: 10/07 - 16/07 <span class="phase-badge">Củng cố N2</span></div>
+                    <button class="week-btn" id="next-week">Tuần sau <i class="fas fa-chevron-right"></i></button>
+                </div>
+                
+                <div class="schedule-grid" id="weeklySchedule">
+                    <!-- Sẽ được tạo động bằng JavaScript -->
+                </div>
+                
+                <div class="completed-count">
+                    <i class="fas fa-tasks"></i> Đã hoàn thành: <span id="completedCount">0</span>/<span id="totalTasks">0</span> nhiệm vụ
+                </div>
+                
+                <div class="progress-container">
+                    <div class="progress-header">
+                        <span>Tiến độ tuần</span>
+                        <span id="progressPercent">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <div class="notes-section">
+                    <h3><i class="fas fa-edit"></i> Ghi chú tuần</h3>
+                    <textarea id="weeklyNotes" placeholder="Ghi lại nhận xét, khó khăn, kế hoạch..."></textarea>
+                    <button id="saveNotesBtn" class="save-btn"><i class="fas fa-save"></i> Lưu ghi chú</button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2 class="card-title"><i class="fas fa-chart-line"></i> Thống kê & Phân tích</h2>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <i class="fas fa-clock fa-2x"></i>
+                        <div class="stat-value" id="totalHours">0h</div>
+                        <div class="stat-label">Tổng giờ học</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <i class="fas fa-fire fa-2x"></i>
+                        <div class="stat-value" id="streakDays">0</div>
+                        <div class="stat-label">Ngày liên tiếp</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                        <div class="stat-value" id="completionRate">0%</div>
+                        <div class="stat-label">Tỷ lệ hoàn thành</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <i class="fas fa-bullseye fa-2x"></i>
+                        <div class="stat-value" id="currentLevel">N2</div>
+                        <div class="stat-label">Giai đoạn hiện tại</div>
+                    </div>
+                </div>
+                
+                <div class="resources">
+                    <h3><i class="fas fa-bookmark"></i> Tài liệu đề xuất</h3>
+                    <ul class="resource-list" id="recommendedResources">
+                        <!-- Sẽ được tạo động -->
+                    </ul>
+                </div>
+                
+                <div class="ai-analysis">
+                    <h3><i class="fas fa-robot"></i> Phân tích AI</h3>
+                    <div class="ai-advice" id="aiAdvice">
+                        <p>Hệ thống đang phân tích thói quen học tập của bạn...</p>
+                    </div>
+                    <button id="refreshAnalysisBtn" class="ai-btn"><i class="fas fa-sync-alt"></i> Làm mới phân tích</button>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>JLPT Tracker Pro - Phiên bản 1.0</p>
+            <p>Dữ liệu được lưu trữ an toàn trên Firebase</p>
+        </footer>
+    </div>
+
+    <!-- Modal để chỉnh sửa nhiệm vụ -->
+    <div class="modal" id="taskModal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h3><i class="fas fa-edit"></i> Chỉnh sửa nhiệm vụ</h3>
+            <div class="form-group">
+                <label>Tên nhiệm vụ:</label>
+                <input type="text" id="editTaskName" class="form-input">
+            </div>
+            <div class="form-group">
+                <label>Thời gian (phút):</label>
+                <input type="number" id="editTaskTime" class="form-input" min="5" max="240">
+            </div>
+            <div class="form-group">
+                <label>Loại:</label>
+                <select id="editTaskType" class="form-input">
+                    <option value="vocab">Từ vựng</option>
+                    <option value="grammar">Ngữ pháp</option>
+                    <option value="reading">Đọc hiểu</option>
+                    <option value="listening">Nghe hiểu</option>
+                    <option value="kanji">Kanji</option>
+                </select>
+            </div>
+            <button id="saveTaskBtn" class="modal-btn">Lưu thay đổi</button>
+            <button id="deleteTaskBtn" class="modal-btn delete-btn">Xóa nhiệm vụ</button>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-database-compat.js"></script>
+    <script src="firebase.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

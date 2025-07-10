@@ -1,0 +1,16 @@
+# File cấu hình chứa thông tin nhạy cảm
+firebase-config.json
+.firebaserc
+
+# Thư mục và file hệ thống
+node_modules/
+dist/
+.DS_Store
+.env
+.env.local
+*.log
+
+# Firebase cache
+.firebase/
+firebase-debug.log
+.vercel
