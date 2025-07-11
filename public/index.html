@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,6 +11,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 </head>
+
 <body>
     <div class="container">
         <header>
@@ -25,7 +27,7 @@
             <div class="date-range">
                 <i class="fas fa-calendar-alt"></i> 10/07/2025 - 06/12/2025 (21 tuần)
             </div>
-            <button id="start-study-btn" class="btn btn-primary" style="margin-top: 15px">
+            <button id="start-study-btn" class="btn btn-primary week-btn" style="margin-top: 15px">
                 <i class="fas fa-play-circle"></i> Bắt đầu học
             </button>
         </header>
@@ -34,134 +36,176 @@
             <div class="tab active" data-tab="schedule">Lịch học</div>
             <div class="tab" data-tab="stats">Thống kê</div>
             <div class="tab" data-tab="resources">Tài nguyên</div>
-            <div class="tab" data-tab="ai">AI Hỗ trợ</div>
         </div>
 
         <div class="tab-content active" id="schedule-tab">
-            <div class="card" id="weekly-planner">
-                <h2 class="card-title">
-                    <i class="fas fa-calendar-week"></i> Lịch học tuần này
-                </h2>
+            <div class="content">
+                <div class="card" id="weekly-planner">
+                    <h2 class="card-title">
+                        <i class="fas fa-calendar-week"></i> Lịch học tuần này
+                    </h2>
 
-                <div class="week-selector">
-                    <button class="btn btn-secondary" id="prev-week">
-                        <i class="fas fa-chevron-left"></i> Tuần trước
-                    </button>
-                    <div class="current-week" id="current-week-display">
-                        Tuần 1: 10/07 - 16/07
-                        <span class="phase-badge">Củng cố N2</span>
-                    </div>
-                    <button class="btn btn-secondary" id="next-week">
-                        Tuần sau <i class="fas fa-chevron-right"></i>
-                    </button>
-                </div>
-
-                <div class="schedule-grid" id="weekly-schedule">
-                    <!-- Lịch sẽ được render từ JavaScript -->
-                </div>
-
-                <div class="completed-count">
-                    <i class="fas fa-tasks"></i> Đã hoàn thành:
-                    <span id="completed-count">0</span>/<span id="total-tasks">0</span> nhiệm vụ
-                </div>
-
-                <div class="progress-container">
-                    <div class="progress-header">
-                        <span>Tiến độ tuần</span>
-                        <span id="week-progress">0%</span>
-                    </div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="progress-fill"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="study-summary" class="card">
-                <h2 class="card-title">
-                    <i class="fas fa-chart-line"></i> Thống kê & Tài nguyên
-                </h2>
-
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <i class="fas fa-book fa-2x"></i>
-                        <div class="stat-value">21</div>
-                        <div class="stat-label">Tuần học tập</div>
+                    <div class="week-selector">
+                        <button class="week-btn" id="prev-week">
+                            <i class="fas fa-chevron-left"></i> Tuần trước
+                        </button>
+                        <div class="current-week" id="current-week-display">
+                            Tuần 1: 10/07 - 16/07
+                            <span class="phase-badge" style="margin-left: 10px;">Củng cố N2</span>
+                        </div>
+                        <button class="week-btn" id="next-week">
+                            Tuần sau <i class="fas fa-chevron-right"></i>
+                        </button>
                     </div>
 
-                    <div class="stat-card">
-                        <i class="fas fa-bullseye fa-2x"></i>
-                        <div class="stat-value">N1</div>
-                        <div class="stat-label">Mục tiêu cuối cùng</div>
+                    <div class="schedule-grid" id="weekly-schedule">
+                        <!-- Lịch sẽ được render từ JavaScript -->
                     </div>
 
-                    <div class="stat-card">
-                        <i class="fas fa-check-circle fa-2x"></i>
-                        <div class="stat-value">5%</div>
-                        <div class="stat-label">Tổng tiến độ</div>
+                    <div class="completed-count">
+                        <i class="fas fa-tasks"></i> Đã hoàn thành:
+                        <span id="completed-count">0</span>/<span id="total-tasks">0</span> nhiệm vụ
                     </div>
 
-                    <div class="stat-card">
-                        <i class="fas fa-hourglass-half fa-2x"></i>
-                        <div class="stat-value">142</div>
-                        <div class="stat-label">Ngày còn lại</div>
+                    <div class="progress-container">
+                        <div class="progress-header">
+                            <span>Tiến độ tuần</span>
+                            <span id="week-progress">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="resources">
-                    <h3><i class="fas fa-bookmark"></i> Tài liệu học tập</h3>
-                    <ul class="resource-list" id="recommended-resources">
-                        <li class="resource-item">
-                            <i class="fas fa-book"></i> Shin Kanzen Master N1 - Ngữ pháp
-                        </li>
-                        <li class="resource-item">
-                            <i class="fas fa-book"></i> Soumatome N1 - Từ vựng
-                        </li>
-                        <li class="resource-item">
-                            <i class="fas fa-book"></i> Try! N1 - Ngữ pháp
-                        </li>
-                        <li class="resource-item">
-                            <i class="fas fa-book"></i> Kanji Master N1
-                        </li>
-                    </ul>
-                </div>
+                <div id="study-summary" class="card">
+                    <h2 class="card-title">
+                        <i class="fas fa-chart-line"></i> Thống kê & Tài nguyên
+                    </h2>
 
-                <div class="ai-suggestion">
-                    <h3><i class="fas fa-robot"></i> Gợi ý từ AI</h3>
-                    <p id="ai-advice">Hãy tập trung vào ngữ pháp N2 trong tuần đầu tiên để củng cố nền tảng trước khi chuyển sang N1. Dành ít nhất 60 phút mỗi ngày cho việc học ngữ pháp và làm bài tập.</p>
-                </div>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <i class="fas fa-book fa-2x"></i>
+                            <div class="stat-value">21</div>
+                            <div class="stat-label">Tuần học tập</div>
+                        </div>
 
-                <div class="motivation">
-                    <i class="fas fa-quote-left"></i> Kiên trì không phải là chạy một mạch không nghỉ, mà là khả năng tiếp tục bước đi sau mỗi lần dừng chân.
+                        <div class="stat-card">
+                            <i class="fas fa-bullseye fa-2x"></i>
+                            <div class="stat-value">N1</div>
+                            <div class="stat-label">Mục tiêu cuối cùng</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <i class="fas fa-check-circle fa-2x"></i>
+                            <div class="stat-value">5%</div>
+                            <div class="stat-label">Tổng tiến độ</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <i class="fas fa-hourglass-half fa-2x"></i>
+                            <div class="stat-value">142</div>
+                            <div class="stat-label">Ngày còn lại</div>
+                        </div>
+                    </div>
+
+                    <div class="resources">
+                        <h3><i class="fas fa-bookmark"></i> Tài liệu học tập</h3>
+                        <ul class="resource-list" id="recommended-resources">
+                            <li class="resource-item">
+                                <i class="fas fa-book"></i> Shin Kanzen Master N1 - Ngữ pháp
+                            </li>
+                            <li class="resource-item">
+                                <i class="fas fa-book"></i> Soumatome N1 - Từ vựng
+                            </li>
+                            <li class="resource-item">
+                                <i class="fas fa-book"></i> Try! N1 - Ngữ pháp
+                            </li>
+                            <li class="resource-item">
+                                <i class="fas fa-book"></i> Kanji Master N1
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="tab-content" id="stats-tab">
-            <div class="card">
-                <h2 class="card-title"><i class="fas fa-chart-pie"></i> Thống kê học tập</h2>
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <i class="fas fa-clock fa-2x"></i>
-                        <div class="stat-value" id="total-hours">12</div>
-                        <div class="stat-label">Giờ học tổng</div>
-                    </div>
+            <div class="stats-container"> <!-- Thêm container chính -->
+                <div class="stat-section"> <!-- Phần thẻ thống kê -->
+                    <div class="card">
+                        <h2 class="card-title"><i class="fas fa-chart-pie"></i> Tổng quan học tập</h2>
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <i class="fas fa-clock fa-2x"></i>
+                                <div class="stat-value" id="total-hours">12</div>
+                                <div class="stat-label">Giờ học tổng</div>
+                            </div>
 
-                    <div class="stat-card">
-                        <i class="fas fa-tasks fa-2x"></i>
-                        <div class="stat-value" id="completion-rate">25%</div>
-                        <div class="stat-label">Tỷ lệ hoàn thành</div>
-                    </div>
+                            <div class="stat-card">
+                                <i class="fas fa-tasks fa-2x"></i>
+                                <div class="stat-value" id="completion-rate">25%</div>
+                                <div class="stat-label">Tỷ lệ hoàn thành</div>
+                            </div>
 
-                    <div class="stat-card">
-                        <i class="fas fa-fire fa-2x"></i>
-                        <div class="stat-value" id="streak-days">5</div>
-                        <div class="stat-label">Ngày học liên tiếp</div>
-                    </div>
+                            <div class="stat-card">
+                                <i class="fas fa-fire fa-2x"></i>
+                                <div class="stat-value" id="streak-days">5</div>
+                                <div class="stat-label">Ngày học liên tiếp</div>
+                            </div>
 
-                    <div class="stat-card">
-                        <i class="fas fa-check-circle fa-2x"></i>
-                        <div class="stat-value" id="lessons-learned">18</div>
-                        <div class="stat-label">Bài đã hoàn thành</div>
+                            <div class="stat-card">
+                                <i class="fas fa-check-circle fa-2x"></i>
+                                <div class="stat-value" id="lessons-learned">18</div>
+                                <div class="stat-label">Bài đã hoàn thành</div>
+                            </div>
+                        </div>
+
+                        <!-- Biểu đồ tiến độ tuần (full width) -->
+                        <div class="stat-section full-width">
+                            <div class="card">
+                                <div class="chart-header">
+                                    <h3><i class="fas fa-chart-line"></i> Tiến độ theo tuần</h3>
+                                </div>
+                                <div class="chart-wrapper large-chart">
+                                    <canvas id="progressChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="dual-chart-row">
+                            <!-- Biểu đồ đánh giá kỹ năng -->
+                            <div class="stat-section half-width">
+                                <div class="card">
+                                    <div class="chart-header">
+                                        <h3><i class="fas fa-star"></i> Đánh giá kỹ năng</h3>
+                                    </div>
+                                    <div class="chart-wrapper medium-chart">
+                                        <canvas id="skillRadarChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="stat-section half-width">
+                                <div class="card">
+                                    <div class="chart-header">
+                                        <h3><i class="fas fa-clock"></i> Phân bố thời gian học</h3>
+                                    </div>
+                                    <div class="chart-wrapper medium-chart">
+                                        <canvas id="timeDistributionChart"></canvas>
+                                    </div>
+                                    <div class="task-type-list" id="taskTypeList"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="stat-section">
+                            <div class="card">
+                                <div class="chart-header">
+                                    <h3><i class="fas fa-book"></i> Các loại bài tập đã học</h3>
+                                </div>
+                                <div class="task-category-container" id="taskCategoryContainer"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -230,15 +274,17 @@
 
                 <div class="ai-suggestion">
                     <h3><i class="fas fa-lightbulb"></i> Gợi ý học tập</h3>
-                    <p id="ai-suggestion-content">Bạn nên tập trung vào các điểm ngữ pháp N2 trước khi chuyển sang N1. Hãy dành ít nhất 45 phút mỗi ngày cho việc học ngữ pháp và làm bài tập.</p>
+                    <p id="ai-suggestion-content">Bạn nên tập trung vào các điểm ngữ pháp N2 trước khi chuyển sang N1.
+                        Hãy dành ít nhất 45 phút mỗi ngày cho việc học ngữ pháp và làm bài tập.</p>
                 </div>
 
                 <div class="ai-suggestion">
                     <h3><i class="fas fa-question-circle"></i> Hỏi đáp với AI</h3>
                     <p>Đặt câu hỏi về ngữ pháp, từ vựng hoặc bất kỳ thắc mắc nào:</p>
-                    <textarea class="task-input" id="ai-question" placeholder="Câu hỏi của bạn..."></textarea>
-                    <button class="btn btn-primary" id="submit-question">Gửi câu hỏi</button>
-                    <div id="ai-response" style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px; display: none;">
+                    <textarea style="resize: none;" class="task-input" id="ai-question" placeholder="Câu hỏi của bạn..."></textarea>
+                    <button class="week-btn" id="submit-question">Gửi câu hỏi</button>
+                    <div id="ai-response"
+                        style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px; display: none;">
                         <p><strong>Trả lời:</strong> <span id="ai-answer"></span></p>
                     </div>
                     <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
@@ -251,7 +297,8 @@
                 <div class="ai-suggestion">
                     <h3><i class="fas fa-chart-line"></i> Phân tích tiến độ</h3>
                     <div id="progress-analysis">
-                        <p>Dựa trên dữ liệu học tập của bạn, AI gợi ý bạn nên tập trung nhiều hơn vào kỹ năng nghe hiểu. Hãy dành thêm 20% thời gian học cho kỹ năng này.</p>
+                        <p>Dựa trên dữ liệu học tập của bạn, AI gợi ý bạn nên tập trung nhiều hơn vào kỹ năng nghe hiểu.
+                            Hãy dành thêm 20% thời gian học cho kỹ năng này.</p>
                     </div>
                 </div>
             </div>
@@ -261,6 +308,19 @@
             <p>Lộ trình học JLPT N1 - Được thiết kế dành riêng cho bạn</p>
             <p>Dựa trên kế hoạch từ 10/7/2025 đến 6/12/2025</p>
         </footer>
+    </div>
+
+    <!-- Modal nghỉ ngơi -->
+    <div class="modal" id="break-modal">
+        <div class="modal-content">
+            <span class="close-modal" id="close-break-modal">&times;</span>
+            <h2><i class="fas fa-coffee"></i> Đã đến lúc nghỉ ngơi!</h2>
+            <p>
+                Bạn đã học liên tục 45 phút. Hãy nghỉ ngơi 5-10 phút để nạp năng
+                lượng.
+            </p>
+            <button class="week-btn" id="start-break-btn">Bắt đầu nghỉ ngơi</button>
+        </div>
     </div>
 
     <!-- Modal chỉnh sửa nhiệm vụ -->
@@ -289,6 +349,54 @@
         </div>
     </div>
 
+    <!-- Modal đếm ngược thời gian học -->
+    <div class="modal" id="countdown-modal">
+        <div class="modal-content">
+            <span class="close-modal" id="close-countdown-modal">&times;</span>
+            <h2><i class="fas fa-clock"></i> Thời gian học tập</h2>
+
+            <div class="timer-settings">
+                <div class="timer-setting">
+                    <label>Thời gian học (phút)</label>
+                    <input type="number" id="study-minutes" min="1" value="45" />
+                </div>
+                <div class="timer-setting">
+                    <label>Thời gian nghỉ (phút)</label>
+                    <input type="number" id="break-minutes" min="1" value="5" />
+                </div>
+            </div>
+
+            <div class="timer-container">
+                <div class="timer-display" id="timer-display">45:00</div>
+                <div class="timer-controls">
+                    <button class="timer-btn start" id="start-timer">Bắt đầu</button>
+                    <button class="timer-btn pause" id="pause-timer" style="display: none">
+                        Tạm dừng
+                    </button>
+                    <button class="timer-btn stop" id="stop-timer" style="display: none">
+                        Dừng
+                    </button>
+                </div>
+                <div class="timer-status" id="timer-status">
+                    Sẵn sàng bắt đầu học...
+                </div>
+            </div>
+
+            <div class="rest-suggestion">
+                <p><i class="fas fa-lightbulb"></i> Sau thời gian học, bạn nên:</p>
+                <ul>
+                    <li>Nhắm mắt nghỉ ngơi 1 phút</li>
+                    <li>Uống một ly nước</li>
+                    <li>Đi bộ vài bước xung quanh</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <!-- Firebase bản compat -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
     <script src="script.js"></script>
 </body>
+
 </html>
