@@ -193,7 +193,7 @@ h1 {
     padding: 15px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     border: 2px solid #e0e0e0;
-    transition: all 0.3s ease;
+    transition: opacity 0.2s ease;
 }
 
 .day-card:hover {
@@ -248,7 +248,7 @@ h1 {
     justify-content: space-between;
     align-items: center;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s ease;
 }
 
 .study-item:hover {
@@ -256,8 +256,8 @@ h1 {
 }
 
 .study-item.done {
-    border-left-color: #4caf50;
-    background: #e8f5e9;
+    transform: translateX(5px);
+  background-color: #e8f5e9 !important;
 }
 
 /* Button Styles */
@@ -451,23 +451,21 @@ h1 {
 }
 
 .modal-content {
-    background: white;
-    width: 90%;
-    max-width: 500px;
-    max-height: 90vh;
-    padding: 30px;
-    border-radius: 15px;
-    overflow-y: auto;
-    position: relative;
+  position: relative;
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
 
 .close-modal {
-    position: absolute;
-    top: 15px;
-    right: 15px;
-    font-size: 1.5rem;
-    cursor: pointer;
-    color: #aaa;
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  font-size: 24px;
+  cursor: pointer;
 }
 
 .close-modal:hover {
@@ -873,4 +871,93 @@ footer {
     border-radius: 5px;
     margin-top: 10px;
     font-weight: bold;
+}
+
+/* Modal đếm ngược */
+.timer-container {
+  text-align: center;
+  padding: 20px;
+}
+
+.timer-display {
+  font-size: 4rem;
+  font-weight: bold;
+  margin: 20px 0;
+  color: #1a2a6c;
+}
+
+.timer-controls {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.timer-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s;
+}
+
+.timer-btn.start {
+  background: #4caf50;
+  color: white;
+}
+
+.timer-btn.pause {
+  background: #ff9800;
+  color: white;
+}
+
+.timer-btn.stop {
+  background: #f44336;
+  color: white;
+}
+
+.timer-settings {
+  margin: 20px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  justify-content: center;
+}
+
+.timer-setting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.timer-setting label {
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.timer-setting input {
+  width: 80px;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  text-align: center;
+}
+
+.timer-status {
+  margin-top: 15px;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+#countdown-modal .modal-content {
+  max-width: 400px;
+}
+
+.rest-suggestion {
+  margin-top: 20px;
+  padding: 15px;
+  background: #e3f2fd;
+  border-radius: 8px;
+  text-align: center;
 }

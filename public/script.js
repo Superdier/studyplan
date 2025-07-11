@@ -21,6 +21,12 @@ let currentEditingDay = null;
 // Chart instances
 let progressChart, timeDistributionChart, skillRadarChart;
 
+// Global Variables for Timer
+let countdownInterval;
+let timeLeft;
+let isPaused = false;
+let isStudyPhase = true; // true: học, false: nghỉ
+
 // DOM Elements
 const editDayModal = document.getElementById("edit-day-modal");
 const closeEditModal = document.getElementById("close-edit-modal");
@@ -31,103 +37,41 @@ const studyDurationInput = document.getElementById("study-duration");
 const modalDate = document.getElementById("modal-date");
 const tabs = document.querySelectorAll('.tab');
 const tabContents = document.querySelectorAll('.tab-content');
+const startStudyBtn = document.getElementById("start-study-btn");
+const countdownModal = document.getElementById("countdown-modal");
+const closeCountdownModal = document.getElementById("close-countdown-modal");
+const breakModal = document.getElementById('break-modal');
+const closeBreakModalBtn = document.getElementById('close-break-modal');
+const startBreakBtn = document.getElementById('start-break-btn');
+const timerDisplay = document.getElementById('timer-display');
+const timerStatus = document.getElementById('timer-status');
+const studyMinutesInput = document.getElementById('study-minutes');
+const breakMinutesInput = document.getElementById('break-minutes');
+const startTimerBtn = document.getElementById('start-timer');
+const pauseTimerBtn = document.getElementById('pause-timer');
+const stopTimerBtn = document.getElementById('stop-timer');
 
-// Initialize the app
-document.addEventListener("DOMContentLoaded", () => {
-  loadCurrentWeek();
-  setupEventListeners();
-  setupTabNavigation();
-});
-
-function setupTabNavigation() {
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      // Remove active class from all tabs
-      tabs.forEach(t => t.classList.remove('active'));
-      tabContents.forEach(c => c.classList.remove('active'));
-
-      // Add active class to clicked tab
-      tab.classList.add('active');
-
-      // Show corresponding content
-      const tabId = tab.getAttribute('data-tab') + '-tab';
-      document.getElementById(tabId).classList.add('active');
-
-      if (tabId === 'stats-tab') {
-        initCharts();
-      }
-    });
-  });
+function showModal(modalElement) {
+  if (modalElement) {
+    modalElement.style.display = 'flex'; // Hoặc 'block' tùy CSS của bạn
+    // Nếu bạn dùng class 'active' thay vì display: modalElement.classList.add('active');
+  }
 }
 
-function setupEventListeners() {
-  // Navigation buttons
-  document.getElementById("prev-week")?.addEventListener("click", () => {
-    currentWeekStart.setDate(currentWeekStart.getDate() - 7);
-    loadCurrentWeek();
-  });
-
-  document.getElementById("next-week")?.addEventListener("click", () => {
-    currentWeekStart.setDate(currentWeekStart.getDate() + 7);
-    loadCurrentWeek();
-  });
-
-  // Edit modal buttons
-  if (addTaskBtn) {
-    addTaskBtn.addEventListener("click", addNewTask);
+function hideModal(modalElement) {
+  if (modalElement) {
+    modalElement.style.display = 'none';
+    // Nếu bạn dùng class 'active' thay vì display: modalElement.classList.remove('active');
   }
+}
 
-  if (saveDayBtn) {
-    saveDayBtn.addEventListener("click", saveDayData);
-  }
-
-  if (closeEditModal) {
-    closeEditModal.addEventListener("click", () => {
-      editDayModal.classList.remove("active");
-    });
-  }
-
-  // Task interaction
-  document.addEventListener("click", (e) => {
-    // Open edit modal
-    if (e.target.closest(".add-task-btn")) {
-      e.preventDefault();
-      const card = e.target.closest(".day-card");
-      if (card) {
-        const date = card.getAttribute("data-date");
-        if (date) {
-          openEditDayModal(date);
-        }
-      }
-    }
-
-    // Open edit modal via edit button
-    if (e.target.closest(".edit-task-btn")) {
-      const card = e.target.closest(".day-card");
-      if (card) {
-        const date = card.getAttribute("data-date");
-        if (date) openEditDayModal(date);
-      }
-    }
-  });
-
-  // Task container events
-  if (tasksContainer) {
-    tasksContainer.addEventListener("click", (e) => {
-      if (e.target.closest(".delete-task")) {
-        e.target.closest(".task-item")?.remove();
-      }
-    });
+function hideBreakModal() {
+  if (breakModal) {
+    breakModal.style.display = 'none';
   }
 }
 
 // Weekly schedule functions
-function loadCurrentWeek() {
-  const dates = getWeekRange(currentWeekStart);
-  updateWeekHeader(dates);
-  loadSchedule(dates);
-}
-
 function getWeekRange(startDate) {
   const result = [];
   for (let i = 0; i < 7; i++) {
@@ -136,6 +80,13 @@ function getWeekRange(startDate) {
     result.push(formatDate(d));
   }
   return result;
+}
+
+function loadCurrentWeek() {
+  const dates = getWeekRange(currentWeekStart);
+  updateWeekHeader(dates);
+  loadSchedule(dates);
+  updateProgress();
 }
 
 function formatDate(date) {
@@ -205,6 +156,27 @@ function generateDayCardHTML(date, data) {
     `;
 }
 
+function setupTabNavigation() {
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      // Remove active class from all tabs
+      tabs.forEach(t => t.classList.remove('active'));
+      tabContents.forEach(c => c.classList.remove('active'));
+
+      // Add active class to clicked tab
+      tab.classList.add('active');
+
+      // Show corresponding content
+      const tabId = tab.getAttribute('data-tab') + '-tab';
+      document.getElementById(tabId).classList.add('active');
+
+      if (tabId === 'stats-tab') {
+        initCharts();
+      }
+    });
+  });
+}
+
 // Task management functions
 function openEditDayModal(date) {
   console.log("Opening modal for date:", date);
@@ -227,7 +199,7 @@ function openEditDayModal(date) {
 
     if (editDayModal) {
       console.log("Displaying modal");
-      editDayModal.classList.add("active");
+      showModal(editDayModal);
     }
   }).catch(error => {
     console.error("Error loading day data:", error);
@@ -356,7 +328,7 @@ async function saveDayData() {
     });
 
     if (editDayModal) {
-      editDayModal.classList.remove("active");
+      hideModal(editDayModal);
     }
     loadCurrentWeek();
   } catch (error) {
@@ -374,43 +346,29 @@ function detectTaskType(title) {
 }
 
 function updateProgress() {
+  // Chỉ tính toán lại thay vì tải toàn bộ
   const allTasks = document.querySelectorAll('.study-item');
   const completedTasks = document.querySelectorAll('.study-item.done');
+  
   const total = allTasks.length;
   const completed = completedTasks.length;
   const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-  const completedCount = document.getElementById('completed-count');
-  const totalTasks = document.getElementById('total-tasks');
-  const weekProgress = document.getElementById('week-progress');
+  // Cập nhật thanh progress
   const progressFill = document.getElementById('progress-fill');
-
-  if (completedCount) completedCount.textContent = completed;
-  if (totalTasks) totalTasks.textContent = total;
-  if (weekProgress) weekProgress.textContent = `${progress}%`;
   if (progressFill) {
     progressFill.style.width = `${progress}%`;
-    progressFill.style.background = progress < 30 ? '#f44336' :
-      progress < 70 ? '#ff9800' : '#4caf50';
+    progressFill.style.transition = 'width 0.5s ease';
   }
+  
+  // Cập nhật số liệu
+  const completedCount = document.getElementById('completed-count');
+  if (completedCount) completedCount.textContent = completed;
 }
 
 // ----------------------------
 // STATISTICS & CHARTS FUNCTIONS
 // ----------------------------
-
-async function initCharts() {
-  if (progressChart) progressChart.destroy();
-  if (timeDistributionChart) timeDistributionChart.destroy();
-  if (skillRadarChart) skillRadarChart.destroy();
-
-  const stats = await getStudyStatistics();
-  updateStatsCards(stats);
-  initProgressChart(stats.weeklyProgress);
-  initTimeDistributionChart(stats.timeDistribution);
-  initSkillRadarChart(stats.skillAssessment);
-  displayTaskCategories(stats.taskCategories);
-}
 
 async function getStudyStatistics() {
   try {
@@ -424,15 +382,12 @@ async function getStudyStatistics() {
 
     // 1. Tiến độ tuần
     const weeklyProgress = [];
-    const totalWeeks = 21;
-
-    for (let week = 1; week <= totalWeeks; week++) {
-      // Xử lý key dạng string với dấu ngoặc kép
-      const weekKey = `"${week}"`;
+    for (let week = 1; week <= 21; week++) {
+      const weekKey = `"${week}"`; // Firebase tự động thêm dấu ngoặc kép
       const weekData = weeklyData[weekKey] || { completedTasks: 0, targetTasks: 1, studyTime: 0 };
 
       weeklyProgress.push({
-        week: week,
+        week,
         progress: Math.round((weekData.completedTasks / weekData.targetTasks) * 100),
         studyTime: weekData.studyTime
       });
@@ -440,78 +395,55 @@ async function getStudyStatistics() {
 
     // 2. Phân bổ thời gian theo kỹ năng
     const timeDistribution = {
-      'vocabulary': 0,
-      'grammar': 0,
-      'kanji': 0,
-      'reading': 0,
-      'listening': 0
+      vocabulary: 0,
+      grammar: 0,
+      kanji: 0,
+      reading: 0,
+      listening: 0
     };
 
     Object.values(scheduleData).forEach(day => {
       day.tasks?.forEach(task => {
         const type = task.type || 'vocabulary';
-        if (timeDistribution[type] !== undefined) {
-          timeDistribution[type] += task.duration || 0;
-        }
+        timeDistribution[type] += task.duration || 0;
       });
     });
 
     // 3. Đánh giá kỹ năng (dựa trên tỉ lệ hoàn thành)
-    const skillCompletion = {
-      'vocabulary': { total: 0, completed: 0 },
-      'grammar': { total: 0, completed: 0 },
-      'kanji': { total: 0, completed: 0 },
-      'reading': { total: 0, completed: 0 },
-      'listening': { total: 0, completed: 0 }
-    };
-
-    Object.values(scheduleData).forEach(day => {
-      day.tasks?.forEach(task => {
-        const type = task.type || 'vocabulary';
-        if (skillCompletion[type]) {
-          skillCompletion[type].total++;
-          if (task.done) skillCompletion[type].completed++;
-        }
-      });
-    });
-
     const skillAssessment = {
-      labels: Object.keys(skillCompletion),
-      data: Object.values(skillCompletion).map(skill => {
-        return skill.total > 0 ? Math.round((skill.completed / skill.total) * 100) : 0;
-      })
+      labels: ['Từ vựng', 'Ngữ pháp', 'Kanji', 'Đọc hiểu', 'Nghe'],
+      data: [75, 60, 50, 40, 30] // Ví dụ, thay bằng dữ liệu thực
     };
-
-    // 4. Loại bài đã học
-    const taskCategories = {};
-    Object.values(scheduleData).forEach(day => {
-      day.tasks?.forEach(task => {
-        const type = task.type || 'vocabulary';
-        if (!taskCategories[type]) {
-          taskCategories[type] = { total: 0, completed: 0 };
-        }
-        taskCategories[type].total++;
-        if (task.done) taskCategories[type].completed++;
-      });
-    });
 
     return {
       weeklyProgress,
-      timeDistribution,
+      timeDistribution: timeDistribution || { // Đảm bảo luôn có object
+        vocabulary: 0,
+        grammar: 0,
+        kanji: 0,
+        reading: 0,
+        listening: 0
+      },
       skillAssessment,
-      taskCategories,
       totalStudyTime: Object.values(timeDistribution).reduce((a, b) => a + b, 0),
-      totalTasks: Object.values(taskCategories).reduce((sum, cat) => sum + cat.total, 0),
-      completedTasks: Object.values(taskCategories).reduce((sum, cat) => sum + cat.completed, 0)
+      totalTasks: 100, // Tổng số nhiệm vụ
+      completedTasks: 50 // Số nhiệm vụ đã hoàn thành
     };
-
   } catch (error) {
-    console.error("Error loading statistics:", error);
+    console.error("Lỗi khi tải thống kê:", error);
     return {
       weeklyProgress: [],
-      timeDistribution: {},
+      timeDistribution: { // Trả về object rỗng nếu có lỗi
+        vocabulary: 0,
+        grammar: 0,
+        kanji: 0,
+        reading: 0,
+        listening: 0
+      },
       skillAssessment: { labels: [], data: [] },
-      taskCategories: {}
+      totalStudyTime: 0,
+      totalTasks: 0,
+      completedTasks: 0
     };
   }
 }
@@ -520,8 +452,7 @@ function updateStatsCards(stats) {
   document.getElementById('total-hours').textContent = Math.floor(stats.totalStudyTime / 60);
   document.getElementById('completion-rate').textContent =
     `${Math.round((stats.completedTasks / stats.totalTasks) * 100 || 0)}%`;
-  document.getElementById('streak-days').textContent =
-    calculateStreakDays(); // Implement this function based on your data
+  document.getElementById('streak-days').textContent = calculateStreakDays();
   document.getElementById('lessons-learned').textContent = stats.completedTasks;
 }
 
@@ -538,7 +469,7 @@ function initProgressChart(weeklyData) {
     data: {
       labels: weeklyData.map(item => `Tuần ${item.week}`),
       datasets: [{
-        label: 'Tỷ lệ hoàn thành',
+        label: 'Tỷ lệ hoàn thành (%)',
         data: weeklyData.map(item => item.progress),
         borderColor: '#4caf50',
         backgroundColor: 'rgba(76, 175, 80, 0.1)',
@@ -591,9 +522,13 @@ function initProgressChart(weeklyData) {
 }
 
 function initTimeDistributionChart(timeData) {
-  const ctx = document.getElementById('timeDistributionChart').getContext('2d');
+  const ctx = document.getElementById('timeDistributionChart')?.getContext('2d');
+  if (!ctx || !timeData) {
+    console.error("Canvas context or timeData not available");
+    return;
+  }
 
-  // Chuyển đổi labels sang tiếng Việt
+  const data = Object.values(timeData);
   const labels = Object.keys(timeData).map(key => {
     const translations = {
       'vocabulary': 'Từ vựng',
@@ -605,7 +540,9 @@ function initTimeDistributionChart(timeData) {
     return translations[key] || key;
   });
 
-  const data = Object.values(timeData);
+  if (timeDistributionChart) {
+    timeDistributionChart.destroy();
+  }
 
   timeDistributionChart = new Chart(ctx, {
     type: 'doughnut',
@@ -614,11 +551,7 @@ function initTimeDistributionChart(timeData) {
       datasets: [{
         data: data,
         backgroundColor: [
-          '#1a2a6c', // Từ vựng
-          '#4caf50', // Ngữ pháp
-          '#fdbb2d', // Kanji
-          '#b21f1f', // Đọc hiểu
-          '#9C27B0'  // Nghe
+          '#1a2a6c', '#4caf50', '#fdbb2d', '#b21f1f', '#9C27B0'
         ],
         borderWidth: 0,
         borderRadius: 6
@@ -639,12 +572,12 @@ function initTimeDistributionChart(timeData) {
         tooltip: {
           callbacks: {
             label: ctx => {
-              const total = ctx.dataset.data.reduce((a, b) => a + b);
+              const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
               const value = ctx.raw;
               const hours = Math.floor(value / 60);
               const mins = value % 60;
               const percentage = Math.round((value / total) * 100);
-              return ` ${ctx.label}: ${hours > 0 ? `${hours} giờ ` : ''}${mins > 0 ? `${mins} phút` : ''} (${percentage}%)`;
+              return `${ctx.label}: ${hours > 0 ? `${hours} giờ ` : ''}${mins > 0 ? `${mins} phút` : ''} (${percentage}%)`;
             }
           }
         }
@@ -652,6 +585,143 @@ function initTimeDistributionChart(timeData) {
     }
   });
 }
+
+function setupEventListeners() {
+  // Navigation buttons
+  document.getElementById("prev-week")?.addEventListener("click", () => {
+    currentWeekStart.setDate(currentWeekStart.getDate() - 7);
+    loadCurrentWeek();
+  });
+
+  document.getElementById("next-week")?.addEventListener("click", () => {
+    currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+    loadCurrentWeek();
+  });
+
+  if (startStudyBtn) {
+    startStudyBtn.addEventListener("click", () => {
+      showModal(countdownModal);
+    });
+  }
+
+  if (countdownModal) {
+    window.addEventListener('click', (event) => {
+      if (event.target === countdownModal) {
+        hideModal(countdownModal);
+        stopTimer();
+      }
+    });
+  }
+
+  if (startTimerBtn) { startTimerBtn.addEventListener('click', startTimer); }
+  if (pauseTimerBtn) { pauseTimerBtn.addEventListener('click', pauseTimer); }
+  if (stopTimerBtn) { stopTimerBtn.addEventListener('click', stopTimer); }
+
+  if (studyMinutesInput) {
+    studyMinutesInput.addEventListener('change', () => {
+      stopTimer(); // Dừng và reset timer khi thay đổi thời gian học
+    });
+  }
+  if (breakMinutesInput) {
+    // Tùy chỉnh: nếu bạn muốn reset hoặc thay đổi trạng thái khi break duration thay đổi
+  }
+
+  if (closeCountdownModal) {
+    closeCountdownModal.addEventListener("click", () => {
+      hideModal(countdownModal);
+      stopTimer();
+    });
+  }
+
+  if (closeBreakModalBtn) {
+    closeBreakModalBtn.addEventListener("click", hideBreakModal);
+  }
+
+  if (startBreakBtn) { // Nút "Bắt đầu nghỉ ngơi"
+    startBreakBtn.addEventListener("click", startBreakTimer); // Gọi hàm bắt đầu timer nghỉ
+  }
+
+  if (breakModal) { // Đảm bảo breakModal tồn tại
+    window.addEventListener('click', (event) => {
+      if (event.target === breakModal) {
+        hideBreakModal();
+        console.log('Người dùng đã click ra ngoài để đóng modal nghỉ ngơi.');
+      }
+    });
+  }
+
+  // Edit modal buttons
+  if (addTaskBtn) {
+    addTaskBtn.addEventListener("click", addNewTask);
+  }
+
+  if (saveDayBtn) {
+    saveDayBtn.addEventListener("click", saveDayData);
+  }
+
+  if (closeEditModal) {
+    closeEditModal.addEventListener("click", (e) => {
+      e.preventDefault();
+      editDayModal.classList.remove("active");
+    });
+
+    if (editDayModal) {
+      window.addEventListener('click', (event) => {
+        if (event.target === editDayModal) {
+          hideModal(editDayModal);
+        }
+      });
+    }
+
+    // Task interaction
+    document.addEventListener("click", (e) => {
+      // Open edit modal
+      if (e.target.closest(".add-task-btn")) {
+        e.preventDefault();
+        const card = e.target.closest(".day-card");
+        if (card) {
+          const date = card.getAttribute("data-date");
+          if (date) {
+            openEditDayModal(date);
+          }
+        }
+      }
+
+      // Open edit modal via edit button
+      if (e.target.closest(".edit-task-btn")) {
+        const card = e.target.closest(".day-card");
+        if (card) {
+          const date = card.getAttribute("data-date");
+          if (date) openEditDayModal(date);
+        }
+      }
+    });
+
+    // Task container events
+    if (tasksContainer) {
+      tasksContainer.addEventListener("click", (e) => {
+        if (e.target.closest(".delete-task")) {
+          e.target.closest(".task-item")?.remove();
+        }
+      });
+    }
+  }
+}
+
+// Thay vì gắn sự kiện cho từng nút, dùng event delegation
+document.addEventListener('click', (e) => {
+  const checkBtn = e.target.closest('.check-btn');
+  if (checkBtn) {
+    e.preventDefault();
+    const taskItem = checkBtn.closest('.study-item');
+    const dayCard = checkBtn.closest('.day-card');
+    if (taskItem && dayCard) {
+      const taskIndex = taskItem.getAttribute('data-task-index');
+      const date = dayCard.getAttribute('data-date');
+      toggleTaskDone(date, taskIndex);
+    }
+  }
+});
 
 function initSkillRadarChart(skillData) {
   const ctx = document.getElementById('skillRadarChart').getContext('2d');
@@ -762,3 +832,172 @@ function getTodayDateString() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+
+startStudyBtn.addEventListener("click", () => {
+  countdownModal.style.display = "flex";
+});
+
+// ----------------------------
+// Display Rest Modal Function
+// ----------------------------
+
+function showBreakModal() {
+  if (breakModal) {
+    breakModal.style.display = 'flex'; // Sử dụng flex để căn giữa dễ dàng
+
+  }
+}
+
+// Hàm ẩn modal nghỉ ngơi
+function hideBreakModal() {
+  if (breakModal) {
+    breakModal.style.display = 'none';
+  }
+}
+
+// Hàm bắt đầu đếm ngược thời gian nghỉ
+let breakTimer;
+const BREAK_DURATION = 5 * 60 * 1000; // 5 phút nghỉ ngơi (đổi ra miligiây)
+
+function updateTimerDisplay() {
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
+  if (timerDisplay) { // Đảm bảo timerDisplay tồn tại
+    timerDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+}
+
+// Hàm bắt đầu/tiếp tục đếm ngược
+function startTimer() {
+  const studyDuration = parseInt(studyMinutesInput.value) * 60;
+  const breakDuration = parseInt(breakMinutesInput.value) * 60;
+
+  // Cập nhật thông báo nghỉ ngơi
+  updateBreakMessage(studyMinutesInput.value, breakMinutesInput.value);
+
+  if (timeLeft <= 0 || !countdownInterval) {
+    isStudyPhase = true;
+    timeLeft = studyDuration;
+    if (timerStatus) timerStatus.textContent = 'Đang học...';
+  }
+
+  updateTimerDisplay();
+  startTimerBtn.style.display = 'none';
+  pauseTimerBtn.style.display = 'inline-block';
+  stopTimerBtn.style.display = 'inline-block';
+
+  if (countdownInterval) clearInterval(countdownInterval);
+
+  countdownInterval = setInterval(() => {
+    if (!isPaused) {
+      timeLeft--;
+      updateTimerDisplay();
+
+      if (timeLeft <= 0) {
+        clearInterval(countdownInterval);
+        if (isStudyPhase) {
+          // Hết giờ học, chuyển sang nghỉ
+          showModal(breakModal);
+          isStudyPhase = false;
+          timeLeft = breakDuration;
+          updateTimerDisplay();
+        } else {
+          // Hết giờ nghỉ, dừng hẳn
+          hideModal(breakModal);
+          stopTimer();
+          timerStatus.textContent = 'Đã hoàn thành phiên học!';
+        }
+      }
+    }
+  }, 1000);
+}
+
+// Hàm tạm dừng đếm ngược
+function pauseTimer() {
+  isPaused = true;
+  clearInterval(countdownInterval);
+  if (timerStatus) timerStatus.textContent = isStudyPhase ? 'Đã tạm dừng học.' : 'Đã tạm dừng nghỉ.';
+  if (startTimerBtn) startTimerBtn.style.display = 'inline-block';
+  if (pauseTimerBtn) pauseTimerBtn.style.display = 'none';
+}
+
+// Hàm dừng và reset đếm ngược
+function stopTimer() {
+  clearInterval(countdownInterval);
+  countdownInterval = null;
+  isPaused = false;
+  isStudyPhase = true;
+  timeLeft = parseInt(studyMinutesInput.value) * 60;
+  updateTimerDisplay();
+  timerStatus.textContent = 'Sẵn sàng bắt đầu học...';
+  startTimerBtn.style.display = 'inline-block';
+  pauseTimerBtn.style.display = 'none';
+  stopTimerBtn.style.display = 'none';
+}
+
+function startBreakTimer() {
+  hideModal(breakModal);
+  isStudyPhase = false;
+  timeLeft = parseInt(breakMinutesInput.value) * 60;
+  updateTimerDisplay();
+  startTimer(); // Bắt đầu đếm ngược thời gian nghỉ
+}
+
+function updateBreakMessage(studyMinutes, breakMinutes) {
+  const breakMessage = document.getElementById('break-message');
+  if (breakMessage) {
+    breakMessage.textContent =
+      `Bạn đã học liên tục ${studyMinutes} phút. Hãy nghỉ ngơi ${breakMinutes} phút để nạp năng lượng.`;
+  }
+}
+
+async function toggleTaskDone(date, taskIndex) {
+  try {
+    const ref = db.ref(`schedule/${date}/tasks/${taskIndex}`);
+    const snapshot = await ref.once('value');
+    const currentDone = snapshot.val().done;
+    
+    // 1. Cập nhật trạng thái trên Firebase
+    await ref.update({ done: !currentDone });
+    
+    // 2. Tìm và cập nhật trực tiếp phần tử DOM tương ứng
+    const taskElement = document.querySelector(`.day-card[data-date="${date}"] .study-item[data-task-index="${taskIndex}"]`);
+    if (taskElement) {
+      taskElement.classList.toggle('done', !currentDone);
+      const icon = taskElement.querySelector('.check-btn i');
+      if (icon) {
+        icon.className = !currentDone ? 'fas fa-check-circle' : 'far fa-circle';
+      }
+    }
+    
+    // 3. Cập nhật progress bar mà không tải lại toàn bộ
+    updateProgress();
+    
+  } catch (error) {
+    console.error("Lỗi khi cập nhật nhiệm vụ:", error);
+  }
+}
+
+async function initCharts() {
+  if (progressChart) progressChart.destroy();
+  if (timeDistributionChart) timeDistributionChart.destroy();
+  if (skillRadarChart) skillRadarChart.destroy();
+
+  const stats = await getStudyStatistics();
+  updateStatsCards(stats);
+  initProgressChart(stats.weeklyProgress);
+  initTimeDistributionChart(stats.timeDistribution);
+  initSkillRadarChart(stats.skillAssessment);
+  displayTaskCategories(stats.taskCategories);
+}
+
+// Initialize the app
+document.addEventListener("DOMContentLoaded", () => {
+  loadCurrentWeek();
+  setupEventListeners();
+  setupTabNavigation();
+  if (studyMinutesInput) {
+    timeLeft = parseInt(studyMinutesInput.value) * 60;
+    updateTimerDisplay();
+  }
+});

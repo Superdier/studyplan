@@ -312,16 +312,15 @@
 
     <!-- Modal nghỉ ngơi -->
     <div class="modal" id="break-modal">
-        <div class="modal-content">
-            <span class="close-modal" id="close-break-modal">&times;</span>
-            <h2><i class="fas fa-coffee"></i> Đã đến lúc nghỉ ngơi!</h2>
-            <p>
-                Bạn đã học liên tục 45 phút. Hãy nghỉ ngơi 5-10 phút để nạp năng
-                lượng.
-            </p>
-            <button class="week-btn" id="start-break-btn">Bắt đầu nghỉ ngơi</button>
-        </div>
+    <div class="modal-content">
+        <span class="close-modal" id="close-break-modal">&times;</span>
+        <h2><i class="fas fa-coffee"></i> Đã đến lúc nghỉ ngơi!</h2>
+        <p id="break-message">
+            <!-- Nội dung sẽ được cập nhật bằng JavaScript -->
+        </p>
+        <button class="week-btn" id="start-break-btn">Bắt đầu nghỉ ngơi</button>
     </div>
+</div>
 
     <!-- Modal chỉnh sửa nhiệm vụ -->
     <div class="modal" id="edit-day-modal">
@@ -384,7 +383,7 @@
 
             <div class="rest-suggestion">
                 <p><i class="fas fa-lightbulb"></i> Sau thời gian học, bạn nên:</p>
-                <ul>
+                <ul style="list-style: none;">
                     <li>Nhắm mắt nghỉ ngơi 1 phút</li>
                     <li>Uống một ly nước</li>
                     <li>Đi bộ vài bước xung quanh</li>
@@ -392,10 +391,7 @@
             </div>
         </div>
     </div>
-    <!-- Firebase bản compat -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-
+    
     <script src="script.js"></script>
 </body>
 
