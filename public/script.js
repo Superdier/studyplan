@@ -82,6 +82,13 @@ function getWeekRange(startDate) {
   return result;
 }
 
+// Hàm tính ngày đầu tuần (Thứ 2)
+function getStartOfWeek(date = new Date()) {
+  const day = date.getDay(); // 0 (Chủ nhật) đến 6 (Thứ 7)
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Chỉnh để Thứ 2 là đầu tuần
+  return new Date(date.setDate(diff));
+}
+
 function loadCurrentWeek() {
   const dates = getWeekRange(currentWeekStart);
   updateWeekHeader(dates);
@@ -993,6 +1000,7 @@ async function initCharts() {
 
 // Initialize the app
 document.addEventListener("DOMContentLoaded", () => {
+  currentWeekStart = getStartOfWeek(); 
   loadCurrentWeek();
   setupEventListeners();
   setupTabNavigation();
