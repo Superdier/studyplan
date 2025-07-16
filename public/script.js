@@ -356,7 +356,7 @@ function updateProgress() {
   // Chỉ tính toán lại thay vì tải toàn bộ
   const allTasks = document.querySelectorAll('.study-item');
   const completedTasks = document.querySelectorAll('.study-item.done');
-  
+
   const total = allTasks.length;
   const completed = completedTasks.length;
   const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -367,10 +367,12 @@ function updateProgress() {
     progressFill.style.width = `${progress}%`;
     progressFill.style.transition = 'width 0.5s ease';
   }
-  
+
   // Cập nhật số liệu
   const completedCount = document.getElementById('completed-count');
   if (completedCount) completedCount.textContent = completed;
+  const totalCount = document.getElementById('total-tasks');
+  if (totalCount >= completedCount) totalCount.textContent = total;
 }
 
 // ----------------------------
@@ -461,6 +463,11 @@ function updateStatsCards(stats) {
     `${Math.round((stats.completedTasks / stats.totalTasks) * 100 || 0)}%`;
   document.getElementById('streak-days').textContent = calculateStreakDays();
   document.getElementById('lessons-learned').textContent = stats.completedTasks;
+  // Thêm thông tin thời gian học
+  document.getElementById('daily-study-time').textContent =
+    `${Math.floor(stats.dailyStudyTime / 60)}h${stats.dailyStudyTime % 60}m`;
+  document.getElementById('weekly-study-time').textContent =
+    `${Math.floor(stats.weeklyStudyTime / 60)}h`;
 }
 
 function calculateStreakDays() {
@@ -591,6 +598,200 @@ function initTimeDistributionChart(timeData) {
       }
     }
   });
+}
+
+async function analyzeStudyPatterns() {
+  const sessionsRef = db.ref('studySessions');
+  const sessionsSnapshot = await sessionsRef.once('value');
+  const sessionsData = sessionsSnapshot.val() || {};
+
+  // Phân bổ thời gian theo giờ trong ngày
+  const hourlyDistribution = Array(24).fill(0);
+  let totalDuration = 0;
+  let sessionCount = 0;
+
+  // Phân tích focus time
+  let longestSession = { duration: 0 };
+  const bestStudyTimes = {};
+
+  Object.keys(sessionsData).forEach(date => {
+    Object.keys(sessionsData[date]).forEach(sessionKey => {
+      const session = sessionsData[date][sessionKey];
+      if (session.end) {
+        const duration = session.duration;
+        totalDuration += duration;
+        sessionCount++;
+
+        // Phân bổ giờ
+        const hour = new Date(session.start).getHours();
+        hourlyDistribution[hour] += duration;
+
+        // Theo dõi session dài nhất
+        if (duration > longestSession.duration) {
+          longestSession = { date, start: session.start, duration };
+        }
+
+        // Thời gian học tốt nhất
+        const hourKey = `${hour}:00-${hour + 1}:00`;
+        bestStudyTimes[hourKey] = (bestStudyTimes[hourKey] || 0) + duration;
+      }
+    });
+  });
+
+  // Tìm giờ học hiệu quả nhất
+  let bestTime = { hour: '', duration: 0 };
+  Object.keys(bestStudyTimes).forEach(hour => {
+    if (bestStudyTimes[hour] > bestTime.duration) {
+      bestTime = { hour, duration: bestStudyTimes[hour] };
+    }
+  });
+
+  return {
+    totalDuration,
+    sessionCount,
+    avgDuration: totalDuration / sessionCount || 0,
+    hourlyDistribution,
+    longestSession,
+    bestTime
+  };
+}
+
+async function displayStudyAnalysis() {
+  const analysis = await analyzeStudyPatterns();
+
+  // Tạo HTML cho kết quả
+  const analysisHTML = `
+    <div class="analysis-card">
+      <h3><i class="fas fa-chart-line"></i> Phân tích học tập</h3>
+      <div class="stats-row">
+        <div class="stat">
+          <i class="fas fa-clock"></i>
+          <div>Tổng thời gian: ${Math.floor(analysis.totalDuration / 60)}h${analysis.totalDuration % 60}m</div>
+        </div>
+        <div class="stat">
+          <i class="fas fa-layer-group"></i>
+          <div>Số phiên: ${analysis.sessionCount}</div>
+        </div>
+        <div class="stat">
+          <i class="fas fa-arrows-alt-h"></i>
+          <div>Trung bình: ${Math.round(analysis.avgDuration)} phút/phiên</div>
+        </div>
+      </div>
+      
+      <h4><i class="fas fa-chart-bar"></i> Thời gian học theo giờ</h4>
+      <div class="hourly-chart">
+        ${analysis.hourlyDistribution.map((duration, hour) => `
+          <div class="hour-bar">
+            <div class="bar-label">${hour}h</div>
+            <div class="bar-container">
+              <div class="bar" style="height: ${duration / analysis.totalDuration * 200}px;"></div>
+            </div>
+            <div class="duration">${duration}m</div>
+          </div>
+        `).join('')}
+      </div>
+      
+      <div class="highlights">
+        <div class="highlight-card">
+          <i class="fas fa-crown"></i>
+          <div>Giờ học hiệu quả: ${analysis.bestTime.hour}</div>
+        </div>
+        <div class="highlight-card">
+          <i class="fas fa-trophy"></i>
+          <div>Phiên dài nhất: ${analysis.longestSession.duration} phút</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Chèn vào tab thống kê
+  const statsTab = document.getElementById('stats-tab');
+  if (statsTab) {
+    statsTab.insertAdjacentHTML('beforeend', analysisHTML);
+  }
+}
+
+// ----------------------------
+// COUNTDOWN/TIMER FUNCTIONS
+// ----------------------------
+
+// Start the session
+function startStudySession() {
+  sessionStartTime = new Date();
+
+  // Save the start time
+  const sessionKey = `session_${Date.now()}`;
+  const dateKey = formatDate(sessionStartTime);
+
+  db.ref(`studySessions/${dateKey}/${sessionKey}`).set({
+    start: sessionStartTime.getTime(),
+    end: null,
+    duration: 0,
+    type: "active"
+  });
+}
+
+// End the session
+async function endStudySession() {
+  if (!sessionStartTime) return;
+
+  const endTime = new Date();
+  const duration = Math.floor((endTime - sessionStartTime) / 60000); // phút
+  const dateKey = formatDate(sessionStartTime);
+  const sessionKey = Object.keys(sessionTimers).find(key =>
+    sessionTimers[key].start.getTime() === sessionStartTime.getTime()
+  );
+
+  if (sessionKey) {
+    // Cập nhật session
+    await db.ref(`studySessions/${dateKey}/${sessionKey}`).update({
+      end: endTime.getTime(),
+      duration: duration,
+      type: duration >= parseInt(studyMinutesInput.value) ? "completed" : "interrupted"
+    });
+
+    // Cập nhật thống kê
+    await updateStudyStats(dateKey, duration);
+  }
+
+  sessionStartTime = null;
+}
+
+// Cập nhật thống kê tổng
+async function updateStudyStats(dateKey, duration) {
+  const date = new Date(dateKey);
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const weekNumber = getWeekNumber(date);
+  const weekKey = `${year}-W${weekNumber.toString().padStart(2, '0')}`;
+  const monthKey = `${year}-${month.toString().padStart(2, '0')}`;
+
+  // Cập nhật hàng ngày
+  const dailyRef = db.ref(`userStats/daily/${monthKey}/${date.getDate()}`);
+  const dailySnapshot = await dailyRef.once('value');
+  const currentDaily = dailySnapshot.val() || 0;
+  await dailyRef.set(currentDaily + duration);
+
+  // Cập nhật hàng tuần
+  const weeklyRef = db.ref(`userStats/weekly/${weekKey}`);
+  const weeklySnapshot = await weeklyRef.once('value');
+  const currentWeekly = weeklySnapshot.val() || 0;
+  await weeklyRef.set(currentWeekly + duration);
+
+  // Cập nhật hàng tháng
+  const monthlyRef = db.ref(`userStats/monthly/${monthKey}`);
+  const monthlySnapshot = await monthlyRef.once('value');
+  const currentMonthly = monthlySnapshot.val() || 0;
+  await monthlyRef.set(currentMonthly + duration);
+}
+
+// Number of weeks in a year
+function getWeekNumber(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
 }
 
 function setupEventListeners() {
@@ -822,10 +1023,6 @@ function displayTaskCategories(categories) {
   });
 }
 
-// ----------------------------
-// TIMER FUNCTIONS
-// ----------------------------
-
 function initTimer() {
   // Timer implementation from your original code
   // ... (keep your existing timer functions)
@@ -876,6 +1073,7 @@ function updateTimerDisplay() {
 
 // Hàm bắt đầu/tiếp tục đếm ngược
 function startTimer() {
+  startStudySession();
   const studyDuration = parseInt(studyMinutesInput.value) * 60;
   const breakDuration = parseInt(breakMinutesInput.value) * 60;
 
@@ -901,6 +1099,7 @@ function startTimer() {
       updateTimerDisplay();
 
       if (timeLeft <= 0) {
+        endStudySession();
         clearInterval(countdownInterval);
         if (isStudyPhase) {
           // Hết giờ học, chuyển sang nghỉ
@@ -930,6 +1129,7 @@ function pauseTimer() {
 
 // Hàm dừng và reset đếm ngược
 function stopTimer() {
+  endStudySession();
   clearInterval(countdownInterval);
   countdownInterval = null;
   isPaused = false;
@@ -963,10 +1163,10 @@ async function toggleTaskDone(date, taskIndex) {
     const ref = db.ref(`schedule/${date}/tasks/${taskIndex}`);
     const snapshot = await ref.once('value');
     const currentDone = snapshot.val().done;
-    
+
     // 1. Cập nhật trạng thái trên Firebase
     await ref.update({ done: !currentDone });
-    
+
     // 2. Tìm và cập nhật trực tiếp phần tử DOM tương ứng
     const taskElement = document.querySelector(`.day-card[data-date="${date}"] .study-item[data-task-index="${taskIndex}"]`);
     if (taskElement) {
@@ -976,10 +1176,10 @@ async function toggleTaskDone(date, taskIndex) {
         icon.className = !currentDone ? 'fas fa-check-circle' : 'far fa-circle';
       }
     }
-    
+
     // 3. Cập nhật progress bar mà không tải lại toàn bộ
     updateProgress();
-    
+
   } catch (error) {
     console.error("Lỗi khi cập nhật nhiệm vụ:", error);
   }
@@ -996,11 +1196,30 @@ async function initCharts() {
   initTimeDistributionChart(stats.timeDistribution);
   initSkillRadarChart(stats.skillAssessment);
   displayTaskCategories(stats.taskCategories);
+  displayStudyAnalysis();
 }
+
+async function showStudyReminder() {
+  const analysis = await analyzeStudyPatterns();
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentHourKey = `${currentHour}:00-${currentHour + 1}:00`;
+
+  if (analysis.bestTime.hour === currentHourKey) {
+    // Hiển thị thông báo
+    showNotification(
+      "Thời gian học tốt nhất!",
+      `Đây là khoảng thời gian bạn học hiệu quả nhất (${analysis.bestTime.hour})`
+    );
+  }
+}
+
+// Gọi 1 lần mỗi giờ
+setInterval(showStudyReminder, 3600000);
 
 // Initialize the app
 document.addEventListener("DOMContentLoaded", () => {
-  currentWeekStart = getStartOfWeek(); 
+  currentWeekStart = getStartOfWeek();
   loadCurrentWeek();
   setupEventListeners();
   setupTabNavigation();

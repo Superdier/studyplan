@@ -206,6 +206,25 @@
                                 <div class="task-category-container" id="taskCategoryContainer"></div>
                             </div>
                         </div>
+
+                        <div class="stat-section">
+                            <div class="card">
+                                <div class="chart-header">
+                                    <h3><i class="fas fa-book"></i> Đánh giá thời gian học hiệu quả</h3>
+                                </div>
+                                <div class="stat-card">
+                                    <i class="fas fa-calendar-day fa-2x"></i>
+                                    <div class="stat-value" id="daily-study-time">0h 0m</div>
+                                    <div class="stat-label">Hôm nay</div>
+                                </div>
+
+                                <div class="stat-card">
+                                    <i class="fas fa-calendar-week fa-2x"></i>
+                                    <div class="stat-value" id="weekly-study-time">0h</div>
+                                    <div class="stat-label">Tuần này</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -281,7 +300,8 @@
                 <div class="ai-suggestion">
                     <h3><i class="fas fa-question-circle"></i> Hỏi đáp với AI</h3>
                     <p>Đặt câu hỏi về ngữ pháp, từ vựng hoặc bất kỳ thắc mắc nào:</p>
-                    <textarea style="resize: none;" class="task-input" id="ai-question" placeholder="Câu hỏi của bạn..."></textarea>
+                    <textarea style="resize: none;" class="task-input" id="ai-question"
+                        placeholder="Câu hỏi của bạn..."></textarea>
                     <button class="week-btn" id="submit-question">Gửi câu hỏi</button>
                     <div id="ai-response"
                         style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px; display: none;">
@@ -312,15 +332,15 @@
 
     <!-- Modal nghỉ ngơi -->
     <div class="modal" id="break-modal">
-    <div class="modal-content">
-        <span class="close-modal" id="close-break-modal">&times;</span>
-        <h2><i class="fas fa-coffee"></i> Đã đến lúc nghỉ ngơi!</h2>
-        <p id="break-message">
-            <!-- Nội dung sẽ được cập nhật bằng JavaScript -->
-        </p>
-        <button class="week-btn" id="start-break-btn">Bắt đầu nghỉ ngơi</button>
+        <div class="modal-content">
+            <span class="close-modal" id="close-break-modal">&times;</span>
+            <h2><i class="fas fa-coffee"></i> Đã đến lúc nghỉ ngơi!</h2>
+            <p id="break-message">
+                <!-- Nội dung sẽ được cập nhật bằng JavaScript -->
+            </p>
+            <button class="week-btn" id="start-break-btn">Bắt đầu nghỉ ngơi</button>
+        </div>
     </div>
-</div>
 
     <!-- Modal chỉnh sửa nhiệm vụ -->
     <div class="modal" id="edit-day-modal">
@@ -391,7 +411,7 @@
             </div>
         </div>
     </div>
-    
+
     <script src="script.js"></script>
 </body>
 
