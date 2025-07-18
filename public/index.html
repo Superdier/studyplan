@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JLPT N1 Study Tracker</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -97,12 +97,6 @@
                         </div>
 
                         <div class="stat-card">
-                            <i class="fas fa-check-circle fa-2x"></i>
-                            <div class="stat-value">5%</div>
-                            <div class="stat-label">Tổng tiến độ</div>
-                        </div>
-
-                        <div class="stat-card">
                             <i class="fas fa-hourglass-half fa-2x"></i>
                             <div class="stat-value">142</div>
                             <div class="stat-label">Ngày còn lại</div>
@@ -113,16 +107,22 @@
                         <h3><i class="fas fa-bookmark"></i> Tài liệu học tập</h3>
                         <ul class="resource-list" id="recommended-resources">
                             <li class="resource-item">
-                                <i class="fas fa-book"></i> Shin Kanzen Master N1 - Ngữ pháp
+                                <i class="fas fa-book"></i><a
+                                    href="https://drive.google.com/drive/folders/18pEPRYZCFwDM1mfG-Ul8LxIkrQjNuAYc?usp=sharing">
+                                    Shin Kanzen Master N1</a>
                             </li>
                             <li class="resource-item">
-                                <i class="fas fa-book"></i> Soumatome N1 - Từ vựng
+                                <i class="fas fa-book"></i><a
+                                    href="https://drive.google.com/drive/folders/1A53-PaWkIfyKqYBrDeEI3PPHnAQMUjU8?usp=sharing">
+                                    Soumatome N1</a>
                             </li>
                             <li class="resource-item">
-                                <i class="fas fa-book"></i> Try! N1 - Ngữ pháp
+                                <i class="fas fa-book"></i><a href="https://supernative.tv/ja/"> Super Native
+                                    Japanese</a>
                             </li>
                             <li class="resource-item">
-                                <i class="fas fa-book"></i> Kanji Master N1
+                                <i class="fas fa-book"></i><a href="https://flashcard-ashen-three.vercel.app/">Flashcard
+                                    Web</a>
                             </li>
                         </ul>
                     </div>
@@ -138,25 +138,25 @@
                         <div class="stats-grid">
                             <div class="stat-card">
                                 <i class="fas fa-clock fa-2x"></i>
-                                <div class="stat-value" id="total-hours">12</div>
+                                <div class="stat-value" id="total-hours">0</div>
                                 <div class="stat-label">Giờ học tổng</div>
                             </div>
 
                             <div class="stat-card">
                                 <i class="fas fa-tasks fa-2x"></i>
-                                <div class="stat-value" id="completion-rate">25%</div>
+                                <div class="stat-value" id="completion-rate">0%</div>
                                 <div class="stat-label">Tỷ lệ hoàn thành</div>
                             </div>
 
                             <div class="stat-card">
                                 <i class="fas fa-fire fa-2x"></i>
-                                <div class="stat-value" id="streak-days">5</div>
+                                <div class="stat-value" id="streak-days">0</div>
                                 <div class="stat-label">Ngày học liên tiếp</div>
                             </div>
 
                             <div class="stat-card">
                                 <i class="fas fa-check-circle fa-2x"></i>
-                                <div class="stat-value" id="lessons-learned">18</div>
+                                <div class="stat-value" id="lessons-learned">0</div>
                                 <div class="stat-label">Bài đã hoàn thành</div>
                             </div>
                         </div>
@@ -207,11 +207,13 @@
                             </div>
                         </div>
 
+                        <!-- Trong phần Đánh giá thời gian học hiệu quả -->
                         <div class="stat-section">
                             <div class="card">
                                 <div class="chart-header">
                                     <h3><i class="fas fa-book"></i> Đánh giá thời gian học hiệu quả</h3>
                                 </div>
+
                                 <div class="stat-card">
                                     <i class="fas fa-calendar-day fa-2x"></i>
                                     <div class="stat-value" id="daily-study-time">0h 0m</div>
@@ -222,6 +224,18 @@
                                     <i class="fas fa-calendar-week fa-2x"></i>
                                     <div class="stat-value" id="weekly-study-time">0h</div>
                                     <div class="stat-label">Tuần này</div>
+                                </div>
+                                <!-- 
+                                <div class="stat-card">
+                                    <i class="fas fa-chart-line fa-2x"></i>
+                                    <div class="stat-value" id="best-study-time">Chưa có dữ liệu</div>
+                                    <div class="stat-label">Giờ học hiệu quả</div>
+                                </div> -->
+
+                                <div class="stat-card">
+                                    <i class="fas fa-chart-line fa-2x"></i>
+                                    <div class="stat-value" id="max-streak">0</div>
+                                    <div class="stat-label">🏆 Kỷ lục streak</div>
                                 </div>
                             </div>
                         </div>
@@ -240,45 +254,38 @@
                     <h3><i class="fas fa-book-open"></i> Sách giáo trình</h3>
                     <ul class="resource-list">
                         <li class="resource-item">
-                            <i class="fas fa-book"></i> Shin Kanzen Master N1 - Ngữ pháp
+                            <i class="fas fa-book"></i><a
+                                href="https://drive.google.com/drive/folders/18pEPRYZCFwDM1mfG-Ul8LxIkrQjNuAYc?usp=sharing">
+                                Shin Kanzen Master N1</a>
                         </li>
                         <li class="resource-item">
-                            <i class="fas fa-book"></i> Soumatome N1 - Từ vựng
-                        </li>
-                        <li class="resource-item">
-                            <i class="fas fa-book"></i> Try! N1 - Ngữ pháp
-                        </li>
-                        <li class="resource-item">
-                            <i class="fas fa-book"></i> Kanji Master N1
+                            <i class="fas fa-book"></i><a
+                                href="https://drive.google.com/drive/folders/1A53-PaWkIfyKqYBrDeEI3PPHnAQMUjU8?usp=sharing">
+                                Soumatome N1</a>
                         </li>
                     </ul>
 
                     <h3><i class="fas fa-headphones"></i> Tài nguyên nghe</h3>
                     <ul class="resource-list">
                         <li class="resource-item">
-                            <i class="fas fa-podcast"></i> NHK News Web Easy
+                            <i class="fas fa-podcast"></i><a href="https://www3.nhk.or.jp/news/easy/"> NHK News Web Easy</a>
                         </li>
                         <li class="resource-item">
-                            <i class="fas fa-podcast"></i> Japanese Pod 101
+                            <i class="fas fa-globe"></i><a href="https://supernative.tv/ja/"> Super Native Japanese</a>
                         </li>
                         <li class="resource-item">
-                            <i class="fas fa-podcast"></i> Nihongo con Teppei
+                            <i class="fas fa-podcast"></i><a href="https://nihongoconteppei.com/"> Nihongo con Teppei</a>
                         </li>
                     </ul>
 
                     <h3><i class="fas fa-laptop"></i> Website & Ứng dụng</h3>
                     <ul class="resource-list">
                         <li class="resource-item">
-                            <i class="fas fa-globe"></i> Jisho.org (Từ điển)
+                            <i class="fas fa-mobile-alt"></i><a href="https://recall.cards/app"> Recall Card</a>
                         </li>
                         <li class="resource-item">
-                            <i class="fas fa-globe"></i> Bunpro.jp (Ngữ pháp)
-                        </li>
-                        <li class="resource-item">
-                            <i class="fas fa-mobile-alt"></i> Anki (Flashcard)
-                        </li>
-                        <li class="resource-item">
-                            <i class="fas fa-mobile-alt"></i> Kanji Study
+                            <i class="fas fa-globe"></i><a href="https://flashcard-ashen-three.vercel.app/">Flashcard
+                                Web</a>
                         </li>
                     </ul>
                 </div>
@@ -412,7 +419,7 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script src="js/script.js"></script>
 </body>
 
 </html>

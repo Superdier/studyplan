@@ -19,13 +19,17 @@ let currentWeekStart = new Date("2025-07-07");
 let currentEditingDay = null;
 
 // Chart instances
-let progressChart, timeDistributionChart, skillRadarChart;
+let progressChart = null;
+let timeDistributionChart = null;
+let skillRadarChart = null;
 
 // Global Variables for Timer
 let countdownInterval;
 let timeLeft;
 let isPaused = false;
 let isStudyPhase = true; // true: học, false: nghỉ
+let sessionStartTime = null;
+let sessionTimers = {};
 
 // DOM Elements
 const editDayModal = document.getElementById("edit-day-modal");
@@ -97,7 +101,8 @@ function loadCurrentWeek() {
 }
 
 function formatDate(date) {
-  return date.toISOString().split("T")[0];
+  const d = new Date(date);
+  return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
 }
 
 function updateWeekHeader(dates) {
@@ -363,10 +368,14 @@ function updateProgress() {
 
   // Cập nhật thanh progress
   const progressFill = document.getElementById('progress-fill');
+  const weekProgress = document.getElementById("week-progress");
+
   if (progressFill) {
     progressFill.style.width = `${progress}%`;
     progressFill.style.transition = 'width 0.5s ease';
   }
+
+  if (weekProgress) weekProgress.textContent = progress + '%';
 
   // Cập nhật số liệu
   const completedCount = document.getElementById('completed-count');
@@ -381,29 +390,14 @@ function updateProgress() {
 
 async function getStudyStatistics() {
   try {
-    const [weeklySnapshot, scheduleSnapshot] = await Promise.all([
-      db.ref('weeklyProgress').once('value'),
-      db.ref('schedule').once('value')
-    ]);
-
-    const weeklyData = weeklySnapshot.val() || {};
+    const scheduleSnapshot = await db.ref('schedule').once('value');
     const scheduleData = scheduleSnapshot.val() || {};
 
-    // 1. Tiến độ tuần
-    const weeklyProgress = [];
-    for (let week = 1; week <= 21; week++) {
-      const weekKey = `"${week}"`; // Firebase tự động thêm dấu ngoặc kép
-      const weekData = weeklyData[weekKey] || { completedTasks: 0, targetTasks: 1, studyTime: 0 };
+    // Tạo bản đồ tiến độ tuần
+    const weekProgressMap = new Map();
 
-      weeklyProgress.push({
-        week,
-        progress: Math.round((weekData.completedTasks / weekData.targetTasks) * 100),
-        studyTime: weekData.studyTime
-      });
-    }
-
-    // 2. Phân bổ thời gian theo kỹ năng
-    const timeDistribution = {
+    // Tạo bản đồ đánh giá kỹ năng
+    const skillAssessment = {
       vocabulary: 0,
       grammar: 0,
       kanji: 0,
@@ -411,58 +405,149 @@ async function getStudyStatistics() {
       listening: 0
     };
 
-    Object.values(scheduleData).forEach(day => {
-      day.tasks?.forEach(task => {
-        const type = task.type || 'vocabulary';
-        timeDistribution[type] += task.duration || 0;
+    // Tạo bản đồ phân loại bài tập
+    const taskCategories = {
+      vocabulary: { completed: 0, total: 0 },
+      grammar: { completed: 0, total: 0 },
+      kanji: { completed: 0, total: 0 },
+      reading: { completed: 0, total: 0 },
+      listening: { completed: 0, total: 0 }
+    };
+
+    // Biến tổng
+    let totalStudyTime = 0;
+    let totalTasks = 0;
+    let completedTasks = 0;
+
+    // Duyệt qua dữ liệu lịch học
+    Object.entries(scheduleData).forEach(([date, dayData]) => {
+      if (!dayData.tasks) return;
+
+      const weekNumber = dayData.weekNumber || 1;
+
+      // Khởi tạo dữ liệu tuần nếu chưa có
+      if (!weekProgressMap.has(weekNumber)) {
+        weekProgressMap.set(weekNumber, {
+          completedTasks: 0,
+          totalTasks: 0,
+          studyTime: 0
+        });
+      }
+
+      const weekData = weekProgressMap.get(weekNumber);
+
+      // Xử lý từng nhiệm vụ
+      dayData.tasks.forEach(task => {
+        // Cập nhật tổng
+        totalTasks++;
+        weekData.totalTasks++;
+
+        // Cập nhật nhiệm vụ hoàn thành
+        if (task.done) {
+          completedTasks++;
+          weekData.completedTasks++;
+
+          // Cập nhật thời gian học
+          const duration = task.duration || 0;
+          totalStudyTime += duration;
+          weekData.studyTime += duration;
+        }
+
+        // Cập nhật kỹ năng
+        if (task.type && skillAssessment[task.type] !== undefined) {
+          skillAssessment[task.type] += task.duration || 0;
+        }
+
+        // Cập nhật phân loại bài tập
+        if (task.type && taskCategories[task.type]) {
+          taskCategories[task.type].total++;
+          if (task.done) taskCategories[task.type].completed++;
+        }
       });
     });
 
-    // 3. Đánh giá kỹ năng (dựa trên tỉ lệ hoàn thành)
-    const skillAssessment = {
-      labels: ['Từ vựng', 'Ngữ pháp', 'Kanji', 'Đọc hiểu', 'Nghe'],
-      data: [75, 60, 50, 40, 30] // Ví dụ, thay bằng dữ liệu thực
-    };
+    // Tạo mảng tiến độ tuần
+    const weeklyProgress = [];
+    for (let week = 1; week <= 21; week++) {
+      const weekData = weekProgressMap.get(week) || {
+        completedTasks: 0,
+        totalTasks: 0,
+        studyTime: 0
+      };
+
+      weeklyProgress.push({
+        week,
+        progress: weekData.totalTasks > 0 ?
+          Math.round((weekData.completedTasks / weekData.totalTasks) * 100) : 0,
+        studyTime: weekData.studyTime
+      });
+    }
+
+    // Chuyển đánh giá kỹ năng sang phần trăm
+    const totalSkillTime = Object.values(skillAssessment).reduce((sum, val) => sum + val, 0);
+    if (totalSkillTime > 0) {
+      Object.keys(skillAssessment).forEach(skill => {
+        skillAssessment[skill] = Math.round((skillAssessment[skill] / totalSkillTime) * 100);
+      });
+    }
+
+    const streakInfo = await calculateStreak();
 
     return {
       weeklyProgress,
-      timeDistribution: timeDistribution || { // Đảm bảo luôn có object
-        vocabulary: 0,
-        grammar: 0,
-        kanji: 0,
-        reading: 0,
-        listening: 0
-      },
+      timeDistribution: skillAssessment,
       skillAssessment,
-      totalStudyTime: Object.values(timeDistribution).reduce((a, b) => a + b, 0),
-      totalTasks: 100, // Tổng số nhiệm vụ
-      completedTasks: 50 // Số nhiệm vụ đã hoàn thành
+      taskCategories,
+      totalStudyTime,
+      totalTasks,
+      completedTasks,
+      streakDays: streakInfo.current,
+      maxStreak: streakInfo.max,
     };
   } catch (error) {
     console.error("Lỗi khi tải thống kê:", error);
     return {
       weeklyProgress: [],
-      timeDistribution: { // Trả về object rỗng nếu có lỗi
+      timeDistribution: {
         vocabulary: 0,
         grammar: 0,
         kanji: 0,
         reading: 0,
         listening: 0
       },
-      skillAssessment: { labels: [], data: [] },
+      skillAssessment: {
+        vocabulary: 0,
+        grammar: 0,
+        kanji: 0,
+        reading: 0,
+        listening: 0
+      },
+      taskCategories: {
+        vocabulary: { completed: 0, total: 0 },
+        grammar: { completed: 0, total: 0 },
+        kanji: { completed: 0, total: 0 },
+        reading: { completed: 0, total: 0 },
+        listening: { completed: 0, total: 0 }
+      },
       totalStudyTime: 0,
       totalTasks: 0,
-      completedTasks: 0
+      completedTasks: 0,
+      streakDays: 0,
+      maxStreak: 0,
     };
   }
 }
 
-function updateStatsCards(stats) {
+async function updateStatsCards(stats) {
+  const streak = await calculateStreak();
   document.getElementById('total-hours').textContent = Math.floor(stats.totalStudyTime / 60);
   document.getElementById('completion-rate').textContent =
     `${Math.round((stats.completedTasks / stats.totalTasks) * 100 || 0)}%`;
-  document.getElementById('streak-days').textContent = calculateStreakDays();
+  document.getElementById('streak-days').textContent = streak.current;
   document.getElementById('lessons-learned').textContent = stats.completedTasks;
+
+  document.getElementById('max-streak').textContent = streak.max;
+
   // Thêm thông tin thời gian học
   document.getElementById('daily-study-time').textContent =
     `${Math.floor(stats.dailyStudyTime / 60)}h${stats.dailyStudyTime % 60}m`;
@@ -470,65 +555,134 @@ function updateStatsCards(stats) {
     `${Math.floor(stats.weeklyStudyTime / 60)}h`;
 }
 
-function calculateStreakDays() {
-  // Implement your streak calculation logic here
-  return 7; // Placeholder
+async function calculateStreak() {
+  try {
+    const [scheduleSnapshot, sessionsSnapshot] = await Promise.all([
+      db.ref('schedule').once('value'),
+      db.ref('studySessions').once('value')
+    ]);
+    
+    const scheduleData = scheduleSnapshot.val() || {};
+    const sessionsData = sessionsSnapshot.val() || {};
+    
+    // Tạo mảng các ngày có hoạt động học tập
+    const studyDates = [];
+    
+    // 1. Kiểm tra lịch học (chỉ tính ngày có ít nhất 1 nhiệm vụ hoàn thành)
+    Object.entries(scheduleData).forEach(([date, dayData]) => {
+      if (dayData.tasks && dayData.tasks.some(task => task.done)) {
+        studyDates.push(date);
+      }
+    });
+    
+    // 2. Kiểm tra phiên học (chỉ tính phiên hoàn thành)
+    Object.entries(sessionsData).forEach(([date, sessions]) => {
+      const hasCompletedSession = Object.values(sessions).some(
+        session => session.type === "completed" && (session.duration || 0) > 0
+      );
+      if (hasCompletedSession && !studyDates.includes(date)) {
+        studyDates.push(date);
+      }
+    });
+    
+    // Sắp xếp theo ngày
+    studyDates.sort();
+    
+    // Tính toán streak
+    let currentStreak = 0;
+    let maxStreak = 0;
+    let prevDate = null;
+    
+    for (const date of studyDates) {
+      const currentDate = new Date(date);
+      
+      if (prevDate === null) {
+        currentStreak = 1;
+      } else {
+        const diffDays = Math.floor((currentDate - prevDate) / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 1) {
+          currentStreak++;
+        } else if (diffDays > 1) {
+          maxStreak = Math.max(maxStreak, currentStreak);
+          currentStreak = 1; // Reset streak nếu khoảng cách > 1 ngày
+        }
+      }
+      
+      prevDate = currentDate;
+      maxStreak = Math.max(maxStreak, currentStreak);
+    }
+    
+    return {
+      current: currentStreak,
+      max: maxStreak
+    };
+  } catch (error) {
+    console.error("Lỗi khi tính streak:", error);
+    return { current: 0, max: 0 };
+  }
 }
 
 function initProgressChart(weeklyData) {
-  const ctx = document.getElementById('progressChart').getContext('2d');
+  const ctx = document.getElementById('progressChart')?.getContext('2d');
+  if (!ctx) return;
+
+  if (progressChart) {
+    progressChart.destroy();
+  }
 
   progressChart = new Chart(ctx, {
-    type: 'line',
+    type: 'bar',
     data: {
       labels: weeklyData.map(item => `Tuần ${item.week}`),
-      datasets: [{
-        label: 'Tỷ lệ hoàn thành (%)',
-        data: weeklyData.map(item => item.progress),
-        borderColor: '#4caf50',
-        backgroundColor: 'rgba(76, 175, 80, 0.1)',
-        borderWidth: 3,
-        tension: 0.4,
-        yAxisID: 'y'
-      }, {
-        label: 'Thời gian học (giờ)',
-        data: weeklyData.map(item => Math.round(item.studyTime / 60)),
-        borderColor: '#1a2a6c',
-        backgroundColor: 'rgba(26, 42, 108, 0.1)',
-        borderWidth: 3,
-        tension: 0.4,
-        yAxisID: 'y1'
-      }]
+      datasets: [
+        {
+          label: 'Tỷ lệ hoàn thành (%)',
+          data: weeklyData.map(item => item.progress),
+          backgroundColor: 'rgba(54, 162, 235, 0.7)',
+          yAxisID: 'y'
+        },
+        {
+          label: 'Thời gian học (giờ)',
+          data: weeklyData.map(item => Math.round(item.studyTime / 60)),
+          type: 'line',
+          borderColor: 'rgba(255, 99, 132, 1)',
+          backgroundColor: 'rgba(255, 99, 132, 0.2)',
+          borderWidth: 2,
+          yAxisID: 'y1'
+        }
+      ]
     },
     options: {
       responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: 'top',
-          labels: {
-            font: { size: 14 },
-            padding: 20
-          }
-        },
-        tooltip: {
-          callbacks: {
-            label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}${ctx.datasetIndex === 0 ? '%' : ' giờ'}`
-          }
-        }
-      },
       scales: {
         y: {
           beginAtZero: true,
           max: 100,
           title: { display: true, text: 'Tỷ lệ %' },
-          ticks: { callback: value => `${value}%` }
+          position: 'left'
         },
         y1: {
-          position: 'right',
           beginAtZero: true,
           title: { display: true, text: 'Giờ học' },
+          position: 'right',
           grid: { drawOnChartArea: false }
+        }
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: function (context) {
+              const label = context.dataset.label || '';
+              const value = context.parsed.y;
+
+              if (context.datasetIndex === 0) {
+                return `${label}: ${value}%`;
+              } else {
+                return `${label}: ${value} giờ`;
+              }
+            }
+          }
         }
       }
     }
@@ -601,59 +755,122 @@ function initTimeDistributionChart(timeData) {
 }
 
 async function analyzeStudyPatterns() {
-  const sessionsRef = db.ref('studySessions');
-  const sessionsSnapshot = await sessionsRef.once('value');
-  const sessionsData = sessionsSnapshot.val() || {};
+  try {
+    const snapshot = await db.ref('studySessions').once('value');
+    const sessionsData = snapshot.val() || {};
 
-  // Phân bổ thời gian theo giờ trong ngày
-  const hourlyDistribution = Array(24).fill(0);
-  let totalDuration = 0;
-  let sessionCount = 0;
+    let dailyStudyTime = 0;
+    let weeklyStudyTime = 0;
+    const hourlyStats = Array(24).fill(0);
 
-  // Phân tích focus time
-  let longestSession = { duration: 0 };
-  const bestStudyTimes = {};
+    const todayKey = formatDate(new Date());
+    const weekStart = getStartOfWeek(new Date());
 
-  Object.keys(sessionsData).forEach(date => {
-    Object.keys(sessionsData[date]).forEach(sessionKey => {
-      const session = sessionsData[date][sessionKey];
-      if (session.end) {
-        const duration = session.duration;
-        totalDuration += duration;
-        sessionCount++;
+    Object.entries(sessionsData).forEach(([date, sessions]) => {
+      const isToday = date === todayKey;
+      const isThisWeek = new Date(date) >= weekStart;
 
-        // Phân bổ giờ
-        const hour = new Date(session.start).getHours();
-        hourlyDistribution[hour] += duration;
+      Object.values(sessions).forEach(session => {
+        if (session.type !== "completed") return;
 
-        // Theo dõi session dài nhất
-        if (duration > longestSession.duration) {
-          longestSession = { date, start: session.start, duration };
+        const duration = parseInt(session.duration) || 0;
+
+        // Tính thời gian học hôm nay
+        if (isToday) dailyStudyTime += duration;
+
+        // Tính thời gian học tuần này
+        if (isThisWeek) weeklyStudyTime += duration;
+
+        // Tính thống kê theo giờ
+        if (session.start) {
+          const hour = new Date(session.start).getHours();
+          hourlyStats[hour] += duration;
         }
-
-        // Thời gian học tốt nhất
-        const hourKey = `${hour}:00-${hour + 1}:00`;
-        bestStudyTimes[hourKey] = (bestStudyTimes[hourKey] || 0) + duration;
-      }
+      });
     });
-  });
 
-  // Tìm giờ học hiệu quả nhất
-  let bestTime = { hour: '', duration: 0 };
-  Object.keys(bestStudyTimes).forEach(hour => {
-    if (bestStudyTimes[hour] > bestTime.duration) {
-      bestTime = { hour, duration: bestStudyTimes[hour] };
+    // Tìm giờ học hiệu quả nhất
+    let maxHour = -1;
+    let maxDuration = 0;
+    for (let hour = 0; hour < 24; hour++) {
+      if (hourlyStats[hour] > maxDuration) {
+        maxDuration = hourlyStats[hour];
+        maxHour = hour;
+      }
     }
-  });
 
-  return {
-    totalDuration,
-    sessionCount,
-    avgDuration: totalDuration / sessionCount || 0,
-    hourlyDistribution,
-    longestSession,
-    bestTime
-  };
+    const bestTime = maxHour >= 0 ?
+      { hour: `${maxHour}:00-${maxHour + 1}:00`, duration: maxDuration } :
+      null;
+
+    return {
+      dailyStudyTime: dailyStudyTime || 0,
+      weeklyStudyTime: weeklyStudyTime || 0,
+      bestTime: bestTime || "Chưa có dữ liệu"
+    };
+  } catch (error) {
+    console.error("Lỗi phân tích dữ liệu:", error);
+    return {
+      dailyStudyTime: 0,
+      weeklyStudyTime: 0,
+      bestTime: "Chưa có dữ liệu"
+    };
+  }
+}
+
+async function displayEffectiveStudyTime() {
+  const dailyEl = document.getElementById('daily-study-time');
+  const weeklyEl = document.getElementById('weekly-study-time');
+  const bestTimeEl = document.getElementById('best-study-time');
+
+  if (!dailyEl || !weeklyEl || !bestTimeEl) return;
+
+  try {
+    const analysis = await analyzeStudyPatterns();
+
+    // Hiển thị thời gian học hôm nay
+    const dailyMins = analysis.dailyStudyTime || 0;
+    if (dailyMins > 0) {
+      const hours = Math.floor(dailyMins / 60);
+      const mins = dailyMins % 60;
+
+      if (hours > 0) {
+        dailyEl.textContent = mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+      } else {
+        dailyEl.textContent = `${mins}m`;
+      }
+    } else {
+      dailyEl.textContent = "0m";
+    }
+
+    // Hiển thị thời gian học tuần này
+    const weeklyMins = analysis.weeklyStudyTime || 0;
+    if (weeklyMins > 0) {
+      const hours = Math.floor(weeklyMins / 60);
+      const mins = weeklyMins % 60;
+
+      if (hours > 0) {
+        weeklyEl.textContent = mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+      } else {
+        weeklyEl.textContent = `${mins}m`;
+      }
+    } else {
+      weeklyEl.textContent = "0h";
+    }
+
+    // Hiển thị giờ học hiệu quả
+    if (analysis.bestTime && analysis.bestTime.duration > 0) {
+      bestTimeEl.textContent = analysis.bestTime.hour;
+    } else {
+      bestTimeEl.textContent = "Chưa có dữ liệu";
+    }
+
+  } catch (error) {
+    console.error("Lỗi khi hiển thị thời gian học hiệu quả:", error);
+    dailyEl.textContent = "0m";
+    weeklyEl.textContent = "0h";
+    bestTimeEl.textContent = "Chưa có dữ liệu";
+  }
 }
 
 async function displayStudyAnalysis() {
@@ -718,11 +935,18 @@ async function displayStudyAnalysis() {
 // Start the session
 function startStudySession() {
   sessionStartTime = new Date();
-
-  // Save the start time
   const sessionKey = `session_${Date.now()}`;
   const dateKey = formatDate(sessionStartTime);
 
+  // Lưu thông tin session vào sessionTimers
+  sessionTimers[sessionKey] = {
+    start: sessionStartTime,
+    end: null,
+    duration: 0,
+    type: "active"
+  };
+
+  // Lưu lên Firebase
   db.ref(`studySessions/${dateKey}/${sessionKey}`).set({
     start: sessionStartTime.getTime(),
     end: null,
@@ -738,11 +962,11 @@ async function endStudySession() {
   const endTime = new Date();
   const duration = Math.floor((endTime - sessionStartTime) / 60000); // phút
   const dateKey = formatDate(sessionStartTime);
-  const sessionKey = Object.keys(sessionTimers).find(key =>
-    sessionTimers[key].start.getTime() === sessionStartTime.getTime()
-  );
+  
+  // Tạo sessionKey mới nếu không tìm thấy trong sessionTimers
+  const sessionKey = `session_${Date.now()}`;
 
-  if (sessionKey) {
+  try {
     // Cập nhật session
     await db.ref(`studySessions/${dateKey}/${sessionKey}`).update({
       end: endTime.getTime(),
@@ -752,6 +976,8 @@ async function endStudySession() {
 
     // Cập nhật thống kê
     await updateStudyStats(dateKey, duration);
+  } catch (error) {
+    console.error("Lỗi khi kết thúc phiên học:", error);
   }
 
   sessionStartTime = null;
@@ -792,6 +1018,21 @@ function getWeekNumber(date) {
   d.setDate(d.getDate() + 4 - (d.getDay() || 7));
   const yearStart = new Date(d.getFullYear(), 0, 1);
   return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+}
+
+function updateRemainingDays() {
+  const examDate = new Date("2025-12-06");
+  const today = new Date();
+  
+  // Tính số ngày còn lại (không tính ngày hiện tại)
+  const diffTime = examDate - today;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+  
+  // Cập nhật lên giao diện
+  const remainingDaysElement = document.querySelector('.stat-card:nth-child(4) .stat-value');
+  if (remainingDaysElement) {
+    remainingDaysElement.textContent = diffDays > 0 ? diffDays : "0";
+  }
 }
 
 function setupEventListeners() {
@@ -932,47 +1173,44 @@ document.addEventListener('click', (e) => {
 });
 
 function initSkillRadarChart(skillData) {
-  const ctx = document.getElementById('skillRadarChart').getContext('2d');
+  const ctx = document.getElementById('skillRadarChart')?.getContext('2d');
+  if (!ctx) return;
 
-  // Tạo mảng màu cho từng kỹ năng
-  const backgroundColors = skillData.data.map((_, i) => {
-    const opacity = 0.2 + (i * 0.15);
-    return `rgba(26, 42, 108, ${opacity})`;
+  if (skillRadarChart) {
+    skillRadarChart.destroy();
+  }
+
+  const labels = Object.keys(skillData).map(key => {
+    const translations = {
+      'vocabulary': 'Từ vựng',
+      'grammar': 'Ngữ pháp',
+      'kanji': 'Kanji',
+      'reading': 'Đọc hiểu',
+      'listening': 'Nghe'
+    };
+    return translations[key] || key;
   });
 
   skillRadarChart = new Chart(ctx, {
     type: 'radar',
     data: {
-      labels: skillData.labels.map(label => {
-        // Chuyển đổi label sang tiếng Việt
-        const translations = {
-          'vocabulary': 'Từ vựng',
-          'grammar': 'Ngữ pháp',
-          'kanji': 'Kanji',
-          'reading': 'Đọc hiểu',
-          'listening': 'Nghe'
-        };
-        return translations[label] || label;
-      }),
+      labels: labels,
       datasets: [{
-        label: 'Tỉ lệ hoàn thành',
-        data: skillData.data,
-        backgroundColor: backgroundColors,
-        borderColor: '#1a2a6c',
-        borderWidth: 2,
-        pointBackgroundColor: '#1a2a6c',
+        label: 'Tỷ lệ thời gian học',
+        data: Object.values(skillData),
+        backgroundColor: 'rgba(26, 42, 108, 0.2)',
+        borderColor: 'rgba(26, 42, 108, 1)',
+        pointBackgroundColor: 'rgba(26, 42, 108, 1)',
         pointBorderColor: '#fff',
         pointHoverBackgroundColor: '#fff',
-        pointHoverBorderColor: '#1a2a6c'
+        pointHoverBorderColor: 'rgba(26, 42, 108, 1)'
       }]
     },
     options: {
-      responsive: true,
       scales: {
         r: {
-          angleLines: { color: 'rgba(0, 0, 0, 0.1)' },
-          suggestedMin: 0,
-          suggestedMax: 100,
+          beginAtZero: true,
+          max: 100,
           ticks: {
             stepSize: 20,
             callback: value => `${value}%`
@@ -980,10 +1218,9 @@ function initSkillRadarChart(skillData) {
         }
       },
       plugins: {
-        legend: { position: 'top' },
         tooltip: {
           callbacks: {
-            label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}%`
+            label: context => ` ${context.label}: ${context.raw}%`
           }
         }
       }
@@ -993,6 +1230,8 @@ function initSkillRadarChart(skillData) {
 
 function displayTaskCategories(categories) {
   const container = document.getElementById('taskCategoryContainer');
+  if (!container) return;
+
   container.innerHTML = '';
 
   const translations = {
@@ -1003,22 +1242,22 @@ function displayTaskCategories(categories) {
     'listening': 'Nghe'
   };
 
-  Object.entries(categories).forEach(([name, stats]) => {
-    const displayName = translations[name] || name;
-    const progress = Math.round((stats.completed / stats.total) * 100) || 0;
+  Object.entries(categories).forEach(([type, stats]) => {
+    const displayName = translations[type] || type;
+    const progress = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
 
     const card = document.createElement('div');
     card.className = 'task-category-card';
     card.innerHTML = `
-            <h4><i class="fas fa-book-open"></i> ${displayName}</h4>
-            <div class="task-category-stats">
-                <span>${stats.completed}/${stats.total} bài</span>
-                <span>${Math.round(stats.completed / stats.total * 100)}% hoàn thành</span>
-            </div>
-            <div class="task-category-progress">
-                <div class="task-category-progress-bar" style="width: ${progress}%"></div>
-            </div>
-        `;
+      <h4><i class="fas fa-book"></i> ${displayName}</h4>
+      <div class="task-category-stats">
+        <span>${stats.completed}/${stats.total} bài</span>
+        <span>${progress}% hoàn thành</span>
+      </div>
+      <div class="task-category-progress">
+        <div class="task-category-progress-bar" style="width: ${progress}%"></div>
+      </div>
+    `;
     container.appendChild(card);
   });
 }
@@ -1066,13 +1305,23 @@ const BREAK_DURATION = 5 * 60 * 1000; // 5 phút nghỉ ngơi (đổi ra miligi�
 function updateTimerDisplay() {
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
-  if (timerDisplay) { // Đảm bảo timerDisplay tồn tại
+  if (timerDisplay) {
     timerDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   }
 }
 
 // Hàm bắt đầu/tiếp tục đếm ngược
 function startTimer() {
+  // Nếu đang tạm dừng thì tiếp tục
+  if (isPaused) {
+    isPaused = false;
+    startTimerBtn.style.display = 'none';
+    pauseTimerBtn.style.display = 'inline-block';
+    countdownInterval = setInterval(updateTimer, 1000);
+    return;
+  }
+
+  // Bắt đầu phiên học mới
   startStudySession();
   const studyDuration = parseInt(studyMinutesInput.value) * 60;
   const breakDuration = parseInt(breakMinutesInput.value) * 60;
@@ -1080,38 +1329,38 @@ function startTimer() {
   // Cập nhật thông báo nghỉ ngơi
   updateBreakMessage(studyMinutesInput.value, breakMinutesInput.value);
 
-  if (timeLeft <= 0 || !countdownInterval) {
-    isStudyPhase = true;
-    timeLeft = studyDuration;
-    if (timerStatus) timerStatus.textContent = 'Đang học...';
-  }
+  // Reset thời gian
+  isStudyPhase = true;
+  timeLeft = studyDuration;
+  if (timerStatus) timerStatus.textContent = 'Đang học...';
 
+  // Cập nhật hiển thị
   updateTimerDisplay();
   startTimerBtn.style.display = 'none';
   pauseTimerBtn.style.display = 'inline-block';
   stopTimerBtn.style.display = 'inline-block';
 
+  // Xóa interval cũ nếu có
   if (countdownInterval) clearInterval(countdownInterval);
 
+  // Bắt đầu interval mới
   countdownInterval = setInterval(() => {
     if (!isPaused) {
       timeLeft--;
       updateTimerDisplay();
 
       if (timeLeft <= 0) {
-        endStudySession();
-        clearInterval(countdownInterval);
         if (isStudyPhase) {
           // Hết giờ học, chuyển sang nghỉ
-          showModal(breakModal);
           isStudyPhase = false;
           timeLeft = breakDuration;
-          updateTimerDisplay();
+          if (timerStatus) timerStatus.textContent = 'Đang nghỉ...';
+          showModal(breakModal);
         } else {
           // Hết giờ nghỉ, dừng hẳn
           hideModal(breakModal);
           stopTimer();
-          timerStatus.textContent = 'Đã hoàn thành phiên học!';
+          if (timerStatus) timerStatus.textContent = 'Đã hoàn thành phiên học!';
         }
       }
     }
@@ -1123,8 +1372,8 @@ function pauseTimer() {
   isPaused = true;
   clearInterval(countdownInterval);
   if (timerStatus) timerStatus.textContent = isStudyPhase ? 'Đã tạm dừng học.' : 'Đã tạm dừng nghỉ.';
-  if (startTimerBtn) startTimerBtn.style.display = 'inline-block';
-  if (pauseTimerBtn) pauseTimerBtn.style.display = 'none';
+  startTimerBtn.style.display = 'inline-block';
+  pauseTimerBtn.style.display = 'none';
 }
 
 // Hàm dừng và reset đếm ngược
@@ -1136,18 +1385,43 @@ function stopTimer() {
   isStudyPhase = true;
   timeLeft = parseInt(studyMinutesInput.value) * 60;
   updateTimerDisplay();
-  timerStatus.textContent = 'Sẵn sàng bắt đầu học...';
+  if (timerStatus) timerStatus.textContent = 'Sẵn sàng bắt đầu học...';
   startTimerBtn.style.display = 'inline-block';
   pauseTimerBtn.style.display = 'none';
   stopTimerBtn.style.display = 'none';
+  
+  // Xóa tất cả session timers
+  sessionTimers = {};
 }
 
 function startBreakTimer() {
   hideModal(breakModal);
   isStudyPhase = false;
   timeLeft = parseInt(breakMinutesInput.value) * 60;
+  if (timerStatus) timerStatus.textContent = 'Đang nghỉ...';
   updateTimerDisplay();
   startTimer(); // Bắt đầu đếm ngược thời gian nghỉ
+}
+
+function updateTimer() {
+  if (!isPaused) {
+    timeLeft--;
+    updateTimerDisplay();
+
+    if (timeLeft <= 0) {
+      clearInterval(countdownInterval);
+      if (isStudyPhase) {
+        // Hết giờ học, chuyển sang nghỉ
+        isStudyPhase = false;
+        timeLeft = parseInt(breakMinutesInput.value) * 60;
+        if (timerStatus) timerStatus.textContent = 'Đang nghỉ...';
+        showModal(breakModal);
+      } else {
+        // Hết giờ nghỉ, dừng hẳn
+        stopTimer();
+      }
+    }
+  }
 }
 
 function updateBreakMessage(studyMinutes, breakMinutes) {
@@ -1177,18 +1451,44 @@ async function toggleTaskDone(date, taskIndex) {
       }
     }
 
+    const newStreak = await calculateStreak();
+    updateStreakDisplay(newStreak);
+
     // 3. Cập nhật progress bar mà không tải lại toàn bộ
     updateProgress();
+
+    // 4. Cập nhật thống kê và biểu đồ khi chuyển tab
+    const activeTab = document.querySelector('.tab.active');
+    if (activeTab && activeTab.dataset.tab === 'stats') {
+      initCharts();
+    }
 
   } catch (error) {
     console.error("Lỗi khi cập nhật nhiệm vụ:", error);
   }
 }
 
+function updateStreakDisplay(streakData) {
+  const streakElement = document.getElementById('streak-days');
+  if (streakElement) {
+    streakElement.textContent = streakData.current;
+  }
+}
+
 async function initCharts() {
-  if (progressChart) progressChart.destroy();
-  if (timeDistributionChart) timeDistributionChart.destroy();
-  if (skillRadarChart) skillRadarChart.destroy();
+  // Hủy biểu đồ cũ nếu tồn tại
+  if (progressChart) {
+    progressChart.destroy();
+    progressChart = null;
+  }
+  if (timeDistributionChart) {
+    timeDistributionChart.destroy();
+    timeDistributionChart = null;
+  }
+  if (skillRadarChart) {
+    skillRadarChart.destroy();
+    skillRadarChart = null;
+  }
 
   const stats = await getStudyStatistics();
   updateStatsCards(stats);
@@ -1196,7 +1496,7 @@ async function initCharts() {
   initTimeDistributionChart(stats.timeDistribution);
   initSkillRadarChart(stats.skillAssessment);
   displayTaskCategories(stats.taskCategories);
-  displayStudyAnalysis();
+  await displayEffectiveStudyTime();
 }
 
 async function showStudyReminder() {
@@ -1217,12 +1517,29 @@ async function showStudyReminder() {
 // Gọi 1 lần mỗi giờ
 setInterval(showStudyReminder, 3600000);
 
+// Thêm listener để cập nhật streak khi dữ liệu thay đổi
+function setupRealTimeListeners() {
+  // Lắng nghe thay đổi trong schedule
+  db.ref('schedule').on('value', async () => {
+    const newStreak = await calculateStreak();
+    updateStreakDisplay(newStreak);
+  });
+  
+  // Lắng nghe thay đổi trong studySessions
+  db.ref('studySessions').on('value', async () => {
+    const newStreak = await calculateStreak();
+    updateStreakDisplay(newStreak);
+  });
+}
+
 // Initialize the app
 document.addEventListener("DOMContentLoaded", () => {
   currentWeekStart = getStartOfWeek();
   loadCurrentWeek();
+  updateRemainingDays();
   setupEventListeners();
   setupTabNavigation();
+  setupRealTimeListeners();
   if (studyMinutesInput) {
     timeLeft = parseInt(studyMinutesInput.value) * 60;
     updateTimerDisplay();
