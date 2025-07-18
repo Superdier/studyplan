@@ -1029,7 +1029,7 @@ function updateRemainingDays() {
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
   
   // Cập nhật lên giao diện
-  const remainingDaysElement = document.querySelector('.stat-card:nth-child(4) .stat-value');
+  const remainingDaysElement = document.querySelector('.stat-card:nth-child(3) .stat-value');
   if (remainingDaysElement) {
     remainingDaysElement.textContent = diffDays > 0 ? diffDays : "0";
   }
@@ -1535,8 +1535,8 @@ function setupRealTimeListeners() {
 // Initialize the app
 document.addEventListener("DOMContentLoaded", () => {
   currentWeekStart = getStartOfWeek();
-  loadCurrentWeek();
   updateRemainingDays();
+  loadCurrentWeek();
   setupEventListeners();
   setupTabNavigation();
   setupRealTimeListeners();
