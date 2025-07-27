@@ -472,6 +472,16 @@ h1 {
   color: #333;
 }
 
+#countdown-modal {
+  display: none;
+  position: fixed;
+}
+
+#break-modal {
+  display: none;
+  position: fixed;
+}
+
 /* Form Styles */
 .form-group {
   margin: 15px 0;
@@ -1046,4 +1056,17 @@ footer {
 .stat-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.notification-badge {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #4CAF50;
+  color: white;
+  padding: 15px;
+  border-radius: 5px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  display: none;
 }

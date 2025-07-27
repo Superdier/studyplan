@@ -17,6 +17,8 @@ const db = firebase.database();
 // App Variables
 let currentWeekStart = new Date("2025-07-07");
 let currentEditingDay = null;
+let notificationAudio = null;
+let isManualClose = false; // Theo dõi trạng thái đóng modal
 
 // Chart instances
 let progressChart = null;
@@ -30,6 +32,8 @@ let isPaused = false;
 let isStudyPhase = true; // true: học, false: nghỉ
 let sessionStartTime = null;
 let sessionTimers = {};
+let timerStartTime = null; // Thêm biến lưu thời điểm bắt đầu
+let timerDuration = 0;     // Tổng thời gian đếm ngược (giây)
 
 // DOM Elements
 const editDayModal = document.getElementById("edit-day-modal");
@@ -56,16 +60,25 @@ const pauseTimerBtn = document.getElementById('pause-timer');
 const stopTimerBtn = document.getElementById('stop-timer');
 
 function showModal(modalElement) {
+  if (!modalElement) return;
+
   if (modalElement) {
-    modalElement.style.display = 'flex'; // Hoặc 'block' tùy CSS của bạn
-    // Nếu bạn dùng class 'active' thay vì display: modalElement.classList.add('active');
+    // Ẩn tất cả modal khác trước
+    document.querySelectorAll('.modal').forEach(modal => {
+      modal.style.display = 'none';
+    });
+    modalElement.style.display = 'flex';
+    modalElement.style.zIndex = '1000';
   }
 }
 
 function hideModal(modalElement) {
   if (modalElement) {
     modalElement.style.display = 'none';
-    // Nếu bạn dùng class 'active' thay vì display: modalElement.classList.remove('active');
+    stopNotificationSound();
+    if (modalElement === breakModal) {
+      isManualClose = true;
+    }
   }
 }
 
@@ -1083,17 +1096,30 @@ function setupEventListeners() {
   }
 
   if (closeBreakModalBtn) {
-    closeBreakModalBtn.addEventListener("click", hideBreakModal);
-  }
+  closeBreakModalBtn.addEventListener('click', () => {
+    hideModal(breakModal);
+    stopNotificationSound(); // Dừng âm thanh
+  });
+}
 
-  if (startBreakBtn) { // Nút "Bắt đầu nghỉ ngơi"
-    startBreakBtn.addEventListener("click", startBreakTimer); // Gọi hàm bắt đầu timer nghỉ
-  }
+  if (startBreakBtn) {
+  startBreakBtn.addEventListener('click', () => {
+    // Ẩn modal nghỉ
+    hideModal(breakModal);
+    
+    // Hiển thị modal đếm ngược
+    showModal(countdownModal);
+    
+    // Bắt đầu timer nghỉ
+    startBreakTimer();
+  });
+}
 
   if (breakModal) { // Đảm bảo breakModal tồn tại
     window.addEventListener('click', (event) => {
       if (event.target === breakModal) {
         hideBreakModal();
+        stopNotificationSound(); 
         console.log('Người dùng đã click ra ngoài để đóng modal nghỉ ngơi.');
       }
     });
@@ -1284,10 +1310,14 @@ startStudyBtn.addEventListener("click", () => {
 // Display Rest Modal Function
 // ----------------------------
 
+
+// Hàm bắt đầu đếm ngược thời gian nghỉ
+let breakTimer;
+const BREAK_DURATION = 5 * 60 * 1000; // 5 phút nghỉ ngơi (đổi ra miligiây)
+
 function showBreakModal() {
   if (breakModal) {
     breakModal.style.display = 'flex'; // Sử dụng flex để căn giữa dễ dàng
-
   }
 }
 
@@ -1295,12 +1325,11 @@ function showBreakModal() {
 function hideBreakModal() {
   if (breakModal) {
     breakModal.style.display = 'none';
+    stopTimer();
+    stopNotificationSound();
+    console.log('Dừng nghỉ ngơi và tắt âm ');
   }
 }
-
-// Hàm bắt đầu đếm ngược thời gian nghỉ
-let breakTimer;
-const BREAK_DURATION = 5 * 60 * 1000; // 5 phút nghỉ ngơi (đổi ra miligiây)
 
 function updateTimerDisplay() {
   const minutes = Math.floor(timeLeft / 60);
@@ -1310,61 +1339,55 @@ function updateTimerDisplay() {
   }
 }
 
-// Hàm bắt đầu/tiếp tục đếm ngược
-function startTimer() {
-  // Nếu đang tạm dừng thì tiếp tục
-  if (isPaused) {
-    isPaused = false;
-    startTimerBtn.style.display = 'none';
-    pauseTimerBtn.style.display = 'inline-block';
-    countdownInterval = setInterval(updateTimer, 1000);
-    return;
+// Khi hiển thị modal nghỉ
+function showBreakModal() {
+  showModal(breakModal);
+  if (countdownModal) {
+    countdownModal.style.zIndex = '900'; // Thấp hơn modal nghỉ
   }
+}
 
-  // Bắt đầu phiên học mới
-  startStudySession();
-  const studyDuration = parseInt(studyMinutesInput.value) * 60;
-  const breakDuration = parseInt(breakMinutesInput.value) * 60;
+// Khi hiển thị modal đếm ngược
+function showCountdownModal() {
+  showModal(countdownModal);
+  if (breakModal) {
+    breakModal.style.zIndex = '900'; // Thấp hơn modal đếm ngược
+  }
+}
 
-  // Cập nhật thông báo nghỉ ngơi
-  updateBreakMessage(studyMinutesInput.value, breakMinutesInput.value);
-
-  // Reset thời gian
-  isStudyPhase = true;
-  timeLeft = studyDuration;
-  if (timerStatus) timerStatus.textContent = 'Đang học...';
-
-  // Cập nhật hiển thị
+function startTimer() {
+  if (isPaused) {
+    // Tiếp tục từ thời gian còn lại khi pause
+    timerStartTime = new Date().getTime() - (timerDuration - timeLeft) * 1000;
+    isPaused = false;
+  } else {
+    // Bắt đầu phiên mới
+    startStudySession();
+    timerDuration = isStudyPhase 
+      ? parseInt(studyMinutesInput.value) * 60 
+      : parseInt(breakMinutesInput.value) * 60;
+    timerStartTime = new Date().getTime();
+  }
+  console.log('Bắt đầu đếm ngược');
   updateTimerDisplay();
   startTimerBtn.style.display = 'none';
   pauseTimerBtn.style.display = 'inline-block';
   stopTimerBtn.style.display = 'inline-block';
 
-  // Xóa interval cũ nếu có
   if (countdownInterval) clearInterval(countdownInterval);
-
-  // Bắt đầu interval mới
+  
   countdownInterval = setInterval(() => {
     if (!isPaused) {
-      timeLeft--;
-      updateTimerDisplay();
+      const now = new Date().getTime();
+      const elapsed = Math.floor((now - timerStartTime) / 1000);
+      timeLeft = timerDuration - elapsed;
 
       if (timeLeft <= 0) {
-        if (isStudyPhase) {
-          // Hết giờ học, chuyển sang nghỉ
-          isStudyPhase = false;
-          timeLeft = breakDuration;
-          if (timerStatus) timerStatus.textContent = 'Đang nghỉ...';
-          showModal(breakModal);
-        } else {
-          // Hết giờ nghỉ, dừng hẳn
-          hideModal(breakModal);
-          stopTimer();
-          if (timerStatus) timerStatus.textContent = 'Đã hoàn thành phiên học!';
-        }
+        handleTimerCompletion();
       }
+      updateTimerDisplay();
     }
-  }, 1000);
+  }, 200); // Cập nhật thường xuyên hơn để chính xác
 }
 
 // Hàm tạm dừng đếm ngược
@@ -1374,6 +1397,7 @@ function pauseTimer() {
   if (timerStatus) timerStatus.textContent = isStudyPhase ? 'Đã tạm dừng học.' : 'Đã tạm dừng nghỉ.';
   startTimerBtn.style.display = 'inline-block';
   pauseTimerBtn.style.display = 'none';
+  console.log('Tạm dừng đếm ngược');
 }
 
 // Hàm dừng và reset đếm ngược
@@ -1389,18 +1413,26 @@ function stopTimer() {
   startTimerBtn.style.display = 'inline-block';
   pauseTimerBtn.style.display = 'none';
   stopTimerBtn.style.display = 'none';
-  
+
+  console.log('Dừng đếm ngược');
+  stopNotificationSound();
+  console.log('Dừng âm thanh');
   // Xóa tất cả session timers
-  sessionTimers = {};
+  // sessionTimers = {};
 }
 
 function startBreakTimer() {
   hideModal(breakModal);
   isStudyPhase = false;
   timeLeft = parseInt(breakMinutesInput.value) * 60;
+  timerStartTime = new Date().getTime();
+  
+  showModal(countdownModal);
+  
   if (timerStatus) timerStatus.textContent = 'Đang nghỉ...';
   updateTimerDisplay();
-  startTimer(); // Bắt đầu đếm ngược thời gian nghỉ
+  startTimer();
+   console.log('Chuyển sang nghỉ');
 }
 
 function updateTimer() {
@@ -1416,9 +1448,11 @@ function updateTimer() {
         timeLeft = parseInt(breakMinutesInput.value) * 60;
         if (timerStatus) timerStatus.textContent = 'Đang nghỉ...';
         showModal(breakModal);
+        console.log('Hết giờ học, chuyển sang nghỉ:', timeLeft);
       } else {
         // Hết giờ nghỉ, dừng hẳn
         stopTimer();
+        console.log('Hết giờ nghỉ, dừng hẳn');
       }
     }
   }
@@ -1431,6 +1465,10 @@ function updateBreakMessage(studyMinutes, breakMinutes) {
       `Bạn đã học liên tục ${studyMinutes} phút. Hãy nghỉ ngơi ${breakMinutes} phút để nạp năng lượng.`;
   }
 }
+
+//////////////////////
+// TASK MANAGEMENT ///
+//////////////////////
 
 async function toggleTaskDone(date, taskIndex) {
   try {
@@ -1514,8 +1552,112 @@ async function showStudyReminder() {
   }
 }
 
+//////////////////////
+//   NOTIFICATION  ///
+//////////////////////
+function showNotification(title, message) {
+  // Kiểm tra trình duyệt hỗ trợ Notification
+  if (!("Notification" in window)) {
+    console.log("Trình duyệt không hỗ trợ thông báo");
+    return;
+  }
+
+  // Kiểm tra quyền hiển thị thông báo
+  if (Notification.permission === "granted") {
+    new Notification(title, { body: message });
+  } 
+  // Nếu chưa có quyền, yêu cầu quyền
+  else if (Notification.permission !== "denied") {
+    Notification.requestPermission().then(permission => {
+      if (permission === "granted") {
+        new Notification(title, { body: message });
+      }
+    });
+  }
+}
+
+// SOUND
+function playNotificationSound() {
+  try {
+    if (notificationAudio) {
+      notificationAudio.pause();
+      notificationAudio.currentTime = 0;
+    }
+    
+    notificationAudio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3');
+    
+    // Thêm xử lý promise
+    const playPromise = notificationAudio.play();
+    
+    if (playPromise !== undefined) {
+      playPromise.catch(error => {
+        // Chỉ log lỗi nếu không phải do interrupt
+        if (error.name !== 'AbortError') {
+          console.error("Lỗi phát âm thanh:", error);
+        }
+      });
+    }
+    console.log('Phát âm thanh!');
+  } catch (error) {
+    console.error("Lỗi khi phát âm thanh:", error);
+  }
+}
+
+function stopNotificationSound() {
+  if (notificationAudio) {
+    notificationAudio.pause();
+    console.log('Dừng âm thanh thông báo.');
+    notificationAudio.currentTime = 0;
+  }
+}
+
+function handleTimerCompletion() {
+  clearInterval(countdownInterval);
+  
+  if (isStudyPhase) {
+    // Chuyển sang trạng thái nghỉ
+    isStudyPhase = false;
+    timerDuration = parseInt(breakMinutesInput.value) * 60;
+    timerStartTime = new Date().getTime();
+    
+    // Reset trạng thái đóng modal
+    isManualClose = false;
+    
+    // Hiển thị modal
+    showModal(breakModal);
+    
+    // Thông báo
+    if (document.hidden) {
+      showNotification("⏰ Hết giờ học!", `Đã hoàn thành ${studyMinutesInput.value} phút học tập!`);
+    }
+  } else {
+    // Xử lý khi hết giờ nghỉ
+    stopTimer();
+    if (document.hidden) {
+      showNotification("🔄 Hết giờ nghỉ!", `Đã nghỉ ${breakMinutesInput.value} phút. Sẵn sàng học tiếp!`);
+    }
+  }
+  
+  if (Notification.permission === 'granted') {
+    playNotificationSound();
+  }
+}
+
 // Gọi 1 lần mỗi giờ
 setInterval(showStudyReminder, 3600000);
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    // Khi chuyển sang tab khác
+    stopNotificationSound();
+  } else {
+    // Khi quay lại tab
+    if (!isManualClose && !isStudyPhase && timeLeft > 0) {
+      // Chỉ hiện modal nếu chưa đóng thủ công và đang trong giờ nghỉ
+      showModal(breakModal);
+    }
+  }
+});
 
 // Thêm listener để cập nhật streak khi dữ liệu thay đổi
 function setupRealTimeListeners() {
@@ -1543,5 +1685,29 @@ document.addEventListener("DOMContentLoaded", () => {
   if (studyMinutesInput) {
     timeLeft = parseInt(studyMinutesInput.value) * 60;
     updateTimerDisplay();
+  }
+  // Thêm sự kiện click toàn trang để mở khóa âm thanh
+  document.body.addEventListener('click', () => {
+    // Chỉ cần gọi một lần, trình duyệt sẽ ghi nhớ
+    const dummyAudio = new Audio();
+    dummyAudio.play().then(() => {
+      console.log("Âm thanh đã được mở khóa");
+    }).catch(e => {
+      console.log("Người dùng cần tương tác trước khi phát âm thanh");
+    });
+  }, { once: true }); 
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && timerStartTime) {
+    // Khi quay lại tab, tính toán lại timeLeft
+    const now = new Date().getTime();
+    const elapsed = Math.floor((now - timerStartTime) / 1000);
+    timeLeft = Math.max(timerDuration - elapsed, 0);
+    updateTimerDisplay();
+    
+    if (timeLeft <= 0) {
+      handleTimerCompletion();
+    }
   }
 });
