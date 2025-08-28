@@ -1,4 +1,4 @@
-import fetch from 'node-fetch';
+const fetch = require('node-fetch');
 
 export default async (req, res) => {
   // Lấy từ khóa (keyword) từ query string
