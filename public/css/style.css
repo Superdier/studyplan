@@ -182,7 +182,7 @@ h1 {
 
 .schedule-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 15px;
   margin-bottom: 25px;
 }
@@ -510,7 +510,7 @@ h1 {
 /* Task Item in Modal */
 .task-item {
   display: grid;
-  grid-template-columns: 100px 1fr 80px 40px;
+  grid-template-columns: 100px;
   gap: 10px;
   margin-bottom: 15px;
   align-items: center;
@@ -844,33 +844,77 @@ footer {
   border-radius: 3px;
 }
 
-/* Thêm vào cuối file */
-.task-item {
-  display: grid;
-  grid-template-columns: 100px 1fr 80px 40px;
-  gap: 10px;
-  margin-bottom: 15px;
-  align-items: center;
+/* Container bài tập */
+.task-container {
+  max-height: 500px; 
+  overflow-y: auto;
+  padding: 10px;
 }
 
+.task-item {
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Các hàng */
+.task-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Hàng 1: select + input text + input number */
 .task-type {
-  padding: 8px;
+  flex: 1;
+  padding: 5px;
   border: 1px solid #ddd;
   border-radius: 5px;
   background: white;
 }
 
 .task-duration {
-  padding: 8px;
+  padding: 5px;
+  width: 80px;
   border: 1px solid #ddd;
   border-radius: 5px;
   text-align: center;
 }
 
 .task-input {
-  padding: 10px;
+  flex: 2;
+  padding: 5px;
   border: 1px solid #ddd;
   border-radius: 5px;
+}
+
+/* Hàng 2: ghi chú */
+.task-note {
+  width: 375px;
+  min-height: 50px;
+  padding: 6px;
+  resize: vertical;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}
+
+/* Hàng 3: nút xóa */
+.btn-delete {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-delete:hover {
+  background: #c0392b;
 }
 
 .total-duration {
