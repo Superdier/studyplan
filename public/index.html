@@ -7,6 +7,7 @@
     <title>Study Tracker</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/tools.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -36,6 +37,7 @@
             <div class="tab active" data-tab="schedule">Lịch học</div>
             <div class="tab" data-tab="stats">Thống kê</div>
             <div class="tab" data-tab="resources">Tài nguyên</div>
+            <div class="tab" data-tab="tools" id="tools">Công cụ</div>
         </div>
 
         <div class="tab-content active" id="schedule-tab">
@@ -101,30 +103,6 @@
                             <div class="stat-value">142</div>
                             <div class="stat-label">Ngày còn lại</div>
                         </div>
-                    </div>
-
-                    <div class="resources">
-                        <h3><i class="fas fa-bookmark"></i> Tài liệu học tập</h3>
-                        <ul class="resource-list" id="recommended-resources">
-                            <li class="resource-item">
-                                <i class="fas fa-book"></i><a
-                                    href="https://drive.google.com/drive/folders/18pEPRYZCFwDM1mfG-Ul8LxIkrQjNuAYc?usp=sharing">
-                                    Shin Kanzen Master N1</a>
-                            </li>
-                            <li class="resource-item">
-                                <i class="fas fa-book"></i><a
-                                    href="https://drive.google.com/drive/folders/1A53-PaWkIfyKqYBrDeEI3PPHnAQMUjU8?usp=sharing">
-                                    Soumatome N1</a>
-                            </li>
-                            <li class="resource-item">
-                                <i class="fas fa-book"></i><a href="https://supernative.tv/ja/"> Super Native
-                                    Japanese</a>
-                            </li>
-                            <li class="resource-item">
-                                <i class="fas fa-book"></i><a href="https://flashcard-ashen-three.vercel.app/">Flashcard
-                                    Web</a>
-                            </li>
-                        </ul>
                     </div>
                 </div>
             </div>
@@ -255,12 +233,14 @@
                     <ul class="resource-list">
                         <li class="resource-item">
                             <i class="fas fa-book"></i><a
-                                href="https://drive.google.com/drive/folders/18pEPRYZCFwDM1mfG-Ul8LxIkrQjNuAYc?usp=sharing" target="_blank" rel="noopener noreferrer">
+                                href="https://drive.google.com/drive/folders/18pEPRYZCFwDM1mfG-Ul8LxIkrQjNuAYc?usp=sharing"
+                                target="_blank" rel="noopener noreferrer">
                                 Shin Kanzen Master N1</a>
                         </li>
                         <li class="resource-item">
                             <i class="fas fa-book"></i><a
-                                href="https://drive.google.com/drive/folders/1A53-PaWkIfyKqYBrDeEI3PPHnAQMUjU8?usp=sharing" target="_blank" rel="noopener noreferrer">
+                                href="https://drive.google.com/drive/folders/1A53-PaWkIfyKqYBrDeEI3PPHnAQMUjU8?usp=sharing"
+                                target="_blank" rel="noopener noreferrer">
                                 Soumatome N1</a>
                         </li>
                     </ul>
@@ -268,29 +248,41 @@
                     <h3><i class="fas fa-headphones"></i> Tài nguyên nghe</h3>
                     <ul class="resource-list">
                         <li class="resource-item">
-                            <i class="fas fa-podcast"></i><a href="https://www3.nhk.or.jp/news/easy/" target="_blank" rel="noopener noreferrer"> NHK News Web
+                            <i class="fas fa-podcast"></i><a href="https://www3.nhk.or.jp/news/easy/" target="_blank"
+                                rel="noopener noreferrer"> NHK News Web
                                 Easy</a>
                         </li>
                         <li class="resource-item">
-                            <i class="fas fa-globe"></i><a href="https://supernative.tv/ja/" target="_blank" rel="noopener noreferrer"> Super Native Japanese</a>
+                            <i class="fas fa-globe"></i><a href="https://supernative.tv/ja/" target="_blank"
+                                rel="noopener noreferrer"> Super Native Japanese</a>
                         </li>
                         <li class="resource-item">
-                            <i class="fas fa-podcast"></i><a href="https://nihongoconteppei.com/" target="_blank" rel="noopener noreferrer"> Nihongo con
+                            <i class="fas fa-podcast"></i><a href="https://nihongoconteppei.com/" target="_blank"
+                                rel="noopener noreferrer"> Nihongo con
                                 Teppei</a>
                         </li>
                     </ul>
 
-                    <h3><i class="fas fa-laptop"></i> Website & Ứng dụng</h3>
+                    <h3><i class="fas fa-laptop"></i> Website & Ứng dụng & Công cụ hỗ trợ</h3>
                     <ul class="resource-list">
                         <li class="resource-item">
-                            <i class="fas fa-mobile-alt"></i><a href="https://recall.cards/app" target="_blank" rel="noopener noreferrer"> Recall Card</a>
+                            <i class="fas fa-mobile-alt"></i><a
+                                href="https://docs.google.com/spreadsheets/d/1_blVZly36X8U-23NPxMeUjpf4n7c5YVv/edit?usp=sharing&ouid=102464601056562595135&rtpof=true&sd=true"
+                                target="_blank" rel="noopener noreferrer"> Log Excel</a>
                         </li>
                         <li class="resource-item">
-                            <i class="fas fa-globe"></i><a href="https://flashcard-ashen-three.vercel.app/" target="_blank" rel="noopener noreferrer">Flashcard
+                            <i class="fas fa-mobile-alt"></i><a href="https://recall.cards/app" target="_blank"
+                                rel="noopener noreferrer"> Recall Card</a>
+                        </li>
+                        <li class="resource-item">
+                            <i class="fas fa-globe"></i><a href="https://flashcard-ashen-three.vercel.app/"
+                                target="_blank" rel="noopener noreferrer">Flashcard
                                 Web Cá Nhân</a>
                         </li>
                         <li class="resource-item">
-                            <i class="fas fa-globe"></i><a href="https://www.tiengnhatdongian.com/flashcard-category/jlpt-n2/flashcard-2500-tu-vung-n2/" target="_blank" rel="noopener noreferrer">Flashcard
+                            <i class="fas fa-globe"></i><a
+                                href="https://www.tiengnhatdongian.com/flashcard-category/jlpt-n2/flashcard-2500-tu-vung-n2/"
+                                target="_blank" rel="noopener noreferrer">Flashcard
                                 Web Tiengnhatdongian</a>
                         </li>
                     </ul>
@@ -298,7 +290,72 @@
             </div>
         </div>
 
-        <div class="tab-content" id="ai-tab">
+        <div class="tab-content" id="tools-tab">
+            <div class="card">
+                <h2 class="card-title">
+                    <i class="fas fa-book-open"></i> Công cụ
+                </h2>
+
+                <div class="tools-container">
+                    <!-- Writing Practice Tool -->
+                    <div class="card">
+                        <h2 class="card-title"><i class="fas fa-pencil-alt"></i> Luyện viết chữ Hán</h2>
+                        <div class="tool-section">
+                            <textarea id="writing-text" placeholder="Nhập văn bản tiếng Nhật để luyện viết..."
+                                rows="5"></textarea>
+                            <div class="tool-controls">
+                                <button id="generate-grid" class="btn btn-primary">Tạo lưới luyện viết</button>
+                                <button id="export-pdf" class="btn btn-secondary" disabled>Xuất PDF theo chữ</button>
+                                <button id="export-kanji-pdf" class="btn btn-secondary">Xuất PDF theo nét</button>
+                                <button id="fetch-kanji-data" class="btn btn-info">Tải dữ liệu Kanji</button>
+                            </div>
+                            
+                            <div id="loading-indicator" class="hidden">
+                                <i class="fas fa-spinner fa-spin"></i> Đang tải dữ liệu Kanji...
+                            </div>
+
+                            <div id="kanji-info-container" class="hidden">
+                                <h3>Thông tin chữ Kanji</h3>
+                                <div id="kanji-details"></div>
+                            </div>
+                            <div id="writing-grid-container" class="hidden">
+                                <div id="writing-grid"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Text-to-Speech Tool -->
+                    <div class="card">
+                        <h2 class="card-title"><i class="fas fa-volume-up"></i> Đọc văn bản (Text-to-Speech)</h2>
+                        <div class="tool-section">
+                            <textarea id="tts-text" placeholder="Nhập văn bản tiếng Nhật để nghe..."
+                                rows="5"></textarea>
+                            <div class="tool-controls">
+                                <div class="speed-control">
+                                    <label>Tốc độ:</label>
+                                    <input type="range" id="tts-speed" min="0.5" max="2" step="0.1" value="1">
+                                    <span id="speed-value">1.0x</span>
+                                </div>
+                                <div class="tts-buttons">
+                                    <button id="play-tts" class="btn btn-primary"><i class="fas fa-play"></i>
+                                        Phát</button>
+                                    <button id="pause-tts" class="btn btn-secondary" disabled><i
+                                            class="fas fa-pause"></i>
+                                        Tạm dừng</button>
+                                    <button id="stop-tts" class="btn btn-secondary" disabled><i class="fas fa-stop"></i>
+                                        Dừng</button>
+                                </div>
+                            </div>
+                            <div id="tts-highlight-container" class="hidden">
+                                <div id="tts-text-display"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- <div class="tab-content" id="ai-tab">
             <div class="card">
                 <h2 class="card-title">
                     <i class="fas fa-robot"></i> Trợ lý AI Học tập
@@ -335,7 +392,7 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </div> -->
 
         <footer>
             <p>Lộ trình học JLPT N1 - Được thiết kế dành riêng cho bạn</p>
@@ -356,7 +413,7 @@
             </div>
 
             <h3>Nhiệm vụ:</h3>
-            <div id="tasks-container">
+            <div id="tasks-container" class="task-container">
                 <!-- Nhiệm vụ sẽ được thêm động ở đây -->
             </div>
 
@@ -426,6 +483,9 @@
     </div>
 
     <script src="js/script.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="js/tools.js"></script>
 </body>
 
 </html>
