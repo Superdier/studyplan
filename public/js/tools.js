@@ -6,6 +6,7 @@ const generateGridBtn = document.getElementById('generate-grid');
 const exportPdfBtn = document.getElementById('export-pdf');
 const writingGridContainer = document.getElementById('writing-grid-container');
 const writingGrid = document.getElementById('writing-grid');
+const exportKanjiPdfBtn = document.getElementById('export-kanji-pdf');
 
 // Text-to-Speech Tool
 const ttsText = document.getElementById('tts-text');
@@ -26,6 +27,7 @@ let sentences = [];
 // Event Listeners for Writing Practice Tool
 generateGridBtn.addEventListener('click', generateWritingGrid);
 exportPdfBtn.addEventListener('click', exportToPDF);
+exportKanjiPdfBtn.addEventListener('click', exportKanjiPDF);
 
 // Event Listeners for TTS Tool
 ttsSpeed.addEventListener('input', updateSpeedValue);
@@ -62,6 +64,8 @@ function generateWritingGrid() {
 
   writingGridContainer.classList.remove('hidden');
   exportPdfBtn.disabled = false;
+  // Kích hoạt nút xuất PDF Kanji
+  exportKanjiPdfBtn.disabled = false;
 }
 
 // Hàm kiểm tra kích thước văn bản
@@ -80,7 +84,6 @@ function checkTextSize(text) {
 }
 
 // Export writing grid to PDF
-// Thay thế exportToPDF bằng hàm này
 async function exportToPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
@@ -285,26 +288,6 @@ if (supportedFont) {
   doc.setFont(supportedFont);
 }
 
-////////// KANJI //////////
-// Thêm event listener cho nút xuất PDF Kanji
-document.getElementById('export-kanji-pdf').addEventListener('click', exportKanjiPDF);
-
-// Dữ liệu mẫu về số nét của các chữ Kanji thông dụng
-const kanjiStrokeData = {
-  '勉': 10,
-  '強': 11,
-  '日': 4,
-  '本': 5,
-  '語': 14,
-  '学': 8,
-  '習': 11,
-  '漢': 13,
-  '字': 6,
-  '先': 6,
-  '生': 5
-  // Có thể thêm nhiều chữ Kanji khác tại đây
-};
-
 // Hàm kiểm tra xem ký tự có phải là Kanji không
 function isKanji(char) {
   const code = char.charCodeAt(0);
@@ -312,193 +295,9 @@ function isKanji(char) {
   return code >= 0x4E00 && code <= 0x9FAF;
 }
 
-// Hàm xuất PDF hướng dẫn viết Kanji từng nét
-// Biến lưu trữ dữ liệu Kanji
-let kanjiData = {};
-
-// Event listener cho nút tải dữ liệu Kanji
-document.getElementById('fetch-kanji-data').addEventListener('click', fetchKanjiData);
-
-// Hàm gọi API để lấy thông tin Kanji
-async function fetchKanjiData() {
-  const text = writingText.value.trim();
-  if (!text) {
-    alert('Vui lòng nhập văn bản tiếng Nhật');
-    return;
-  }
-
-  // Hiển thị loading
-  document.getElementById('loading-indicator').classList.remove('hidden');
-  document.getElementById('kanji-info-container').classList.add('hidden');
-
-  try {
-    // Tách các chữ Kanji từ văn bản
-    const kanjiCharacters = extractKanjiCharacters(text);
-
-    if (kanjiCharacters.length === 0) {
-      alert('Không tìm thấy chữ Kanji trong văn bản');
-      return;
-    }
-
-    // Lấy dữ liệu cho từng chữ Kanji
-    for (const character of kanjiCharacters) {
-      if (!kanjiData[character]) {
-        kanjiData[character] = await getKanjiData(character);
-
-        // Đợi một chút giữa các request để tránh bị chặn
-        await new Promise(resolve => setTimeout(resolve, 300));
-      }
-    }
-
-    // Hiển thị thông tin Kanji
-    displayKanjiInfo(kanjiCharacters);
-
-  } catch (error) {
-    console.error('Lỗi khi tải dữ liệu Kanji:', error);
-    alert('Có lỗi xảy ra khi tải dữ liệu Kanji. Vui lòng thử lại.');
-  } finally {
-    // Ẩn loading
-    document.getElementById('loading-indicator').classList.add('hidden');
-  }
-}
-
-// Hàm trích xuất chữ Kanji từ văn bản
-function extractKanjiCharacters(text) {
-  // Biểu thức chính quy để tìm chữ Hán (Kanji)
-  const kanjiRegex = /[\u4E00-\u9FAF]/g;
-  const matches = text.match(kanjiRegex);
-
-  if (!matches) return [];
-
-  // Lọc các ký tự trùng lặp
-  return [...new Set(matches)];
-}
-
-// Hàm gọi API Jisho.org để lấy thông tin Kanji
-async function getKanjiData(kanji) {
-  try {
-    const response = await fetch(`/api/kanji?keyword=${kanji}`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    // Tìm thông tin chi tiết về chữ Kanji
-    // Dữ liệu kanji nằm ở item đầu tiên của mảng data
-    const kanjiResult = data.data.find(item => item.is_common === true || item.tags.includes('common'));
-    const singleKanjiResult = data.data.find(item => item.slug === kanji);
-
-    let result = kanjiResult || singleKanjiResult || data.data[0];
-
-    if (result) {
-      // Lấy các cách đọc On và Kun từ các trường sense
-      const kunReadings = result.senses.reduce((acc, sense) => {
-        const readings = sense.tags.filter(tag => tag.includes('kun') && !acc.includes(tag));
-        return acc.concat(readings);
-      }, []).map(r => r.replace(/.*-reading|kun-reading/g, '').trim());
-
-      const onReadings = result.senses.reduce((acc, sense) => {
-        const readings = sense.tags.filter(tag => tag.includes('on') && !acc.includes(tag));
-        return acc.concat(readings);
-      }, []).map(r => r.replace(/.*-reading|on-reading/g, '').trim());
-
-      // Lấy nghĩa tiếng Anh
-      const meanings = result.senses.length > 0 ? result.senses[0].english_definitions : [];
-
-      // Lấy số nét từ dữ liệu chính (nếu có) hoặc ước lượng
-      const stroke_count = result.kanji ? result.kanji.stroke_count : estimateStrokeCount(kanji);
-
-      return {
-        character: kanji,
-        stroke_count: stroke_count,
-        meanings: meanings,
-        readings: [...kunReadings, ...onReadings],
-        kun_readings: kunReadings,
-        on_readings: onReadings
-      };
-    }
-
-    // Fallback nếu không tìm thấy thông tin chi tiết
-    return {
-      character: kanji,
-      stroke_count: estimateStrokeCount(kanji),
-      meanings: [],
-      readings: [],
-      kun_readings: [],
-      on_readings: []
-    };
-
-  } catch (error) {
-    console.error(`Lỗi khi lấy dữ liệu cho chữ ${kanji}:`, error);
-
-    // Trả về dữ liệu mặc định nếu có lỗi
-    return {
-      character: kanji,
-      stroke_count: estimateStrokeCount(kanji),
-      meanings: [],
-      readings: [],
-      kun_readings: [],
-      on_readings: []
-    };
-  }
-}
-
-
-// Hàm ước lượng số nét dựa trên độ phức tạp của chữ Kanji
-function estimateStrokeCount(kanji) {
-  // Bảng ước lượng số nét dựa trên độ phức tạp
-  const complexityMap = {
-    '一': 1, '二': 2, '三': 3, '四': 5, '五': 4,
-    '六': 4, '七': 2, '八': 2, '九': 2, '十': 2,
-    '百': 6, '千': 3, '万': 3, '円': 4, '日': 4,
-    '月': 4, '火': 4, '水': 4, '木': 4, '金': 8,
-    '土': 3, '本': 5, '人': 2, '友': 4, '先生': 6,
-    '学生': 8, '学校': 8, '大学': 8, '医院': 9
-  };
-
-  return complexityMap[kanji] || Math.min(8 + Math.floor(kanji.length * 2), 20);
-}
-
-// Hàm hiển thị thông tin Kanji
-function displayKanjiInfo(kanjiCharacters) {
-  const container = document.getElementById('kanji-details');
-  container.innerHTML = '';
-
-  for (const character of kanjiCharacters) {
-    const data = kanjiData[character];
-    if (!data) continue;
-
-    const detailDiv = document.createElement('div');
-    detailDiv.className = 'kanji-detail';
-
-    detailDiv.innerHTML = `
-            <div>
-                <span class="kanji-character">${data.character}</span>
-                <span class="kanji-meaning">${data.meanings.join(', ') || 'Không có nghĩa'}</span>
-            </div>
-            <div class="kanji-reading">
-                Âm On: ${data.on_readings.join(', ') || 'N/A'}<br>
-                Âm Kun: ${data.kun_readings.join(', ') || 'N/A'}<br>
-                Số nét: ${data.stroke_count}
-            </div>
-            <div class="stroke-diagram">
-                ${Array.from({ length: data.stroke_count }, (_, i) =>
-      `<div class="stroke-step">${i + 1}</div>`
-    ).join('')}
-            </div>
-        `;
-
-    container.appendChild(detailDiv);
-  }
-
-  document.getElementById('kanji-info-container').classList.remove('hidden');
-}
-
-// Cập nhật hàm exportKanjiPDF để sử dụng dữ liệu từ API
 async function exportKanjiPDF() {
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
 
   const text = writingText.value.trim();
   if (!text) {
@@ -506,226 +305,308 @@ async function exportKanjiPDF() {
     return;
   }
 
-  // Kiểm tra xem đã tải dữ liệu Kanji chưa
-  const kanjiCharacters = extractKanjiCharacters(text);
-  const hasKanjiData = kanjiCharacters.every(char => kanjiData[char]);
-
-  if (!hasKanjiData) {
-    const shouldFetch = confirm('Bạn chưa tải dữ liệu Kanji. Có muốn tải trước khi xuất PDF không?');
-    if (shouldFetch) {
-      await fetchKanjiData();
+  // Helper functions
+  function isKanji(char) {
+    return /[\u4e00-\u9faf]/.test(char);
+  }
+  function arrayBufferToBase64(buffer) {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
     }
+    return btoa(binary);
   }
 
-  // Tiêu đề
-  doc.setFontSize(16);
-  doc.text('Hướng dẫn viết chữ Kanji', 105, 15, { align: 'center' });
-  doc.setFontSize(12);
+  // Trích xuất các chữ Kanji đơn lẻ không trùng lặp
+  const uniqueKanjiChars = [...new Set(Array.from(text).filter(isKanji))];
 
-  // Tách văn bản thành các từ Kanji
-  const words = text.split(/[ 、\s]+/).filter(word => word.length > 0);
+  // Trích xuất các từ Kanji (ít nhất 2 chữ Kanji đi liền nhau)
+  const kanjiWords = [...new Set(text.match(/[\u4e00-\u9faf]{2,}/g) || [])];
 
-  let yPosition = 25;
-  const pageWidth = doc.internal.pageSize.width;
-  const margin = 15;
-  const cellSize = 8;
-  const spacing = 2;
+  // Nếu không tìm thấy cả chữ Kanji đơn lẻ và từ Kanji
+  if (uniqueKanjiChars.length === 0 && kanjiWords.length === 0) {
+    alert('Không tìm thấy chữ hoặc từ Kanji trong văn bản.');
+    return;
+  }
 
-  for (const word of words) {
-    if (yPosition > 250) {
+  try {
+    // 1. Lấy và nhúng font
+    const fontUrl = '/public/assets/fonts/NotoSansJP-VariableFont_wght.ttf';
+    const fontResp = await fetch(fontUrl);
+    if (!fontResp.ok) throw new Error('Không thể tải font từ ' + fontUrl);
+    const fontBuf = await fontResp.arrayBuffer();
+    const fontBase64 = arrayBufferToBase64(fontBuf);
+    doc.addFileToVFS('NotoSansJP.ttf', fontBase64);
+    doc.addFont('NotoSansJP.ttf', 'NotoSansJP', 'normal');
+    doc.setFont('NotoSansJP');
+
+    // 2. Thiết lập layout
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 15;
+    const cellSize = 12;
+    const gap = 3;
+    const titleYOffset = 10;
+
+    let x = margin;
+    let y = margin;
+
+    // ----- Bổ sung: In toàn bộ văn bản đã nhập -----
+    doc.setFontSize(14);
+    doc.setTextColor(20, 20, 20);
+    doc.text('Văn bản đã nhập:', pageW / 2, y, { align: 'center' });
+    y += 8;
+
+    const textLines = doc.splitTextToSize(text, pageW - 2 * margin);
+    doc.setFontSize(10);
+    doc.text(textLines, margin, y);
+    y += (textLines.length * 5) + 10;
+    if (y > pageH - margin) {
       doc.addPage();
-      yPosition = 20;
+      y = margin;
+    }
+    // --------------------------------------------------
+
+    // 3. Lặp qua từng chữ Kanji đơn lẻ để tạo trang luyện viết
+    const mmToPt = mm => mm * 72 / 25.4;
+
+    for (const char of uniqueKanjiChars) {
+      doc.setFontSize(14);
+      doc.setTextColor(20, 20, 20);
+      doc.text(`Luyện viết chữ: ${char}`, pageW / 2, y, { align: 'center' });
+      y += titleYOffset;
+
+      doc.setFontSize(mmToPt(cellSize * 0.7)); // Đặt font size cho ô vuông
+
+      for (let i = 0; i < 10; i++) {
+        // Kiểm tra vị trí để xuống dòng hoặc thêm trang mới
+        if (x + cellSize > pageW - margin) {
+          x = margin;
+          y += cellSize + gap;
+        }
+        if (y + cellSize > pageH - margin) {
+          doc.addPage();
+          x = margin;
+          y = margin;
+          doc.setFontSize(14);
+          doc.setTextColor(20, 20, 20);
+          doc.text(`Luyện viết chữ: ${char}`, pageW / 2, y, { align: 'center' });
+          y += titleYOffset;
+          doc.setFontSize(mmToPt(cellSize * 0.7));
+        }
+
+        // Vẽ ô vuông và in chữ mờ
+        doc.setDrawColor(150);
+        doc.rect(x, y, cellSize, cellSize);
+        doc.setTextColor(160);
+        doc.text(char, x + cellSize / 2, y + cellSize / 2, {
+          align: 'center',
+          baseline: 'middle'
+        });
+        x += cellSize + gap;
+      }
+      x = margin;
+      y += cellSize + gap + 10;
     }
 
-    // Tiêu đề cho từ
-    doc.setFontSize(14);
-    doc.text(`Từ: ${word}`, margin, yPosition);
-    yPosition += 8;
-
-    // Tách từ thành các chữ Kanji riêng lẻ
-    const characters = Array.from(word);
-
-    for (const char of characters) {
-      if (yPosition > 250) {
+    // 4. Bổ sung: Lặp qua từng từ Kanji để tạo trang luyện viết
+    if (kanjiWords.length > 0) {
+      if (y > pageH - margin) {
         doc.addPage();
-        yPosition = 20;
+        y = margin;
       }
+      doc.setFontSize(14);
+      doc.setTextColor(20, 20, 20);
+      doc.text('Luyện viết từ Kanji:', pageW / 2, y, { align: 'center' });
+      y += 8;
+    }
 
-      // Lấy thông tin Kanji từ dữ liệu đã tải
-      const kanjiInfo = kanjiData[char] || {
-        character: char,
-        stroke_count: estimateStrokeCount(char),
-        meanings: []
-      };
+    for (const word of kanjiWords) {
+      const wordFontSize = mmToPt(cellSize * 0.7);
 
-      doc.setFontSize(12);
-      doc.text(`Chữ: ${char} (Số nét: ${kanjiInfo.stroke_count})`, margin, yPosition);
-      yPosition += 6;
+      // Tên từ được in ngay trên dòng luyện viết
+      doc.setFontSize(10);
+      doc.setTextColor(50, 50, 50);
+      doc.text(word, margin, y - 2);
 
-      // Tạo các ô cho từng nét
-      let xPosition = margin;
-      for (let i = 1; i <= kanjiInfo.stroke_count; i++) {
-        if (xPosition + cellSize > pageWidth - margin) {
-          xPosition = margin;
-          yPosition += cellSize + spacing;
+      // Vẽ 10 ô cho mỗi từ
+      for (let i = 0; i < 10; i++) {
+        // Tính toán chiều rộng của từ
+        doc.setFontSize(wordFontSize);
+        const wordWidthInPoints = doc.getStringUnitWidth(word) * wordFontSize;
+        const wordWidthInMm = wordWidthInPoints * 25.4 / 72;
 
-          if (yPosition > 250) {
+        // Chiều rộng ô sẽ là chiều rộng từ + khoảng cách hoặc chiều rộng ô đơn + khoảng cách
+        const wordCellWidth = Math.max(wordWidthInMm, cellSize) + gap;
+
+        if (x + wordCellWidth > pageW - margin) {
+          x = margin;
+          y += cellSize + gap + 10;
+          // Nếu xuống dòng mới, cần kiểm tra lại xem có đủ chỗ không
+          if (y + cellSize > pageH - margin) {
             doc.addPage();
-            yPosition = 20;
-            xPosition = margin;
+            y = margin + 10;
           }
         }
 
-        // Vẽ ô cho nét
-        doc.rect(xPosition, yPosition, cellSize, cellSize);
+        // Nếu trang mới, in lại tiêu đề từ
+        if (y + cellSize > pageH - margin) {
+          doc.addPage();
+          x = margin;
+          y = margin + 10;
+        }
 
-        // Thêm số thứ tự nét
-        doc.setFontSize(6);
-        doc.text(i.toString(), xPosition + 1, yPosition + 4);
+        // Vẽ ô chữ nhật bao toàn bộ từ
+        doc.setDrawColor(150);
+        doc.rect(x, y, wordCellWidth - gap, cellSize); // trừ gap để không bị thừa
+        doc.setTextColor(160);
+        doc.setFontSize(wordFontSize);
+        doc.text(word, x + (wordCellWidth - gap) / 2, y + cellSize / 2, {
+          align: 'center',
+          baseline: 'middle'
+        });
 
-        xPosition += cellSize + spacing;
+        x += wordCellWidth;
       }
 
-      yPosition += cellSize + 8;
-
-      // Ô luyện viết cho chữ Kanji (làm mờ)
-      doc.setFontSize(12);
-      doc.setTextColor(200, 200, 200);
-      doc.text(char, margin, yPosition);
-      doc.setTextColor(0, 0, 0);
-
-      // Vẽ ô xung quanh chữ
-      const charWidth = doc.getTextWidth(char);
-      doc.rect(margin, yPosition - 8, charWidth + 2, 10);
-
-      yPosition += 15;
+      x = margin;
+      y += cellSize + gap + 10;
     }
 
-    // Ô luyện viết cho cả từ (làm mờ)
-    if (yPosition > 240) {
-      doc.addPage();
-      yPosition = 20;
-    }
-
-    doc.setFontSize(12);
-    doc.setTextColor(200, 200, 200);
-    doc.text(word, margin, yPosition);
-    doc.setTextColor(0, 0, 0);
-
-    // Vẽ ô xung quanh từ
-    const wordWidth = doc.getTextWidth(word);
-    doc.rect(margin, yPosition - 8, wordWidth + 2, 10);
-
-    yPosition += 20;
-  }
-
-  // Lưu file PDF
-  doc.save('huong-dan-viet-kanji.pdf');
-}
-
-// Hàm hiển thị xem trước hướng dẫn viết Kanji
-function showKanjiPreview() {
-  const text = writingText.value.trim();
-  if (!text) {
-    alert('Vui lòng nhập văn bản tiếng Nhật');
+    doc.save('luyen-viet-kanji.pdf');
     return;
+
+  } catch (err) {
+    console.error('Lỗi khi tạo PDF với font nhúng:', err);
+    alert('Không thể tạo PDF bằng font nhúng. Chuyển sang phương án dự phòng.');
+    // Fallback nếu có lỗi
+    fallbackCanvasExportKanjiWithWords(text);
   }
-
-  // Tạo container cho preview
-  const previewContainer = document.createElement('div');
-  previewContainer.className = 'kanji-preview';
-  previewContainer.innerHTML = '<h3>Xem trước hướng dẫn viết Kanji</h3>';
-
-  // Tách văn bản thành các từ
-  const words = text.split(/[ 、\s]+/).filter(word => word.length > 0);
-
-  // Duyệt qua từng từ
-  for (const word of words) {
-    const wordDiv = document.createElement('div');
-    wordDiv.className = 'stroke-order';
-
-    wordDiv.innerHTML = `<div class="stroke-header">Từ: ${word}</div>`;
-
-    // Tách từ thành các chữ Kanji riêng lẻ
-    const characters = Array.from(word);
-
-    // Duyệt qua từng chữ Kanji
-    for (const char of characters) {
-      // Bỏ qua nếu không phải Kanji
-      if (!isKanji(char)) continue;
-      const strokeCount = kanjiStrokeData[char] || 8;
-
-      const kanjiDiv = document.createElement('div');
-      kanjiDiv.className = 'stroke-kanji';
-
-      kanjiDiv.innerHTML = `
-                <div class="stroke-header">Chữ: ${char} (Số nét: ${strokeCount})</div>
-                <div class="stroke-grid">
-                    ${Array.from({ length: strokeCount }, (_, i) =>
-        `<div class="stroke-cell">${i + 1}</div>`
-      ).join('')}
-                </div>
-                <div class="stroke-header">Luyện viết:</div>
-                <div class="stroke-grid">
-                    <div class="practice-cell">${char}</div>
-                </div>
-            `;
-
-      wordDiv.appendChild(kanjiDiv);
-    }
-
-    // Thêm phần luyện viết cả từ
-    wordDiv.innerHTML += `
-            <div class="stroke-header">Luyện viết cả từ:</div>
-            <div class="stroke-grid">
-                <div class="practice-cell">${word}</div>
-            </div>
-        `;
-
-    previewContainer.appendChild(wordDiv);
-  }
-
-  // Hiển thị preview trong modal hoặc cửa sổ mới
-  const previewWindow = window.open('', '_blank', 'width=800,height=600');
-  previewWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Xem trước hướng dẫn viết Kanji</title>
-            <style>
-                body { font-family: Arial, sans-serif; padding: 20px; }
-                .kanji-preview { max-width: 100%; }
-                .stroke-order { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
-                .stroke-header { font-weight: bold; margin-bottom: 10px; color: #333; }
-                .stroke-grid { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 15px; }
-                .stroke-cell, .practice-cell { 
-                    width: 35px; height: 35px; border: 1px solid #ddd; 
-                    display: flex; align-items: center; justify-content: center; 
-                }
-                .stroke-cell { font-size: 14px; background-color: #f9f9f9; }
-                .practice-cell { font-size: 20px; color: #ccc; background-color: #fff; }
-            </style>
-        </head>
-        <body>
-            <h2>Xem trước hướng dẫn viết Kanji</h2>
-            ${previewContainer.innerHTML}
-            <div style="margin-top: 20px;">
-                <button onclick="window.print()">In trang</button>
-                <button onclick="window.close()">Đóng</button>
-            </div>
-        </body>
-        </html>
-    `);
-  previewWindow.document.close();
 }
 
-// Thêm nút xem trước
-const previewBtn = document.createElement('button');
-previewBtn.textContent = 'Xem trước Kanji';
-previewBtn.className = 'btn btn-secondary';
-previewBtn.style.marginLeft = '10px';
-previewBtn.onclick = showKanjiPreview;
-document.getElementById('export-kanji-pdf').parentNode.appendChild(previewBtn);
+// Hàm fallback mới có thêm chức năng in từ Kanji
+function fallbackCanvasExportKanjiWithWords(text) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 15;
+  const cellSize = 12;
+  const gap = 3;
+  const charsPerRow = 10;
+
+  let x = margin;
+  let y = 15;
+
+  // In văn bản đã nhập
+  doc.setFontSize(14);
+  doc.text('Văn bản đã nhập:', pageW / 2, y, { align: 'center' });
+  y += 8;
+  doc.setFontSize(10);
+  const textLines = doc.splitTextToSize(text, pageW - 2 * margin);
+  doc.text(textLines, margin, y);
+  y += (textLines.length * 5) + 10;
+  if (y > pageH - margin) {
+    doc.addPage();
+    y = margin;
+  }
+
+  const uniqueKanjiChars = [...new Set(Array.from(text).filter(isKanji))];
+  const kanjiWords = [...new Set(text.match(/[\u4e00-\u9faf]{2,}/g) || [])];
+
+  uniqueKanjiChars.forEach(char => {
+    doc.setFontSize(14);
+    doc.text(`Luyện viết chữ: ${char}`, pageW / 2, y, { align: 'center' });
+    y += 10;
+
+    for (let i = 0; i < 10; i++) {
+      if (x + cellSize > pageW - margin) {
+        x = margin;
+        y += cellSize + gap;
+      }
+      if (y + cellSize > pageH - margin) {
+        doc.addPage();
+        x = margin;
+        y = margin;
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(cellSize * 3);
+      canvas.height = Math.round(cellSize * 3);
+      const ctx = canvas.getContext('2d');
+      ctx.strokeStyle = '#999';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
+      ctx.fillStyle = '#C8C8C8';
+      ctx.font = `${Math.round(canvas.height * 0.6)}px "Noto Sans JP", "Yu Gothic", "Meiryo", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(char, canvas.width / 2, canvas.height / 2);
+
+      const imgData = canvas.toDataURL('image/png');
+      doc.addImage(imgData, 'PNG', x, y, cellSize, cellSize);
+      x += cellSize + gap;
+    }
+    x = margin;
+    y += cellSize + gap + 10;
+  });
+
+  kanjiWords.forEach(word => {
+    const wordFontSize = mmToPt(cellSize * 0.7);
+    // Tên từ được in ngay trên dòng luyện viết
+    doc.setFontSize(10);
+    doc.setTextColor(50, 50, 50);
+    doc.text(word, margin, y - 2);
+
+    for (let i = 0; i < 10; i++) {
+      // Tính toán chiều rộng của từ
+      doc.setFontSize(wordFontSize);
+      const wordWidthInPoints = doc.getStringUnitWidth(word) * wordFontSize;
+      const wordWidthInMm = wordWidthInPoints * 25.4 / 72;
+
+      // Chiều rộng ô sẽ là chiều rộng từ + khoảng cách hoặc chiều rộng ô đơn + khoảng cách
+      const wordCellWidth = Math.max(wordWidthInMm, cellSize) + gap;
+      if (x + wordCellWidth > pageW - margin) {
+        x = margin;
+        y += cellSize + gap + 10;
+        // Nếu xuống dòng mới, cần kiểm tra lại xem có đủ chỗ không
+        if (y + cellSize > pageH - margin) {
+          doc.addPage();
+          y = margin + 10;
+        }
+      }
+
+      // Nếu trang mới, in lại tiêu đề từ
+      if (y + cellSize > pageH - margin) {
+        doc.addPage();
+        x = margin;
+        y = margin + 10;
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(wordCellWidth * 3);
+      canvas.height = Math.round(cellSize * 3);
+      const ctx = canvas.getContext('2d');
+      ctx.strokeStyle = '#999';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
+      ctx.fillStyle = '#C8C8C8';
+      ctx.font = `${Math.round(canvas.height * 0.6)}px "Noto Sans JP", "Yu Gothic", "Meiryo", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(word, canvas.width / 2, canvas.height / 2);
+      const imgData = canvas.toDataURL('image/png');
+      doc.addImage(imgData, 'PNG', x, y, wordCellWidth, cellSize);
+      x += wordCellWidth;
+    }
+    x = margin;
+    y += cellSize + gap + 10;
+  });
+
+  doc.save('luyen-viet-kanji-fallback.pdf');
+}
 
 ///////////////////////////////
 // Text-to-Speech Functions ///
