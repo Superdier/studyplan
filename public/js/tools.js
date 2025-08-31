@@ -9,6 +9,7 @@ const writingGrid = document.getElementById('writing-grid');
 const exportKanjiPdfBtn = document.getElementById('export-kanji-pdf');
 
 // Text-to-Speech Tool
+const ttsVoiceSelect = document.getElementById('tts-voice');
 const ttsText = document.getElementById('tts-text');
 const ttsSpeed = document.getElementById('tts-speed');
 const speedValue = document.getElementById('speed-value');
@@ -23,6 +24,7 @@ let synth = window.speechSynthesis;
 let utterance = null;
 let currentSentenceIndex = 0;
 let sentences = [];
+let voices = [];
 
 // Event Listeners for Writing Practice Tool
 generateGridBtn.addEventListener('click', generateWritingGrid);
@@ -611,6 +613,39 @@ function fallbackCanvasExportKanjiWithWords(text) {
 ///////////////////////////////
 // Text-to-Speech Functions ///
 ///////////////////////////////
+
+// Hàm lấy danh sách giọng đọc
+function loadVoices() {
+  voices = synth.getVoices();
+  
+  // Lọc chỉ lấy giọng tiếng Nhật
+  const japaneseVoices = voices.filter(voice => 
+    voice.lang.includes('ja') || voice.lang.includes('JP')
+  );
+  
+  // Xóa options cũ
+  ttsVoiceSelect.innerHTML = '';
+  
+  // Thêm options cho giọng tiếng Nhật
+  japaneseVoices.forEach(voice => {
+    const option = document.createElement('option');
+    option.value = voice.name;
+    option.textContent = `${voice.name} (${voice.lang})`;
+    ttsVoiceSelect.appendChild(option);
+  });
+  
+  // Nếu không có giọng Nhật, thêm giọng mặc định
+  if (japaneseVoices.length === 0 && voices.length > 0) {
+    const option = document.createElement('option');
+    option.value = voices[0].name;
+    option.textContent = `${voices[0].name} (${voices[0].lang})`;
+    ttsVoiceSelect.appendChild(option);
+  }
+}
+
+// Sự kiện khi voices được load
+synth.addEventListener('voiceschanged', loadVoices);
+
 function playTTS() {
   const text = ttsText.value.trim();
 
@@ -641,6 +676,15 @@ function playTTS() {
   utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'ja-JP';
   utterance.rate = parseFloat(ttsSpeed.value);
+
+  // Chọn giọng đọc
+  const selectedVoice = ttsVoiceSelect.value;
+  if (selectedVoice) {
+    const voice = voices.find(v => v.name === selectedVoice);
+    if (voice) {
+      utterance.voice = voice;
+    }
+  }
 
   // Highlight current sentence as it's being spoken
   utterance.onboundary = function (event) {
@@ -735,4 +779,6 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     });
   });
+  // Load voices sau một khoảng thời gian ngắn để đảm bảo API đã sẵn sàng
+  setTimeout(loadVoices, 500);
 });
