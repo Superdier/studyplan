@@ -4,11 +4,225 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Study Tracker</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/tools.css">
+    <!-- Thêm CSS responsive mới -->
+    <style>
+        /* CSS Responsive cho mobile và tablet */
+        @media (max-width: 1024px) {
+            /* iPad và tablet nhỏ */
+            .container {
+                padding: 10px;
+            }
+            
+            header h1 {
+                font-size: 1.5rem;
+            }
+            
+            .tabs {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .tab {
+                padding: 10px 15px;
+                font-size: 0.9rem;
+                white-space: nowrap;
+            }
+            
+            .week-selector {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .schedule-grid {
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .dual-chart-row {
+                flex-direction: column;
+            }
+            
+            .stat-section.half-width {
+                width: 100%;
+            }
+            
+            .tool-controls {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .tts-buttons {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .timer-controls {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .timer-btn {
+                padding: 12px 20px;
+                font-size: 1rem;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            /* Điện thoại và tablet nhỏ */
+            .schedule-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .day-card {
+                margin-bottom: 15px;
+            }
+            
+            .modal-content {
+                width: 95%;
+                margin: 5% auto;
+                padding: 20px;
+            }
+            
+            .timer-display {
+                font-size: 2.5rem;
+            }
+            
+            .task-row {
+                flex-direction: column;
+            }
+            
+            .task-row input, .task-row select, .task-row textarea {
+                width: 100%;
+                margin-bottom: 10px;
+            }
+            
+            #writing-text, #tts-text {
+                font-size: 16px; /* Ngăn zoom trên iOS */
+            }
+            
+            .tool-section textarea {
+                min-height: 120px;
+            }
+            
+            .chart-wrapper {
+                overflow-x: auto;
+            }
+            
+            .chart-wrapper canvas {
+                max-width: 100%;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            /* Điện thoại nhỏ */
+            header .user-info {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .tab {
+                padding: 8px 12px;
+                font-size: 0.8rem;
+            }
+            
+            .week-btn {
+                padding: 8px 12px;
+                font-size: 0.9rem;
+            }
+            
+            .timer-display {
+                font-size: 2rem;
+            }
+            
+            .tts-buttons button {
+                padding: 10px;
+                font-size: 0.9rem;
+            }
+            
+            .speed-control, .voice-control {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+        
+        /* Cải thiện trải nghiệm cảm ứng */
+        button, .tab, .day-card, .study-item {
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        button:active, .tab:active, .day-card:active {
+            opacity: 0.8;
+            transform: scale(0.98);
+        }
+        
+        /* Ngăn chặn hành vi mặc định trên thiết bị cảm ứng */
+        .task-container, .tool-controls, .timer-controls {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        /* Tối ưu cho công cụ luyện viết trên mobile */
+        #writing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+            gap: 5px;
+        }
+        
+        .character-cell {
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #ccc;
+        }
+        
+        /* Đảm bảo modal hiển thị tốt trên mobile */
+        .modal {
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background-color: #fefefe;
+            border-radius: 10px;
+            max-width: 95%;
+            max-height: 90%;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* Tối ưu trải nghiệm kéo thả trên mobile */
+        .task-container {
+            overflow-y: auto;
+            max-height: 50vh;
+        }
+    </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -485,6 +699,44 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <script src="js/tools.js"></script>
+    <!-- Thêm JavaScript xử lý sự kiện cảm ứng -->
+    <script>
+        // Xử lý sự kiện touch để tránh delay trên iOS
+        document.addEventListener('DOMContentLoaded', function() {
+            // FastClick cho các phần tử tương tác
+            const interactiveElements = document.querySelectorAll('button, .tab, .day-card, .study-item, input, select, textarea');
+            
+            interactiveElements.forEach(element => {
+                element.addEventListener('touchstart', function() {
+                    this.classList.add('touch-active');
+                });
+                
+                element.addEventListener('touchend', function() {
+                    this.classList.remove('touch-active');
+                });
+            });
+            
+            // Ngăn zoom double-tap trên các phần tử tương tác
+            let lastTouchEnd = 0;
+            document.addEventListener('touchend', function(event) {
+                const now = (new Date()).getTime();
+                if (now - lastTouchEnd <= 300) {
+                    event.preventDefault();
+                }
+                lastTouchEnd = now;
+            }, false);
+            
+            // Đảm bảo các input không bị zoom trên iOS
+            const inputs = document.querySelectorAll('input, select, textarea');
+            inputs.forEach(input => {
+                input.addEventListener('focus', function() {
+                    window.setTimeout(() => {
+                        document.body.style.zoom = 1.0;
+                    }, 100);
+                });
+            });
+        });
+    </script>
 </body>
 
 </html>
