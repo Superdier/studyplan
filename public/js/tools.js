@@ -863,3 +863,149 @@ document.addEventListener('DOMContentLoaded', function () {
   // Load voices sau một khoảng thời gian ngắn để đảm bảo API đã sẵn sàng
   setTimeout(loadVoices, 500);
 });
+
+//////////////////////////////
+//         Mobile           //
+
+// Mobile detection
+const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+// Mobile-specific TTS fix
+function mobileTTSSetup() {
+  if (!isMobile) return;
+
+  console.log('Mobile device detected, applying TTS fixes...');
+  
+  // Thêm overlay để capture touch events
+  const overlay = document.createElement('div');
+  overlay.style.position = 'fixed';
+  overlay.style.top = '0';
+  overlay.style.left = '0';
+  overlay.style.width = '100%';
+  overlay.style.height = '100%';
+  overlay.style.background = 'rgba(0,0,0,0.3)';
+  overlay.style.display = 'none';
+  overlay.style.zIndex = '9999';
+  overlay.id = 'tts-overlay';
+  document.body.appendChild(overlay);
+
+  // Override playTTS for mobile
+  const originalPlayTTS = playTTS;
+  playTTS = function() {
+    if (isIOS) {
+      // Hiển thị overlay để capture touch
+      overlay.style.display = 'block';
+      
+      overlay.onclick = function() {
+        overlay.style.display = 'none';
+        originalPlayTTS();
+      };
+      
+      alert('Chạm vào màn hình để bắt đầu phát âm thanh');
+      return;
+    }
+    
+    originalPlayTTS();
+  };
+}
+
+// Enhanced TTS function với mobile support
+function playTTS() {
+  // Mobile-specific audio unlock
+  if (isMobile) {
+    unlockMobileAudio();
+  }
+
+  const text = ttsText.value.trim();
+  if (!text) {
+    alert('Vui lòng nhập văn bản tiếng Nhật');
+    return;
+  }
+
+  // Small delay for mobile devices
+  setTimeout(() => {
+    if (isMobile && typeof speechSynthesis !== 'undefined') {
+      // Dừng any current speech trước
+      speechSynthesis.cancel();
+      
+      // Tạo mới utterance
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'ja-JP';
+      utterance.rate = parseFloat(ttsSpeed.value);
+      
+      // Chọn voice nếu có
+      if (ttsVoiceSelect.value) {
+        const voices = speechSynthesis.getVoices();
+        const voice = voices.find(v => v.name === ttsVoiceSelect.value);
+        if (voice) utterance.voice = voice;
+      }
+
+      speechSynthesis.speak(utterance);
+      
+    } else {
+      // Original desktop code
+      // ... (giữ nguyên code desktop)
+    }
+  }, isMobile ? 300 : 0);
+}
+
+// Mobile audio unlock function
+function unlockMobileAudio() {
+  try {
+    // Tạo audio context
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (AudioContext) {
+      const context = new AudioContext();
+      
+      // Tạo silent sound để unlock audio
+      const buffer = context.createBuffer(1, 1, 22050);
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      source.connect(context.destination);
+      source.start(0);
+      
+      if (context.state === 'suspended') {
+        context.resume();
+      }
+    }
+  } catch (e) {
+    console.log('Audio unlock failed:', e);
+  }
+}
+
+// Enhanced writing grid for mobile
+function generateWritingGrid() {
+  const text = writingText.value.trim();
+
+  if (!text) {
+    alert('Vui lòng nhập văn bản tiếng Nhật');
+    return;
+  }
+
+  writingGrid.innerHTML = '';
+  
+  // Adjust grid columns based on device
+  const columns = isMobile ? 4 : 8;
+  writingGrid.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
+
+  const characters = Array.from(text);
+  characters.forEach(char => {
+    const cell = document.createElement('div');
+    cell.className = 'character-cell';
+    cell.textContent = char;
+    
+    // Larger cells for mobile
+    if (isMobile) {
+      cell.style.width = '60px';
+      cell.style.height = '60px';
+      cell.style.fontSize = '24px';
+    }
+    
+    writingGrid.appendChild(cell);
+  });
+
+  writingGridContainer.classList.remove('hidden');
+  exportPdfBtn.disabled = false;
+  exportKanjiPdfBtn.disabled = false;
+}
