@@ -1,0 +1,107 @@
+/* Mobile Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    padding: 10px;
+    overflow-x: hidden;
+  }
+
+  /* Tab navigation cho mobile */
+  .tabs {
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .tab {
+    padding: 12px;
+    font-size: 14px;
+  }
+
+  /* Card layout cho mobile */
+  .card {
+    margin: 10px 0;
+    padding: 15px;
+  }
+
+  /* Writing grid cho mobile */
+  #writing-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 8px;
+  }
+
+  .character-cell {
+    width: 60px;
+    height: 60px;
+    font-size: 20px;
+  }
+
+  /* Tool controls cho mobile */
+  .tool-controls {
+    flex-direction: column;
+  }
+
+  .tts-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 5px;
+  }
+
+  /* Modal cho mobile */
+  .modal-content {
+    width: 95%;
+    margin: 10px;
+    padding: 15px;
+  }
+
+  /* Timer controls */
+  .timer-controls {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .timer-btn {
+    width: 100%;
+  }
+}
+
+/* iPad Specific */
+@media (min-width: 769px) and (max-width: 1024px) {
+  #writing-grid {
+    grid-template-columns: repeat(6, 1fr) !important;
+  }
+  
+  .character-cell {
+    width: 70px;
+    height: 70px;
+    font-size: 24px;
+  }
+}
+
+/* Prevent zoom on input focus iOS */
+@media (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Touch-friendly buttons */
+.btn {
+  min-height: 44px;
+  min-width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+}
+
+/* Prevent text selection on tap */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}

@@ -1694,6 +1694,42 @@ function setupRealTimeListeners() {
   });
 }
 
+////////////////////////////
+//       Mobile           //
+// Touch event handlers
+function setupTouchEvents() {
+  if (!isMobile) return;
+
+  // Better touch handling for buttons
+  document.querySelectorAll('.btn').forEach(btn => {
+    btn.addEventListener('touchstart', function(e) {
+      this.style.transform = 'scale(0.95)';
+      e.preventDefault();
+    });
+    
+    btn.addEventListener('touchend', function() {
+      this.style.transform = 'scale(1)';
+    });
+  });
+
+  // Prevent default touch behavior
+  document.addEventListener('touchmove', function(e) {
+    if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') {
+      return; // Allow scrolling in text areas
+    }
+    e.preventDefault();
+  }, { passive: false });
+}
+
+// Initialize mobile features
+document.addEventListener('DOMContentLoaded', function() {
+  if (isMobile) {
+    mobileTTSSetup();
+    setupTouchEvents();
+    unlockMobileAudio();
+  }
+});
+
 // Initialize the app
 document.addEventListener("DOMContentLoaded", () => {
   currentWeekStart = getStartOfWeek();

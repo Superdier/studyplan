@@ -694,6 +694,30 @@
             <button class="week-btn" id="start-break-btn">Bắt đầu nghỉ ngơi</button>
         </div>
     </div>
+    <!-- Thêm sau body -->
+    <div id="mobile-warning" style="display: none; background: #fff3cd; padding: 10px; text-align: center;">
+        <i class="fas fa-info-circle"></i> Đang sử dụng phiên bản mobile
+    </div>
+
+    <script>
+        // Mobile detection and warning
+        if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+            document.getElementById('mobile-warning').style.display = 'block';
+
+            // Thêm iOS specific warning
+            if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                const iosWarning = document.createElement('div');
+                iosWarning.style.background = '#e3f2fd';
+                iosWarning.style.padding = '10px';
+                iosWarning.style.margin = '10px 0';
+                iosWarning.innerHTML = `
+      <i class="fas fa-mobile-alt"></i> 
+      <strong>iOS Tip:</strong> Sử dụng Safari hoặc Chrome để tốt nhất
+    `;
+                document.getElementById('tools-tab').prepend(iosWarning);
+            }
+        }
+    </script>
 
     <script src="js/script.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>

@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "node-fetch": "^3.3.2"
+    "react-device-detect": "^2.2.2",
+    "is-mobile": "^3.0.0"
   }
 }
