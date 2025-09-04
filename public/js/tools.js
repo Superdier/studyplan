@@ -619,19 +619,30 @@ function fallbackCanvasExportKanjiWithWords(text) {
 // Hàm lấy danh sách giọng đọc
 function loadVoices() {
   voices = synth.getVoices();
-  if (voices.length === 0) {
-    // Trên iOS có thể load chậm, cần gọi lại sau một chút
-    setTimeout(loadVoices, 500);
-    return;
-  }
-
+  
+  // Lọc chỉ lấy giọng tiếng Nhật
+  const japaneseVoices = voices.filter(voice => 
+    voice.lang.includes('ja') || voice.lang.includes('JP')
+  );
+  
+  // Xóa options cũ
   ttsVoiceSelect.innerHTML = '';
-  voices.forEach((voice, i) => {
+  
+  // Thêm options cho giọng tiếng Nhật
+  japaneseVoices.forEach(voice => {
     const option = document.createElement('option');
     option.value = voice.name;
     option.textContent = `${voice.name} (${voice.lang})`;
     ttsVoiceSelect.appendChild(option);
   });
+  
+  // Nếu không có giọng Nhật, thêm giọng mặc định
+  if (japaneseVoices.length === 0 && voices.length > 0) {
+    const option = document.createElement('option');
+    option.value = voices[0].name;
+    option.textContent = `${voices[0].name} (${voices[0].lang})`;
+    ttsVoiceSelect.appendChild(option);
+  }
 }
 
 synth.onvoiceschanged = loadVoices;
