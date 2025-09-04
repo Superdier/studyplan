@@ -108,9 +108,8 @@ async function exportToPDF() {
   }
 
   try {
-    // ----- 1. Lấy font (tốt nhất host local: /public/assets/fonts/...) -----
-    // Nếu bạn host font trong project, đặt đường dẫn tương ứng. Ví dụ:
-    // const fontUrl = '/public/assets/fonts/NotoSansJP-Regular.ttf';
+    // ----- 1. Lấy font -----
+    // Nếu bạn host font trong project, đặt đường dẫn tương ứng.
     // Nếu dùng CDN, nhiều CDN trả về CORS, có thể bị chặn => tốt nhất tải về host local.
     const fontUrl = '/assets/fonts/NotoSansJP-VariableFont_wght.ttf';
 
@@ -337,7 +336,7 @@ async function exportKanjiPDF() {
 
   try {
     // 1. Lấy và nhúng font
-    const fontUrl = '/public/assets/fonts/NotoSansJP-VariableFont_wght.ttf';
+    const fontUrl = '/assets/fonts/NotoSansJP-VariableFont_wght.ttf';
     const fontResp = await fetch(fontUrl);
     if (!fontResp.ok) throw new Error('Không thể tải font từ ' + fontUrl);
     const fontBuf = await fontResp.arrayBuffer();
