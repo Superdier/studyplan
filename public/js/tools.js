@@ -9,6 +9,7 @@ const writingGrid = document.getElementById('writing-grid');
 const exportKanjiPdfBtn = document.getElementById('export-kanji-pdf');
 
 // Text-to-Speech Tool
+const ttsVoiceSelect = document.getElementById('tts-voice');
 const ttsText = document.getElementById('tts-text');
 const ttsSpeed = document.getElementById('tts-speed');
 const speedValue = document.getElementById('speed-value');
@@ -23,6 +24,7 @@ let synth = window.speechSynthesis;
 let utterance = null;
 let currentSentenceIndex = 0;
 let sentences = [];
+let voices = [];
 
 // Event Listeners for Writing Practice Tool
 generateGridBtn.addEventListener('click', generateWritingGrid);
@@ -611,12 +613,126 @@ function fallbackCanvasExportKanjiWithWords(text) {
 ///////////////////////////////
 // Text-to-Speech Functions ///
 ///////////////////////////////
+
+// Hàm lấy danh sách giọng đọc
+function loadVoices() {
+  voices = synth.getVoices();
+  
+  // Lọc chỉ lấy giọng tiếng Nhật
+  const japaneseVoices = voices.filter(voice => 
+    voice.lang.includes('ja') || voice.lang.includes('JP')
+  );
+  
+  // Xóa options cũ
+  ttsVoiceSelect.innerHTML = '';
+  
+  // Thêm options cho giọng tiếng Nhật
+  japaneseVoices.forEach(voice => {
+    const option = document.createElement('option');
+    option.value = voice.name;
+    option.textContent = `${voice.name} (${voice.lang})`;
+    ttsVoiceSelect.appendChild(option);
+  });
+  
+  // Nếu không có giọng Nhật, thêm giọng mặc định
+  if (japaneseVoices.length === 0 && voices.length > 0) {
+    const option = document.createElement('option');
+    option.value = voices[0].name;
+    option.textContent = `${voices[0].name} (${voices[0].lang})`;
+    ttsVoiceSelect.appendChild(option);
+  }
+}
+
+// Sự kiện khi voices được load
+synth.addEventListener('voiceschanged', loadVoices);
+
+// Hàm mở khóa audio trên mobile
+function unlockAudio() {
+  const context = new (window.AudioContext || window.webkitAudioContext)();
+  const buffer = context.createBuffer(1, 1, 22050);
+  const source = context.createBufferSource();
+  source.buffer = buffer;
+  source.connect(context.destination);
+  source.start(0);
+  
+  // Kiểm tra và resume nếu bị suspended
+  if (context.state === 'suspended') {
+    context.resume();
+  }
+}
+
+// Gọi hàm unlock khi có user interaction
+document.addEventListener('click', function() {
+  unlockAudio();
+}, { once: true }); // Chỉ cần gọi một lần
+
+// Thay đổi cách gắn event listener
+playTtsBtn.addEventListener('click', function(e) {
+  // Đảm bảo đây là user gesture
+  e.preventDefault();
+  
+  // Unlock audio trước khi play
+  unlockAudio();
+  
+  // Small delay để đảm bảo audio context ready
+  setTimeout(() => {
+    playTTS();
+  }, 100);
+});
+
+// Thêm hàm kiểm tra compatibility
+function checkTTSCompatibility() {
+  if (!('speechSynthesis' in window)) {
+    const warning = document.createElement('div');
+    warning.style.background = '#ffebee';
+    warning.style.padding = '10px';
+    warning.style.borderRadius = '4px';
+    warning.style.margin = '10px 0';
+    warning.innerHTML = `
+      <strong>⚠️ Trình duyệt không hỗ trợ đầy đủ Text-to-Speech</strong>
+      <p>Trên thiết bị di động, vui lòng sử dụng Chrome hoặc Safari mới nhất</p>
+    `;
+    
+    const ttsContainer = document.querySelector('.tool-section');
+    if (ttsContainer) {
+      ttsContainer.insertBefore(warning, ttsContainer.firstChild);
+    }
+    
+    playTtsBtn.disabled = true;
+    pauseTtsBtn.disabled = true;
+    stopTtsBtn.disabled = true;
+  }
+}
+
+// Gọi hàm kiểm tra khi load
+document.addEventListener('DOMContentLoaded', function() {
+  checkTTSCompatibility();
+  
+  // Thêm touch event cho mobile
+  if ('ontouchstart' in window) {
+    document.body.addEventListener('touchstart', unlockAudio, { once: true });
+  }
+});
+
 function playTTS() {
   const text = ttsText.value.trim();
 
   if (!text) {
     alert('Vui lòng nhập văn bản tiếng Nhật');
     return;
+  }
+
+  // Tạo audio context nếu chưa có (cho mobile)
+  if (typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined') {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioContext = new AudioContext();
+    
+    // Resume audio context khi có user interaction
+    if (audioContext.state === 'suspended') {
+      audioContext.resume().then(() => {
+        console.log('Audio context resumed');
+      });
+    }
   }
 
   // Split text into sentences (using Japanese punctuation)
@@ -641,6 +757,15 @@ function playTTS() {
   utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'ja-JP';
   utterance.rate = parseFloat(ttsSpeed.value);
+
+  // Chọn giọng đọc
+  const selectedVoice = ttsVoiceSelect.value;
+  if (selectedVoice) {
+    const voice = voices.find(v => v.name === selectedVoice);
+    if (voice) {
+      utterance.voice = voice;
+    }
+  }
 
   // Highlight current sentence as it's being spoken
   utterance.onboundary = function (event) {
@@ -738,149 +863,3 @@ document.addEventListener('DOMContentLoaded', function () {
   // Load voices sau một khoảng thời gian ngắn để đảm bảo API đã sẵn sàng
   setTimeout(loadVoices, 500);
 });
-
-//////////////////////////////
-//         Mobile           //
-
-// Mobile detection
-const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-// Mobile-specific TTS fix
-function mobileTTSSetup() {
-  if (!isMobile) return;
-
-  console.log('Mobile device detected, applying TTS fixes...');
-  
-  // Thêm overlay để capture touch events
-  const overlay = document.createElement('div');
-  overlay.style.position = 'fixed';
-  overlay.style.top = '0';
-  overlay.style.left = '0';
-  overlay.style.width = '100%';
-  overlay.style.height = '100%';
-  overlay.style.background = 'rgba(0,0,0,0.3)';
-  overlay.style.display = 'none';
-  overlay.style.zIndex = '9999';
-  overlay.id = 'tts-overlay';
-  document.body.appendChild(overlay);
-
-  // Override playTTS for mobile
-  const originalPlayTTS = playTTS;
-  playTTS = function() {
-    if (isIOS) {
-      // Hiển thị overlay để capture touch
-      overlay.style.display = 'block';
-      
-      overlay.onclick = function() {
-        overlay.style.display = 'none';
-        originalPlayTTS();
-      };
-      
-      alert('Chạm vào màn hình để bắt đầu phát âm thanh');
-      return;
-    }
-    
-    originalPlayTTS();
-  };
-}
-
-// Enhanced TTS function với mobile support
-function playTTS() {
-  // Mobile-specific audio unlock
-  if (isMobile) {
-    unlockMobileAudio();
-  }
-
-  const text = ttsText.value.trim();
-  if (!text) {
-    alert('Vui lòng nhập văn bản tiếng Nhật');
-    return;
-  }
-
-  // Small delay for mobile devices
-  setTimeout(() => {
-    if (isMobile && typeof speechSynthesis !== 'undefined') {
-      // Dừng any current speech trước
-      speechSynthesis.cancel();
-      
-      // Tạo mới utterance
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'ja-JP';
-      utterance.rate = parseFloat(ttsSpeed.value);
-      
-      // Chọn voice nếu có
-      if (ttsVoiceSelect.value) {
-        const voices = speechSynthesis.getVoices();
-        const voice = voices.find(v => v.name === ttsVoiceSelect.value);
-        if (voice) utterance.voice = voice;
-      }
-
-      speechSynthesis.speak(utterance);
-      
-    } else {
-      // Original desktop code
-      // ... (giữ nguyên code desktop)
-    }
-  }, isMobile ? 300 : 0);
-}
-
-// Mobile audio unlock function
-function unlockMobileAudio() {
-  try {
-    // Tạo audio context
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (AudioContext) {
-      const context = new AudioContext();
-      
-      // Tạo silent sound để unlock audio
-      const buffer = context.createBuffer(1, 1, 22050);
-      const source = context.createBufferSource();
-      source.buffer = buffer;
-      source.connect(context.destination);
-      source.start(0);
-      
-      if (context.state === 'suspended') {
-        context.resume();
-      }
-    }
-  } catch (e) {
-    console.log('Audio unlock failed:', e);
-  }
-}
-
-// Enhanced writing grid for mobile
-function generateWritingGrid() {
-  const text = writingText.value.trim();
-
-  if (!text) {
-    alert('Vui lòng nhập văn bản tiếng Nhật');
-    return;
-  }
-
-  writingGrid.innerHTML = '';
-  
-  // Adjust grid columns based on device
-  const columns = isMobile ? 4 : 8;
-  writingGrid.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
-
-  const characters = Array.from(text);
-  characters.forEach(char => {
-    const cell = document.createElement('div');
-    cell.className = 'character-cell';
-    cell.textContent = char;
-    
-    // Larger cells for mobile
-    if (isMobile) {
-      cell.style.width = '60px';
-      cell.style.height = '60px';
-      cell.style.fontSize = '24px';
-    }
-    
-    writingGrid.appendChild(cell);
-  });
-
-  writingGridContainer.classList.remove('hidden');
-  exportPdfBtn.disabled = false;
-  exportKanjiPdfBtn.disabled = false;
-}
