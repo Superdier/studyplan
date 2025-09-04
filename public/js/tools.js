@@ -112,6 +112,7 @@ async function exportToPDF() {
     // Nếu bạn host font trong project, đặt đường dẫn tương ứng.
     // Nếu dùng CDN, nhiều CDN trả về CORS, có thể bị chặn => tốt nhất tải về host local.
     const fontUrl = '/assets/fonts/NotoSansJP-VariableFont_wght.ttf';
+    console.log("Font fetch URL:", fontUrl);
 
     // Fetch font binary
     const fontResp = await fetch(fontUrl);
@@ -251,7 +252,6 @@ function fallbackCanvasExport(text) {
   doc.save('luyen-viet-tieng-nhat-fallback.pdf');
 }
 
-console.log("Font fetch URL:", fontUrl);
 
 // Kiểm tra hỗ trợ font tiếng Nhật
 function checkJapaneseFontSupport() {
@@ -337,6 +337,7 @@ async function exportKanjiPDF() {
   try {
     // 1. Lấy và nhúng font
     const fontUrl = '/assets/fonts/NotoSansJP-VariableFont_wght.ttf';
+    console.log("Font fetch URL:", fontUrl);
     const fontResp = await fetch(fontUrl);
     if (!fontResp.ok) throw new Error('Không thể tải font từ ' + fontUrl);
     const fontBuf = await fontResp.arrayBuffer();
@@ -648,7 +649,7 @@ function unlockAudio() {
   source.buffer = buffer;
   source.connect(context.destination);
   source.start(0);
-  
+
   // Kiểm tra và resume nếu bị suspended
   if (context.state === 'suspended') {
     context.resume();
@@ -656,18 +657,18 @@ function unlockAudio() {
 }
 
 // Gọi hàm unlock khi có user interaction
-document.addEventListener('click', function() {
+document.addEventListener('click', function () {
   unlockAudio();
 }, { once: true }); // Chỉ cần gọi một lần
 
 // Thay đổi cách gắn event listener
-playTtsBtn.addEventListener('click', function(e) {
+playTtsBtn.addEventListener('click', function (e) {
   // Đảm bảo đây là user gesture
   e.preventDefault();
-  
+
   // Unlock audio trước khi play
   unlockAudio();
-  
+
   // Small delay để đảm bảo audio context ready
   setTimeout(() => {
     playTTS();
@@ -686,12 +687,12 @@ function checkTTSCompatibility() {
       <strong>⚠️ Trình duyệt không hỗ trợ đầy đủ Text-to-Speech</strong>
       <p>Trên thiết bị di động, vui lòng sử dụng Chrome hoặc Safari mới nhất</p>
     `;
-    
+
     const ttsContainer = document.querySelector('.tool-section');
     if (ttsContainer) {
       ttsContainer.insertBefore(warning, ttsContainer.firstChild);
     }
-    
+
     playTtsBtn.disabled = true;
     pauseTtsBtn.disabled = true;
     stopTtsBtn.disabled = true;
@@ -699,9 +700,9 @@ function checkTTSCompatibility() {
 }
 
 // Gọi hàm kiểm tra khi load
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   checkTTSCompatibility();
-  
+
   // Thêm touch event cho mobile
   if ('ontouchstart' in window) {
     document.body.addEventListener('touchstart', unlockAudio, { once: true });
@@ -720,7 +721,7 @@ function playTTS() {
   if (typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined') {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     const audioContext = new AudioContext();
-    
+
     // Resume audio context khi có user interaction
     if (audioContext.state === 'suspended') {
       audioContext.resume().then(() => {
