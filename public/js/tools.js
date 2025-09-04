@@ -112,7 +112,7 @@ async function exportToPDF() {
     // Nếu bạn host font trong project, đặt đường dẫn tương ứng. Ví dụ:
     // const fontUrl = '/public/assets/fonts/NotoSansJP-Regular.ttf';
     // Nếu dùng CDN, nhiều CDN trả về CORS, có thể bị chặn => tốt nhất tải về host local.
-    const fontUrl = '/public/assets/fonts/NotoSansJP-VariableFont_wght.ttf'; // <-- chỉnh theo vị trí font của bạn
+    const fontUrl = '/assets/fonts/NotoSansJP-VariableFont_wght.ttf';
 
     // Fetch font binary
     const fontResp = await fetch(fontUrl);
@@ -251,6 +251,8 @@ function fallbackCanvasExport(text) {
 
   doc.save('luyen-viet-tieng-nhat-fallback.pdf');
 }
+
+console.log("Font fetch URL:", fontUrl);
 
 // Kiểm tra hỗ trợ font tiếng Nhật
 function checkJapaneseFontSupport() {
@@ -617,31 +619,24 @@ function fallbackCanvasExportKanjiWithWords(text) {
 // Hàm lấy danh sách giọng đọc
 function loadVoices() {
   voices = synth.getVoices();
-  
-  // Lọc chỉ lấy giọng tiếng Nhật
-  const japaneseVoices = voices.filter(voice => 
-    voice.lang.includes('ja') || voice.lang.includes('JP')
-  );
-  
-  // Xóa options cũ
+  if (voices.length === 0) {
+    // Trên iOS có thể load chậm, cần gọi lại sau một chút
+    setTimeout(loadVoices, 500);
+    return;
+  }
+
   ttsVoiceSelect.innerHTML = '';
-  
-  // Thêm options cho giọng tiếng Nhật
-  japaneseVoices.forEach(voice => {
+  voices.forEach((voice, i) => {
     const option = document.createElement('option');
     option.value = voice.name;
     option.textContent = `${voice.name} (${voice.lang})`;
     ttsVoiceSelect.appendChild(option);
   });
-  
-  // Nếu không có giọng Nhật, thêm giọng mặc định
-  if (japaneseVoices.length === 0 && voices.length > 0) {
-    const option = document.createElement('option');
-    option.value = voices[0].name;
-    option.textContent = `${voices[0].name} (${voices[0].lang})`;
-    ttsVoiceSelect.appendChild(option);
-  }
 }
+
+synth.onvoiceschanged = loadVoices;
+loadVoices();
+console.log("Loaded voices:", voices);
 
 // Sự kiện khi voices được load
 synth.addEventListener('voiceschanged', loadVoices);
