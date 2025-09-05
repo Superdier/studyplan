@@ -18,22 +18,38 @@ const db = firebase.database();
 let currentWeekStart = new Date("2025-07-07");
 let currentEditingDay = null;
 let notificationAudio = null;
-let isManualClose = false; // Theo dõi trạng thái đóng modal
+let isManualClose = false;
 
 // Chart instances
 let progressChart = null;
 let timeDistributionChart = null;
 let skillRadarChart = null;
+let subjectDistributionChart = null;
 
 // Global Variables for Timer
 let countdownInterval;
 let timeLeft;
 let isPaused = false;
-let isStudyPhase = true; // true: học, false: nghỉ
+let isStudyPhase = true;
 let sessionStartTime = null;
 let sessionTimers = {};
-let timerStartTime = null; // Thêm biến lưu thời điểm bắt đầu
-let timerDuration = 0;     // Tổng thời gian đếm ngược (giây)
+let timerStartTime = null;
+let timerDuration = 0;
+
+// Subject và Task Type mapping
+const subjectTaskTypes = {
+    'language': [
+        { value: 'vocabulary', label: 'Từ vựng' },
+        { value: 'grammar', label: 'Ngữ pháp' },
+        { value: 'kanji', label: 'Kanji' },
+        { value: 'reading', label: 'Đọc hiểu' },
+        { value: 'listening', label: 'Nghe hiểu' },
+        { value: 'conversation', label: 'Hội thoại' },
+        { value: 'other', label: 'Khác' }
+    ],
+    'it': [],
+    'other': []
+};
 
 // DOM Elements
 const editDayModal = document.getElementById("edit-day-modal");
@@ -59,11 +75,39 @@ const startTimerBtn = document.getElementById('start-timer');
 const pauseTimerBtn = document.getElementById('pause-timer');
 const stopTimerBtn = document.getElementById('stop-timer');
 
+// Custom alert function
+function showCustomAlert(message) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.style.zIndex = '10001';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 400px; width: auto;">
+            <h3 style="margin-top: 0; color: #1a2a6c;">
+                <i class="fas fa-exclamation-triangle" style="color: #fdbb2d; margin-right: 10px;"></i>
+                Thông báo
+            </h3>
+            <p style="margin: 20px 0; color: #333;">${message}</p>
+            <div style="text-align: right;">
+                <button class="btn btn-primary" onclick="this.closest('.modal').remove()">
+                    <i class="fas fa-check"></i> OK
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    setTimeout(() => {
+        if (modal.parentNode) {
+            modal.remove();
+        }
+    }, 5000);
+}
+
 function showModal(modalElement) {
   if (!modalElement) return;
 
   if (modalElement) {
-    // Ẩn tất cả modal khác trước
     document.querySelectorAll('.modal').forEach(modal => {
       modal.style.display = 'none';
     });
@@ -99,10 +143,9 @@ function getWeekRange(startDate) {
   return result;
 }
 
-// Hàm tính ngày đầu tuần (Thứ 2)
 function getStartOfWeek(date = new Date()) {
-  const day = date.getDay(); // 0 (Chủ nhật) đến 6 (Thứ 7)
-  const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Chỉnh để Thứ 2 là đầu tuần
+  const day = date.getDay();
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
   return new Date(date.setDate(diff));
 }
 
@@ -184,27 +227,22 @@ function generateDayCardHTML(date, data) {
 function setupTabNavigation() {
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
-      // Remove active class from all tabs
       tabs.forEach(t => t.classList.remove('active'));
       tabContents.forEach(c => c.classList.remove('active'));
 
-      // Add active class to clicked tab
       tab.classList.add('active');
 
-      // Show corresponding content
       const tabId = tab.getAttribute('data-tab') + '-tab';
       const contentElement = document.getElementById(tabId);
 
       if (contentElement) {
         contentElement.classList.add('active');
 
-        // Nếu là tab stats thì khởi tạo biểu đồ
         if (tabId === 'stats-tab') {
           initCharts();
         }
-        // Nếu là tab tools thì khởi tạo công cụ
         else if (tabId === 'tools-tab') {
-          initTools(); // Hàm này cần được định nghĩa
+          initTools();
         }
       } else {
         console.error('Không tìm thấy nội dung cho tab:', tabId);
@@ -255,131 +293,226 @@ function parseStudyTime(timeStr) {
   return hours * 60 + mins;
 }
 
+// Cập nhật hàm renderTasksInModal để hỗ trợ subject dropdown và giữ trạng thái done
 function renderTasksInModal(tasks) {
-  if (!tasksContainer) return;
+    if (!tasksContainer) return;
 
-  tasksContainer.innerHTML = "";
-  let totalMinutes = 0;
+    tasksContainer.innerHTML = "";
+    let totalMinutes = 0;
 
-  tasks.forEach((task, index) => {
-    const duration = task.duration || 0;
-    const note = task.note || "";
-    totalMinutes += duration;
+    tasks.forEach((task, index) => {
+        const duration = task.duration || 0;
+        const note = task.note || "";
+        const subject = task.subject || 'language';
+        const isDone = task.done || false; // Giữ trạng thái done
+        totalMinutes += duration;
 
-    const taskEl = document.createElement("div");
-    taskEl.className = "task-item";
-    taskEl.innerHTML = `
-            <div class="task-row">
-              <select class="task-type" data-index="${index}">
-                  <option value="vocabulary" ${task.type === 'vocabulary' ? 'selected' : ''}>Từ vựng</option>
-                  <option value="grammar" ${task.type === 'grammar' ? 'selected' : ''}>Ngữ pháp</option>
-                  <option value="kanji" ${task.type === 'kanji' ? 'selected' : ''}>Kanji</option>
-                  <option value="reading" ${task.type === 'reading' ? 'selected' : ''}>Đọc hiểu</option>
-                  <option value="listening" ${task.type === 'listening' ? 'selected' : ''}>Nghe</option>
-              </select>
-              <input type="text" class="task-input" value="${task.title}" data-index="${index}">
-              <input type="number" min="0" class="task-duration" value="${duration}" data-index="${index}" placeholder="Phút">
-            </div>
-            <div class="task-row">
-                <textarea class="task-note" data-index="${index}" placeholder="Thêm ghi chú cho nhiệm vụ...">${note}</textarea>
-            </div>
-            <div class="task-row">
+        const taskEl = document.createElement("div");
+        taskEl.className = "task-item";
+        taskEl.innerHTML = `
+            <div class="task-row-extended">
+                <select class="task-subject" data-index="${index}">
+                    <option value="language" ${subject === 'language' ? 'selected' : ''}>Ngôn ngữ</option>
+                    <option value="it" ${subject === 'it' ? 'selected' : ''}>IT</option>
+                    <option value="other" ${subject === 'other' ? 'selected' : ''}>Khác</option>
+                </select>
+                ${renderTaskTypeField(index, subject, task.type)}
+                <input type="text" class="task-input" value="${task.title}" data-index="${index}">
+                <input type="number" min="0" class="task-duration" value="${duration}" data-index="${index}" placeholder="Phút">
                 <button class="btn-delete delete-task" data-index="${index}">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
+            <div class="task-row">
+                <textarea class="task-note" data-index="${index}" placeholder="Thêm ghi chú cho nhiệm vụ...">${note}</textarea>
+            </div>
+            <input type="hidden" class="task-done-status" data-index="${index}" value="${isDone}">
         `;
-    tasksContainer.appendChild(taskEl);
-  });
-
-  // Thêm tổng thời gian
-  const totalElement = document.createElement("div");
-  totalElement.className = "total-duration";
-  totalElement.innerHTML = `<strong>Tổng thời gian: ${totalMinutes} phút</strong>`;
-  tasksContainer.appendChild(totalElement);
-}
-
-function addNewTask() {
-  if (!tasksContainer) return;
-
-  // Xóa tổng thời gian cũ
-  const totalElement = tasksContainer.querySelector('.total-duration');
-  if (totalElement) totalElement.remove();
-
-  // Tính index mới
-  const taskCount = tasksContainer.querySelectorAll('.task-item:not(.total-duration)').length;
-
-  const taskEl = document.createElement("div");
-  taskEl.className = "task-item";
-  taskEl.innerHTML = `
-        <select class="task-type" data-index="${taskCount}">
-            <option value="vocabulary">Từ vựng</option>
-            <option value="grammar">Ngữ pháp</option>
-            <option value="kanji">Kanji</option>
-            <option value="reading">Đọc hiểu</option>
-            <option value="listening">Nghe</option>
-        </select>
-        <input type="text" class="task-input" placeholder="Nhập nhiệm vụ mới" data-index="${taskCount}">
-        <input type="number" min="0" class="task-duration" value="30" placeholder="Phút" data-index="${taskCount}">
-        <textarea class="task-note" data-index="${taskCount}" placeholder="Ghi chú..."></textarea>
-        <button class="btn-delete delete-task" data-index="${taskCount}">
-            <i class="fas fa-trash"></i>
-        </button>
-    `;
-  tasksContainer.appendChild(taskEl);
-}
-
-async function saveDayData() {
-  if (!studyDurationInput) studyDurationInput = document.getElementById("study-duration");
-  if (!tasksContainer) tasksContainer = document.getElementById("tasks-container");
-
-  if (!currentEditingDay || !studyDurationInput || !tasksContainer) return;
-
-  const minutes = parseInt(studyDurationInput.value) || 0;
-  const hours = Math.floor(minutes / 60);
-  const remainingMins = minutes % 60;
-  const timeStr = hours > 0
-    ? `Thời gian: ${hours} giờ ${remainingMins} phút`
-    : `Thời gian: ${minutes} phút`;
-
-  const tasks = [];
-  const taskInputs = tasksContainer.querySelectorAll(".task-input");
-
-  taskInputs.forEach((input, index) => {
-    if (input.value.trim()) {
-      const typeSelect = tasksContainer.querySelector(`.task-type[data-index="${index}"]`);
-      const durationInput = tasksContainer.querySelector(`.task-duration[data-index="${index}"]`);
-      const noteInput = tasksContainer.querySelector(`.task-note[data-index="${index}"]`); 
-
-      if (typeSelect && durationInput) {
-        tasks.push({
-          title: input.value.trim(),
-          done: false,
-          type: typeSelect.value,
-          duration: parseInt(durationInput.value) || 0,
-          note: noteInput ? noteInput.value.trim() : "" 
-        });
-      }
-    }
-  });
-
-  try {
-    const weekNumber = Math.floor((new Date(currentEditingDay) - new Date("2025-07-07")) / (7 * 86400000)) + 1;
-
-    await db.ref(`schedule/${currentEditingDay}`).set({
-      time: timeStr,
-      tasks: tasks,
-      weekNumber: weekNumber
+        tasksContainer.appendChild(taskEl);
     });
 
-    if (editDayModal) {
-      hideModal(editDayModal);
+    // Thêm event listeners cho subject dropdowns
+    document.querySelectorAll('.task-subject').forEach(select => {
+        select.addEventListener('change', function() {
+            const index = this.getAttribute('data-index');
+            const subject = this.value;
+            const taskTypeContainer = this.parentNode;
+            const oldTaskType = taskTypeContainer.querySelector('.task-type, .task-type-input');
+            
+            // Tạo field mới cho task type
+            const newTaskTypeField = createTaskTypeElement(index, subject, '');
+            
+            // Thay thế field cũ
+            taskTypeContainer.replaceChild(newTaskTypeField, oldTaskType);
+        });
+    });
+
+    // Thêm tổng thời gian
+    const totalElement = document.createElement("div");
+    totalElement.className = "total-duration";
+    totalElement.innerHTML = `<strong>Tổng thời gian: ${totalMinutes} phút</strong>`;
+    tasksContainer.appendChild(totalElement);
+}
+
+// Hàm render task type field dựa trên subject
+function renderTaskTypeField(index, subject, currentType = '') {
+    if (subject === 'language') {
+        const options = subjectTaskTypes.language.map(type => 
+            `<option value="${type.value}" ${currentType === type.value ? 'selected' : ''}>${type.label}</option>`
+        ).join('');
+        return `<select class="task-type" data-index="${index}">${options}</select>`;
+    } else {
+        return `<input type="text" class="task-type-input" data-index="${index}" value="${currentType}" placeholder="Loại nhiệm vụ">`;
     }
-    loadCurrentWeek();
-  } catch (error) {
-    console.error("Lỗi khi lưu dữ liệu:", error);
-    alert("Có lỗi xảy ra khi lưu dữ liệu. Vui lòng thử lại!");
-  }
+}
+
+// Hàm tạo element cho task type
+function createTaskTypeElement(index, subject, currentType = '') {
+    if (subject === 'language') {
+        const select = document.createElement('select');
+        select.className = 'task-type';
+        select.setAttribute('data-index', index);
+        
+        subjectTaskTypes.language.forEach(type => {
+            const option = document.createElement('option');
+            option.value = type.value;
+            option.textContent = type.label;
+            if (currentType === type.value) option.selected = true;
+            select.appendChild(option);
+        });
+        
+        return select;
+    } else {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'task-type-input';
+        input.setAttribute('data-index', index);
+        input.value = currentType;
+        input.placeholder = 'Loại nhiệm vụ';
+        return input;
+    }
+}
+
+// Cập nhật hàm addNewTask
+function addNewTask() {
+    if (!tasksContainer) return;
+
+    // Xóa tổng thời gian cũ
+    const totalElement = tasksContainer.querySelector('.total-duration');
+    if (totalElement) totalElement.remove();
+
+    // Tính index mới
+    const taskCount = tasksContainer.querySelectorAll('.task-item:not(.total-duration)').length;
+
+    const taskEl = document.createElement("div");
+    taskEl.className = "task-item";
+    taskEl.innerHTML = `
+        <div class="task-row-extended">
+            <select class="task-subject" data-index="${taskCount}">
+                <option value="language" selected>Ngôn ngữ</option>
+                <option value="it">IT</option>
+                <option value="other">Khác</option>
+            </select>
+            <select class="task-type" data-index="${taskCount}">
+                <option value="vocabulary">Từ vựng</option>
+                <option value="grammar">Ngữ pháp</option>
+                <option value="kanji">Kanji</option>
+                <option value="reading">Đọc hiểu</option>
+                <option value="listening">Nghe hiểu</option>
+                <option value="conversation">Hội thoại</option>
+                <option value="other">Khác</option>
+            </select>
+            <input type="text" class="task-input" placeholder="Nhập nhiệm vụ mới" data-index="${taskCount}">
+            <input type="number" min="0" class="task-duration" value="30" placeholder="Phút" data-index="${taskCount}">
+            <button class="btn-delete delete-task" data-index="${taskCount}">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+        <div class="task-row">
+            <textarea class="task-note" data-index="${taskCount}" placeholder="Ghi chú..."></textarea>
+        </div>
+        <input type="hidden" class="task-done-status" data-index="${taskCount}" value="false">
+    `;
+    tasksContainer.appendChild(taskEl);
+
+    // Thêm event listener cho subject dropdown mới
+    const newSubjectSelect = taskEl.querySelector('.task-subject');
+    newSubjectSelect.addEventListener('change', function() {
+        const index = this.getAttribute('data-index');
+        const subject = this.value;
+        const taskTypeContainer = this.parentNode;
+        const oldTaskType = taskTypeContainer.querySelector('.task-type, .task-type-input');
+        
+        const newTaskTypeField = createTaskTypeElement(index, subject, '');
+        taskTypeContainer.replaceChild(newTaskTypeField, oldTaskType);
+    });
+}
+
+// Cập nhật hàm saveDayData để lưu subject và giữ trạng thái done
+async function saveDayData() {
+    if (!studyDurationInput) studyDurationInput = document.getElementById("study-duration");
+    if (!tasksContainer) tasksContainer = document.getElementById("tasks-container");
+
+    if (!currentEditingDay || !studyDurationInput || !tasksContainer) return;
+
+    const minutes = parseInt(studyDurationInput.value) || 0;
+    const hours = Math.floor(minutes / 60);
+    const remainingMins = minutes % 60;
+    const timeStr = hours > 0
+        ? `Thời gian: ${hours} giờ ${remainingMins} phút`
+        : `Thời gian: ${minutes} phút`;
+
+    const tasks = [];
+    const taskInputs = tasksContainer.querySelectorAll(".task-input");
+
+    taskInputs.forEach((input, index) => {
+        if (input.value.trim()) {
+            const subjectSelect = tasksContainer.querySelector(`.task-subject[data-index="${index}"]`);
+            const typeSelect = tasksContainer.querySelector(`.task-type[data-index="${index}"]`);
+            const typeInput = tasksContainer.querySelector(`.task-type-input[data-index="${index}"]`);
+            const durationInput = tasksContainer.querySelector(`.task-duration[data-index="${index}"]`);
+            const noteInput = tasksContainer.querySelector(`.task-note[data-index="${index}"]`);
+            const doneStatus = tasksContainer.querySelector(`.task-done-status[data-index="${index}"]`);
+
+            if (subjectSelect && durationInput) {
+                const subject = subjectSelect.value;
+                let taskType = '';
+                
+                if (subject === 'language' && typeSelect) {
+                    taskType = typeSelect.value;
+                } else if ((subject === 'it' || subject === 'other') && typeInput) {
+                    taskType = typeInput.value;
+                }
+
+                tasks.push({
+                    title: input.value.trim(),
+                    done: doneStatus ? doneStatus.value === 'true' : false, // Giữ trạng thái done
+                    subject: subject,
+                    type: taskType,
+                    duration: parseInt(durationInput.value) || 0,
+                    note: noteInput ? noteInput.value.trim() : ""
+                });
+            }
+        }
+    });
+
+    try {
+        const weekNumber = Math.floor((new Date(currentEditingDay) - new Date("2025-07-07")) / (7 * 86400000)) + 1;
+
+        await db.ref(`schedule/${currentEditingDay}`).set({
+            time: timeStr,
+            tasks: tasks,
+            weekNumber: weekNumber
+        });
+
+        if (editDayModal) {
+            hideModal(editDayModal);
+        }
+        loadCurrentWeek();
+    } catch (error) {
+        console.error("Lỗi khi lưu dữ liệu:", error);
+        showCustomAlert("Có lỗi xảy ra khi lưu dữ liệu. Vui lòng thử lại!");
+    }
 }
 
 function detectTaskType(title) {
@@ -391,7 +524,6 @@ function detectTaskType(title) {
 }
 
 function updateProgress() {
-  // Chỉ tính toán lại thay vì tải toàn bộ
   const allTasks = document.querySelectorAll('.study-item');
   const completedTasks = document.querySelectorAll('.study-item.done');
 
@@ -399,7 +531,6 @@ function updateProgress() {
   const completed = completedTasks.length;
   const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-  // Cập nhật thanh progress
   const progressFill = document.getElementById('progress-fill');
   const weekProgress = document.getElementById("week-progress");
 
@@ -410,7 +541,6 @@ function updateProgress() {
 
   if (weekProgress) weekProgress.textContent = progress + '%';
 
-  // Cập nhật số liệu
   const completedCount = document.getElementById('completed-count');
   if (completedCount) completedCount.textContent = completed;
   const totalCount = document.getElementById('total-tasks');
@@ -418,7 +548,7 @@ function updateProgress() {
 }
 
 // ----------------------------
-// STATISTICS & CHARTS FUNCTIONS
+// STATISTICS & CHARTS FUNCTIONS - UPDATED
 // ----------------------------
 
 async function getStudyStatistics() {
@@ -429,22 +559,26 @@ async function getStudyStatistics() {
     // Tạo bản đồ tiến độ tuần
     const weekProgressMap = new Map();
 
-    // Tạo bản đồ đánh giá kỹ năng
-    const skillAssessment = {
+    // Tạo bản đồ theo subject
+    const subjectDistribution = {
+      language: 0,
+      it: 0,
+      other: 0
+    };
+
+    // Tạo bản đồ task type động
+    const taskTypeDistribution = new Map();
+    const taskCategories = new Map();
+
+    // Tạo bản đồ đánh giá kỹ năng ngôn ngữ
+    const languageSkills = {
       vocabulary: 0,
       grammar: 0,
       kanji: 0,
       reading: 0,
-      listening: 0
-    };
-
-    // Tạo bản đồ phân loại bài tập
-    const taskCategories = {
-      vocabulary: { completed: 0, total: 0 },
-      grammar: { completed: 0, total: 0 },
-      kanji: { completed: 0, total: 0 },
-      reading: { completed: 0, total: 0 },
-      listening: { completed: 0, total: 0 }
+      listening: 0,
+      conversation: 0,
+      other: 0
     };
 
     // Biến tổng
@@ -471,30 +605,49 @@ async function getStudyStatistics() {
 
       // Xử lý từng nhiệm vụ
       dayData.tasks.forEach(task => {
+        const subject = task.subject || 'other';
+        const taskType = task.type || 'other';
+        const duration = task.duration || 0;
+
         // Cập nhật tổng
         totalTasks++;
         weekData.totalTasks++;
+
+        // Cập nhật subject distribution
+        if (subjectDistribution[subject] !== undefined) {
+          subjectDistribution[subject] += duration;
+        }
+
+        // Cập nhật task type distribution
+        const key = `${subject}_${taskType}`;
+        if (!taskTypeDistribution.has(key)) {
+          taskTypeDistribution.set(key, { time: 0, completed: 0, total: 0, subject, type: taskType });
+        }
+        const taskTypeData = taskTypeDistribution.get(key);
+        taskTypeData.time += duration;
+        taskTypeData.total++;
+
+        // Cập nhật task categories
+        if (!taskCategories.has(taskType)) {
+          taskCategories.set(taskType, { completed: 0, total: 0, subject });
+        }
+        const categoryData = taskCategories.get(taskType);
+        categoryData.total++;
 
         // Cập nhật nhiệm vụ hoàn thành
         if (task.done) {
           completedTasks++;
           weekData.completedTasks++;
-
-          // Cập nhật thời gian học
-          const duration = task.duration || 0;
           totalStudyTime += duration;
           weekData.studyTime += duration;
+          
+          taskTypeData.completed++;
+          categoryData.completed++;
         }
 
-        // Cập nhật kỹ năng
-        if (task.type && skillAssessment[task.type] !== undefined) {
-          skillAssessment[task.type] += task.duration || 0;
-        }
-
-        // Cập nhật phân loại bài tập
-        if (task.type && taskCategories[task.type]) {
-          taskCategories[task.type].total++;
-          if (task.done) taskCategories[task.type].completed++;
+        // Cập nhật kỹ năng ngôn ngữ
+        if (subject === 'language' && languageSkills[taskType] !== undefined) {
+          languageSkills[taskType] += duration;
         }
       });
     });
@@ -516,11 +669,19 @@ async function getStudyStatistics() {
       });
     }
 
-    // Chuyển đánh giá kỹ năng sang phần trăm
-    const totalSkillTime = Object.values(skillAssessment).reduce((sum, val) => sum + val, 0);
-    if (totalSkillTime > 0) {
-      Object.keys(skillAssessment).forEach(skill => {
-        skillAssessment[skill] = Math.round((skillAssessment[skill] / totalSkillTime) * 100);
+    // Chuyển đánh giá kỹ năng ngôn ngữ sang phần trăm
+    const totalLanguageTime = Object.values(languageSkills).reduce((sum, val) => sum + val, 0);
+    if (totalLanguageTime > 0) {
+      Object.keys(languageSkills).forEach(skill => {
+        languageSkills[skill] = Math.round((languageSkills[skill] / totalLanguageTime) * 100);
+      });
+    }
+
+    // Chuyển subject distribution sang phần trăm
+    const totalSubjectTime = Object.values(subjectDistribution).reduce((sum, val) => sum + val, 0);
+    if (totalSubjectTime > 0) {
+      Object.keys(subjectDistribution).forEach(subject => {
+        subjectDistribution[subject] = Math.round((subjectDistribution[subject] / totalSubjectTime) * 100);
       });
     }
 
@@ -528,9 +689,13 @@ async function getStudyStatistics() {
 
     return {
       weeklyProgress,
-      timeDistribution: skillAssessment,
-      skillAssessment,
-      taskCategories,
+      subjectDistribution,
+      languageSkills,
+      taskTypeDistribution: Array.from(taskTypeDistribution.values()),
+      taskCategories: Array.from(taskCategories.entries()).map(([type, data]) => ({
+        type,
+        ...data
+      })),
       totalStudyTime,
       totalTasks,
       completedTasks,
@@ -541,27 +706,18 @@ async function getStudyStatistics() {
     console.error("Lỗi khi tải thống kê:", error);
     return {
       weeklyProgress: [],
-      timeDistribution: {
+      subjectDistribution: { language: 0, it: 0, other: 0 },
+      languageSkills: {
         vocabulary: 0,
         grammar: 0,
         kanji: 0,
         reading: 0,
-        listening: 0
+        listening: 0,
+        conversation: 0,
+        other: 0
       },
-      skillAssessment: {
-        vocabulary: 0,
-        grammar: 0,
-        kanji: 0,
-        reading: 0,
-        listening: 0
-      },
-      taskCategories: {
-        vocabulary: { completed: 0, total: 0 },
-        grammar: { completed: 0, total: 0 },
-        kanji: { completed: 0, total: 0 },
-        reading: { completed: 0, total: 0 },
-        listening: { completed: 0, total: 0 }
-      },
+      taskTypeDistribution: [],
+      taskCategories: [],
       totalStudyTime: 0,
       totalTasks: 0,
       completedTasks: 0,
@@ -581,11 +737,7 @@ async function updateStatsCards(stats) {
 
   document.getElementById('max-streak').textContent = streak.max;
 
-  // Thêm thông tin thời gian học
-  document.getElementById('daily-study-time').textContent =
-    `${Math.floor(stats.dailyStudyTime / 60)}h${stats.dailyStudyTime % 60}m`;
-  document.getElementById('weekly-study-time').textContent =
-    `${Math.floor(stats.weeklyStudyTime / 60)}h`;
+  await displayEffectiveStudyTime();
 }
 
 async function calculateStreak() {
@@ -598,17 +750,14 @@ async function calculateStreak() {
     const scheduleData = scheduleSnapshot.val() || {};
     const sessionsData = sessionsSnapshot.val() || {};
 
-    // Tạo mảng các ngày có hoạt động học tập
     const studyDates = [];
 
-    // 1. Kiểm tra lịch học (chỉ tính ngày có ít nhất 1 nhiệm vụ hoàn thành)
     Object.entries(scheduleData).forEach(([date, dayData]) => {
       if (dayData.tasks && dayData.tasks.some(task => task.done)) {
         studyDates.push(date);
       }
     });
 
-    // 2. Kiểm tra phiên học (chỉ tính phiên hoàn thành)
     Object.entries(sessionsData).forEach(([date, sessions]) => {
       const hasCompletedSession = Object.values(sessions).some(
         session => session.type === "completed" && (session.duration || 0) > 0
@@ -618,10 +767,8 @@ async function calculateStreak() {
       }
     });
 
-    // Sắp xếp theo ngày
     studyDates.sort();
 
-    // Tính toán streak
     let currentStreak = 0;
     let maxStreak = 0;
     let prevDate = null;
@@ -638,7 +785,7 @@ async function calculateStreak() {
           currentStreak++;
         } else if (diffDays > 1) {
           maxStreak = Math.max(maxStreak, currentStreak);
-          currentStreak = 1; // Reset streak nếu khoảng cách > 1 ngày
+          currentStreak = 1;
         }
       }
 
@@ -656,6 +803,7 @@ async function calculateStreak() {
   }
 }
 
+// UPDATED CHART FUNCTIONS
 function initProgressChart(weeklyData) {
   const ctx = document.getElementById('progressChart')?.getContext('2d');
   if (!ctx) return;
@@ -672,37 +820,53 @@ function initProgressChart(weeklyData) {
         {
           label: 'Tỷ lệ hoàn thành (%)',
           data: weeklyData.map(item => item.progress),
-          backgroundColor: 'rgba(54, 162, 235, 0.7)',
+          backgroundColor: 'rgba(26, 42, 108, 0.8)',
+          borderColor: 'rgba(26, 42, 108, 1)',
+          borderWidth: 1,
           yAxisID: 'y'
         },
         {
           label: 'Thời gian học (giờ)',
           data: weeklyData.map(item => Math.round(item.studyTime / 60)),
           type: 'line',
-          borderColor: 'rgba(255, 99, 132, 1)',
-          backgroundColor: 'rgba(255, 99, 132, 0.2)',
-          borderWidth: 2,
+          borderColor: 'rgba(253, 187, 45, 1)',
+          backgroundColor: 'rgba(253, 187, 45, 0.2)',
+          borderWidth: 3,
+          pointBackgroundColor: 'rgba(253, 187, 45, 1)',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointRadius: 5,
           yAxisID: 'y1'
         }
       ]
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       scales: {
         y: {
           beginAtZero: true,
           max: 100,
-          title: { display: true, text: 'Tỷ lệ %' },
-          position: 'left'
+          title: { display: true, text: 'Tỷ lệ hoàn thành (%)' },
+          position: 'left',
+          grid: { color: 'rgba(0,0,0,0.1)' }
         },
         y1: {
           beginAtZero: true,
           title: { display: true, text: 'Giờ học' },
           position: 'right',
-          grid: { drawOnChartArea: false }
+          grid: { drawOnChartArea: false },
+          ticks: { color: 'rgba(253, 187, 45, 1)' }
+        },
+        x: {
+          grid: { color: 'rgba(0,0,0,0.1)' }
         }
       },
       plugins: {
+        legend: {
+          position: 'top',
+          labels: { usePointStyle: true }
+        },
         tooltip: {
           callbacks: {
             label: function (context) {
@@ -722,28 +886,23 @@ function initProgressChart(weeklyData) {
   });
 }
 
-function initTimeDistributionChart(timeData) {
+function initSubjectDistributionChart(subjectData) {
   const ctx = document.getElementById('timeDistributionChart')?.getContext('2d');
-  if (!ctx || !timeData) {
-    console.error("Canvas context or timeData not available");
-    return;
-  }
-
-  const data = Object.values(timeData);
-  const labels = Object.keys(timeData).map(key => {
-    const translations = {
-      'vocabulary': 'Từ vựng',
-      'grammar': 'Ngữ pháp',
-      'kanji': 'Kanji',
-      'reading': 'Đọc hiểu',
-      'listening': 'Nghe'
-    };
-    return translations[key] || key;
-  });
+  if (!ctx || !subjectData) return;
 
   if (timeDistributionChart) {
     timeDistributionChart.destroy();
   }
+
+  const data = Object.values(subjectData);
+  const labels = Object.keys(subjectData).map(key => {
+    const translations = {
+      'language': 'Ngôn ngữ',
+      'it': 'Công nghệ thông tin',
+      'other': 'Khác'
+    };
+    return translations[key] || key;
+  });
 
   timeDistributionChart = new Chart(ctx, {
     type: 'doughnut',
@@ -752,22 +911,28 @@ function initTimeDistributionChart(timeData) {
       datasets: [{
         data: data,
         backgroundColor: [
-          '#1a2a6c', '#4caf50', '#fdbb2d', '#b21f1f', '#9C27B0'
+          '#1a2a6c',  // Language - Xanh đậm
+          '#4caf50',  // IT - Xanh lá
+          '#ff9800'   // Other - Cam
         ],
         borderWidth: 0,
-        borderRadius: 6
+        borderRadius: 8,
+        hoverBorderWidth: 3,
+        hoverBorderColor: '#fff'
       }]
     },
     options: {
       responsive: true,
-      cutout: '70%',
+      maintainAspectRatio: false,
+      cutout: '65%',
       plugins: {
         legend: {
-          position: 'right',
+          position: 'bottom',
           labels: {
             padding: 20,
-            font: { size: 13 },
-            usePointStyle: true
+            font: { size: 14 },
+            usePointStyle: true,
+            pointStyle: 'circle'
           }
         },
         tooltip: {
@@ -775,16 +940,171 @@ function initTimeDistributionChart(timeData) {
             label: ctx => {
               const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
               const value = ctx.raw;
-              const hours = Math.floor(value / 60);
-              const mins = value % 60;
               const percentage = Math.round((value / total) * 100);
-              return `${ctx.label}: ${hours > 0 ? `${hours} giờ ` : ''}${mins > 0 ? `${mins} phút` : ''} (${percentage}%)`;
+              return `${ctx.label}: ${percentage}% thời gian`;
             }
           }
         }
       }
     }
   });
+}
+
+function initSkillRadarChart(skillData) {
+  const ctx = document.getElementById('skillRadarChart')?.getContext('2d');
+  if (!ctx) return;
+
+  if (skillRadarChart) {
+    skillRadarChart.destroy();
+  }
+
+  const labels = Object.keys(skillData).map(key => {
+    const translations = {
+      'vocabulary': 'Từ vựng',
+      'grammar': 'Ngữ pháp',
+      'kanji': 'Kanji',
+      'reading': 'Đọc hiểu',
+      'listening': 'Nghe hiểu',
+      'conversation': 'Hội thoại',
+      'other': 'Khác'
+    };
+    return translations[key] || key;
+  });
+
+  skillRadarChart = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Phân bố thời gian (%)',
+        data: Object.values(skillData),
+        backgroundColor: 'rgba(26, 42, 108, 0.2)',
+        borderColor: 'rgba(26, 42, 108, 1)',
+        pointBackgroundColor: 'rgba(253, 187, 45, 1)',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        pointHoverBackgroundColor: '#fff',
+        pointHoverBorderColor: 'rgba(26, 42, 108, 1)',
+        borderWidth: 3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        r: {
+          beginAtZero: true,
+          max: 100,
+          ticks: {
+            stepSize: 20,
+            callback: value => `${value}%`,
+            font: { size: 11 }
+          },
+          grid: { color: 'rgba(0,0,0,0.1)' },
+          angleLines: { color: 'rgba(0,0,0,0.1)' }
+        }
+      },
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: { font: { size: 12 } }
+        },
+        tooltip: {
+          callbacks: {
+            label: context => ` ${context.label}: ${context.raw}%`
+          }
+        }
+      }
+    }
+  });
+}
+
+function displayTaskCategories(categories) {
+  const container = document.getElementById('taskCategoryContainer');
+  if (!container) return;
+
+  container.innerHTML = '';
+
+  const translations = {
+    'vocabulary': 'Từ vựng',
+    'grammar': 'Ngữ pháp',
+    'kanji': 'Kanji',
+    'reading': 'Đọc hiểu',
+    'listening': 'Nghe hiểu',
+    'conversation': 'Hội thoại',
+    'other': 'Khác'
+  };
+
+  const subjectIcons = {
+    'language': 'fas fa-language',
+    'it': 'fas fa-laptop-code',
+    'other': 'fas fa-book'
+  };
+
+  categories.forEach(category => {
+    const displayName = translations[category.type] || category.type;
+    const progress = category.total > 0 ? Math.round((category.completed / category.total) * 100) : 0;
+    const icon = subjectIcons[category.subject] || 'fas fa-book';
+
+    const card = document.createElement('div');
+    card.className = 'task-category-card';
+    card.innerHTML = `
+      <h4><i class="${icon}"></i> ${displayName}</h4>
+      <div class="task-category-stats">
+        <span>${category.completed}/${category.total} bài</span>
+        <span>${progress}% hoàn thành</span>
+      </div>
+      <div class="task-category-progress">
+        <div class="task-category-progress-bar" style="width: ${progress}%"></div>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+async function displayEffectiveStudyTime() {
+  const dailyEl = document.getElementById('daily-study-time');
+  const weeklyEl = document.getElementById('weekly-study-time');
+
+  if (!dailyEl || !weeklyEl) return;
+
+  try {
+    const analysis = await analyzeStudyPatterns();
+
+    const dailyMins = analysis.dailyStudyTime || 0;
+    if (dailyMins > 0) {
+      const hours = Math.floor(dailyMins / 60);
+      const mins = dailyMins % 60;
+
+      if (hours > 0) {
+        dailyEl.textContent = mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+      } else {
+        dailyEl.textContent = `${mins}m`;
+      }
+    } else {
+      dailyEl.textContent = "0m";
+    }
+
+    const weeklyMins = analysis.weeklyStudyTime || 0;
+    if (weeklyMins > 0) {
+      const hours = Math.floor(weeklyMins / 60);
+      const mins = weeklyMins % 60;
+
+      if (hours > 0) {
+        weeklyEl.textContent = mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+      } else {
+        weeklyEl.textContent = `${mins}m`;
+      }
+    } else {
+      weeklyEl.textContent = "0h";
+    }
+
+  } catch (error) {
+    console.error("Lỗi khi hiển thị thời gian học hiệu quả:", error);
+    dailyEl.textContent = "0m";
+    weeklyEl.textContent = "0h";
+  }
 }
 
 async function analyzeStudyPatterns() {
@@ -808,13 +1128,10 @@ async function analyzeStudyPatterns() {
 
         const duration = parseInt(session.duration) || 0;
 
-        // Tính thời gian học hôm nay
         if (isToday) dailyStudyTime += duration;
 
-        // Tính thời gian học tuần này
         if (isThisWeek) weeklyStudyTime += duration;
 
-        // Tính thống kê theo giờ
         if (session.start) {
           const hour = new Date(session.start).getHours();
           hourlyStats[hour] += duration;
@@ -822,7 +1139,6 @@ async function analyzeStudyPatterns() {
       });
     });
 
-    // Tìm giờ học hiệu quả nhất
     let maxHour = -1;
     let maxDuration = 0;
     for (let hour = 0; hour < 24; hour++) {
@@ -851,127 +1167,38 @@ async function analyzeStudyPatterns() {
   }
 }
 
-async function displayEffectiveStudyTime() {
-  const dailyEl = document.getElementById('daily-study-time');
-  const weeklyEl = document.getElementById('weekly-study-time');
-  const bestTimeEl = document.getElementById('best-study-time');
-
-  if (!dailyEl || !weeklyEl || !bestTimeEl) return;
-
-  try {
-    const analysis = await analyzeStudyPatterns();
-
-    // Hiển thị thời gian học hôm nay
-    const dailyMins = analysis.dailyStudyTime || 0;
-    if (dailyMins > 0) {
-      const hours = Math.floor(dailyMins / 60);
-      const mins = dailyMins % 60;
-
-      if (hours > 0) {
-        dailyEl.textContent = mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-      } else {
-        dailyEl.textContent = `${mins}m`;
-      }
-    } else {
-      dailyEl.textContent = "0m";
-    }
-
-    // Hiển thị thời gian học tuần này
-    const weeklyMins = analysis.weeklyStudyTime || 0;
-    if (weeklyMins > 0) {
-      const hours = Math.floor(weeklyMins / 60);
-      const mins = weeklyMins % 60;
-
-      if (hours > 0) {
-        weeklyEl.textContent = mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-      } else {
-        weeklyEl.textContent = `${mins}m`;
-      }
-    } else {
-      weeklyEl.textContent = "0h";
-    }
-
-    // Hiển thị giờ học hiệu quả
-    if (analysis.bestTime && analysis.bestTime.duration > 0) {
-      bestTimeEl.textContent = analysis.bestTime.hour;
-    } else {
-      bestTimeEl.textContent = "Chưa có dữ liệu";
-    }
-
-  } catch (error) {
-    console.error("Lỗi khi hiển thị thời gian học hiệu quả:", error);
-    dailyEl.textContent = "0m";
-    weeklyEl.textContent = "0h";
-    bestTimeEl.textContent = "Chưa có dữ liệu";
+async function initCharts() {
+  if (progressChart) {
+    progressChart.destroy();
+    progressChart = null;
   }
-}
-
-async function displayStudyAnalysis() {
-  const analysis = await analyzeStudyPatterns();
-
-  // Tạo HTML cho kết quả
-  const analysisHTML = `
-    <div class="analysis-card">
-      <h3><i class="fas fa-chart-line"></i> Phân tích học tập</h3>
-      <div class="stats-row">
-        <div class="stat">
-          <i class="fas fa-clock"></i>
-          <div>Tổng thời gian: ${Math.floor(analysis.totalDuration / 60)}h${analysis.totalDuration % 60}m</div>
-        </div>
-        <div class="stat">
-          <i class="fas fa-layer-group"></i>
-          <div>Số phiên: ${analysis.sessionCount}</div>
-        </div>
-        <div class="stat">
-          <i class="fas fa-arrows-alt-h"></i>
-          <div>Trung bình: ${Math.round(analysis.avgDuration)} phút/phiên</div>
-        </div>
-      </div>
-      
-      <h4><i class="fas fa-chart-bar"></i> Thời gian học theo giờ</h4>
-      <div class="hourly-chart">
-        ${analysis.hourlyDistribution.map((duration, hour) => `
-          <div class="hour-bar">
-            <div class="bar-label">${hour}h</div>
-            <div class="bar-container">
-              <div class="bar" style="height: ${duration / analysis.totalDuration * 200}px;"></div>
-            </div>
-            <div class="duration">${duration}m</div>
-          </div>
-        `).join('')}
-      </div>
-      
-      <div class="highlights">
-        <div class="highlight-card">
-          <i class="fas fa-crown"></i>
-          <div>Giờ học hiệu quả: ${analysis.bestTime.hour}</div>
-        </div>
-        <div class="highlight-card">
-          <i class="fas fa-trophy"></i>
-          <div>Phiên dài nhất: ${analysis.longestSession.duration} phút</div>
-        </div>
-      </div>
-    </div>
-  `;
-
-  // Chèn vào tab thống kê
-  const statsTab = document.getElementById('stats-tab');
-  if (statsTab) {
-    statsTab.insertAdjacentHTML('beforeend', analysisHTML);
+  if (timeDistributionChart) {
+    timeDistributionChart.destroy();
+    timeDistributionChart = null;
   }
+  if (skillRadarChart) {
+    skillRadarChart.destroy();
+    skillRadarChart = null;
+  }
+
+  const stats = await getStudyStatistics();
+  updateStatsCards(stats);
+  initProgressChart(stats.weeklyProgress);
+  initSubjectDistributionChart(stats.subjectDistribution);
+  initSkillRadarChart(stats.languageSkills);
+  displayTaskCategories(stats.taskCategories);
+  await displayEffectiveStudyTime();
 }
 
 // ----------------------------
 // COUNTDOWN/TIMER FUNCTIONS
 // ----------------------------
 
-// Start the session
 function startStudySession() {
   sessionStartTime = new Date();
   const sessionKey = `session_${Date.now()}`;
   const dateKey = formatDate(sessionStartTime);
 
-  // Lưu thông tin session vào sessionTimers
   sessionTimers[sessionKey] = {
     start: sessionStartTime,
     end: null,
@@ -979,7 +1206,6 @@ function startStudySession() {
     type: "active"
   };
 
-  // Lưu lên Firebase
   db.ref(`studySessions/${dateKey}/${sessionKey}`).set({
     start: sessionStartTime.getTime(),
     end: null,
@@ -988,26 +1214,22 @@ function startStudySession() {
   });
 }
 
-// End the session
 async function endStudySession() {
   if (!sessionStartTime) return;
 
   const endTime = new Date();
-  const duration = Math.floor((endTime - sessionStartTime) / 60000); // phút
+  const duration = Math.floor((endTime - sessionStartTime) / 60000);
   const dateKey = formatDate(sessionStartTime);
 
-  // Tạo sessionKey mới nếu không tìm thấy trong sessionTimers
   const sessionKey = `session_${Date.now()}`;
 
   try {
-    // Cập nhật session
     await db.ref(`studySessions/${dateKey}/${sessionKey}`).update({
       end: endTime.getTime(),
       duration: duration,
       type: duration >= parseInt(studyMinutesInput.value) ? "completed" : "interrupted"
     });
 
-    // Cập nhật thống kê
     await updateStudyStats(dateKey, duration);
   } catch (error) {
     console.error("Lỗi khi kết thúc phiên học:", error);
@@ -1016,7 +1238,6 @@ async function endStudySession() {
   sessionStartTime = null;
 }
 
-// Cập nhật thống kê tổng
 async function updateStudyStats(dateKey, duration) {
   const date = new Date(dateKey);
   const year = date.getFullYear();
@@ -1025,26 +1246,22 @@ async function updateStudyStats(dateKey, duration) {
   const weekKey = `${year}-W${weekNumber.toString().padStart(2, '0')}`;
   const monthKey = `${year}-${month.toString().padStart(2, '0')}`;
 
-  // Cập nhật hàng ngày
   const dailyRef = db.ref(`userStats/daily/${monthKey}/${date.getDate()}`);
   const dailySnapshot = await dailyRef.once('value');
   const currentDaily = dailySnapshot.val() || 0;
   await dailyRef.set(currentDaily + duration);
 
-  // Cập nhật hàng tuần
   const weeklyRef = db.ref(`userStats/weekly/${weekKey}`);
   const weeklySnapshot = await weeklyRef.once('value');
   const currentWeekly = weeklySnapshot.val() || 0;
   await weeklyRef.set(currentWeekly + duration);
 
-  // Cập nhật hàng tháng
   const monthlyRef = db.ref(`userStats/monthly/${monthKey}`);
   const monthlySnapshot = await monthlyRef.once('value');
   const currentMonthly = monthlySnapshot.val() || 0;
   await monthlyRef.set(currentMonthly + duration);
 }
 
-// Number of weeks in a year
 function getWeekNumber(date) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
@@ -1057,11 +1274,9 @@ function updateRemainingDays() {
   const examDate = new Date("2025-12-06");
   const today = new Date();
 
-  // Tính số ngày còn lại (không tính ngày hiện tại)
   const diffTime = examDate - today;
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-  // Cập nhật lên giao diện
   const remainingDaysElement = document.querySelector('.stat-card:nth-child(3) .stat-value');
   if (remainingDaysElement) {
     remainingDaysElement.textContent = diffDays > 0 ? diffDays : "0";
@@ -1069,7 +1284,6 @@ function updateRemainingDays() {
 }
 
 function setupEventListeners() {
-  // Navigation buttons
   document.getElementById("prev-week")?.addEventListener("click", () => {
     currentWeekStart.setDate(currentWeekStart.getDate() - 7);
     loadCurrentWeek();
@@ -1101,11 +1315,8 @@ function setupEventListeners() {
 
   if (studyMinutesInput) {
     studyMinutesInput.addEventListener('change', () => {
-      stopTimer(); // Dừng và reset timer khi thay đổi thời gian học
+      stopTimer();
     });
-  }
-  if (breakMinutesInput) {
-    // Tùy chỉnh: nếu bạn muốn reset hoặc thay đổi trạng thái khi break duration thay đổi
   }
 
   if (closeCountdownModal) {
@@ -1118,24 +1329,19 @@ function setupEventListeners() {
   if (closeBreakModalBtn) {
     closeBreakModalBtn.addEventListener('click', () => {
       hideModal(breakModal);
-      stopNotificationSound(); // Dừng âm thanh
+      stopNotificationSound();
     });
   }
 
   if (startBreakBtn) {
     startBreakBtn.addEventListener('click', () => {
-      // Ẩn modal nghỉ
       hideModal(breakModal);
-
-      // Hiển thị modal đếm ngược
       showModal(countdownModal);
-
-      // Bắt đầu timer nghỉ
       startBreakTimer();
     });
   }
 
-  if (breakModal) { // Đảm bảo breakModal tồn tại
+  if (breakModal) {
     window.addEventListener('click', (event) => {
       if (event.target === breakModal) {
         hideBreakModal();
@@ -1145,7 +1351,6 @@ function setupEventListeners() {
     });
   }
 
-  // Edit modal buttons
   if (addTaskBtn) {
     addTaskBtn.addEventListener("click", addNewTask);
   }
@@ -1168,9 +1373,7 @@ function setupEventListeners() {
       });
     }
 
-    // Task interaction
     document.addEventListener("click", (e) => {
-      // Open edit modal
       if (e.target.closest(".add-task-btn")) {
         e.preventDefault();
         const card = e.target.closest(".day-card");
@@ -1182,7 +1385,6 @@ function setupEventListeners() {
         }
       }
 
-      // Open edit modal via edit button
       if (e.target.closest(".edit-task-btn")) {
         const card = e.target.closest(".day-card");
         if (card) {
@@ -1192,7 +1394,6 @@ function setupEventListeners() {
       }
     });
 
-    // Task container events
     if (tasksContainer) {
       tasksContainer.addEventListener("click", (e) => {
         if (e.target.closest(".delete-task")) {
@@ -1203,7 +1404,6 @@ function setupEventListeners() {
   }
 }
 
-// Thay vì gắn sự kiện cho từng nút, dùng event delegation
 document.addEventListener('click', (e) => {
   const checkBtn = e.target.closest('.check-btn');
   if (checkBtn) {
@@ -1218,136 +1418,42 @@ document.addEventListener('click', (e) => {
   }
 });
 
-function initSkillRadarChart(skillData) {
-  const ctx = document.getElementById('skillRadarChart')?.getContext('2d');
-  if (!ctx) return;
+async function toggleTaskDone(date, taskIndex) {
+  try {
+    const ref = db.ref(`schedule/${date}/tasks/${taskIndex}`);
+    const snapshot = await ref.once('value');
+    const currentDone = snapshot.val().done;
 
-  if (skillRadarChart) {
-    skillRadarChart.destroy();
-  }
+    await ref.update({ done: !currentDone });
 
-  const labels = Object.keys(skillData).map(key => {
-    const translations = {
-      'vocabulary': 'Từ vựng',
-      'grammar': 'Ngữ pháp',
-      'kanji': 'Kanji',
-      'reading': 'Đọc hiểu',
-      'listening': 'Nghe'
-    };
-    return translations[key] || key;
-  });
-
-  skillRadarChart = new Chart(ctx, {
-    type: 'radar',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: 'Tỷ lệ thời gian học',
-        data: Object.values(skillData),
-        backgroundColor: 'rgba(26, 42, 108, 0.2)',
-        borderColor: 'rgba(26, 42, 108, 1)',
-        pointBackgroundColor: 'rgba(26, 42, 108, 1)',
-        pointBorderColor: '#fff',
-        pointHoverBackgroundColor: '#fff',
-        pointHoverBorderColor: 'rgba(26, 42, 108, 1)'
-      }]
-    },
-    options: {
-      scales: {
-        r: {
-          beginAtZero: true,
-          max: 100,
-          ticks: {
-            stepSize: 20,
-            callback: value => `${value}%`
-          }
-        }
-      },
-      plugins: {
-        tooltip: {
-          callbacks: {
-            label: context => ` ${context.label}: ${context.raw}%`
-          }
-        }
+    const taskElement = document.querySelector(`.day-card[data-date="${date}"] .study-item[data-task-index="${taskIndex}"]`);
+    if (taskElement) {
+      taskElement.classList.toggle('done', !currentDone);
+      const icon = taskElement.querySelector('.check-btn i');
+      if (icon) {
+        icon.className = !currentDone ? 'fas fa-check-circle' : 'far fa-circle';
       }
     }
-  });
-}
 
-function displayTaskCategories(categories) {
-  const container = document.getElementById('taskCategoryContainer');
-  if (!container) return;
+    const newStreak = await calculateStreak();
+    updateStreakDisplay(newStreak);
 
-  container.innerHTML = '';
+    updateProgress();
 
-  const translations = {
-    'vocabulary': 'Từ vựng',
-    'grammar': 'Ngữ pháp',
-    'kanji': 'Kanji',
-    'reading': 'Đọc hiểu',
-    'listening': 'Nghe'
-  };
+    const activeTab = document.querySelector('.tab.active');
+    if (activeTab && activeTab.dataset.tab === 'stats') {
+      initCharts();
+    }
 
-  Object.entries(categories).forEach(([type, stats]) => {
-    const displayName = translations[type] || type;
-    const progress = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
-
-    const card = document.createElement('div');
-    card.className = 'task-category-card';
-    card.innerHTML = `
-      <h4><i class="fas fa-book"></i> ${displayName}</h4>
-      <div class="task-category-stats">
-        <span>${stats.completed}/${stats.total} bài</span>
-        <span>${progress}% hoàn thành</span>
-      </div>
-      <div class="task-category-progress">
-        <div class="task-category-progress-bar" style="width: ${progress}%"></div>
-      </div>
-    `;
-    container.appendChild(card);
-  });
-}
-
-function initTimer() {
-  // Timer implementation from your original code
-  // ... (keep your existing timer functions)
-}
-
-// ----------------------------
-// HELPER FUNCTIONS
-// ----------------------------
-
-function getTodayDateString() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-startStudyBtn.addEventListener("click", () => {
-  countdownModal.style.display = "flex";
-});
-
-// ----------------------------
-// Display Rest Modal Function
-// ----------------------------
-
-
-// Hàm bắt đầu đếm ngược thời gian nghỉ
-let breakTimer;
-const BREAK_DURATION = 5 * 60 * 1000; // 5 phút nghỉ ngơi (đổi ra miligiây)
-
-function showBreakModal() {
-  if (breakModal) {
-    breakModal.style.display = 'flex'; // Sử dụng flex để căn giữa dễ dàng
+  } catch (error) {
+    console.error("Lỗi khi cập nhật nhiệm vụ:", error);
   }
 }
 
-// Hàm ẩn modal nghỉ ngơi
-function hideBreakModal() {
-  if (breakModal) {
-    breakModal.style.display = 'none';
-    stopTimer();
-    stopNotificationSound();
-    console.log('Dừng nghỉ ngơi và tắt âm ');
+function updateStreakDisplay(streakData) {
+  const streakElement = document.getElementById('streak-days');
+  if (streakElement) {
+    streakElement.textContent = streakData.current;
   }
 }
 
@@ -1359,29 +1465,11 @@ function updateTimerDisplay() {
   }
 }
 
-// Khi hiển thị modal nghỉ
-function showBreakModal() {
-  showModal(breakModal);
-  if (countdownModal) {
-    countdownModal.style.zIndex = '900'; // Thấp hơn modal nghỉ
-  }
-}
-
-// Khi hiển thị modal đếm ngược
-function showCountdownModal() {
-  showModal(countdownModal);
-  if (breakModal) {
-    breakModal.style.zIndex = '900'; // Thấp hơn modal đếm ngược
-  }
-}
-
 function startTimer() {
   if (isPaused) {
-    // Tiếp tục từ thời gian còn lại khi pause
     timerStartTime = new Date().getTime() - (timerDuration - timeLeft) * 1000;
     isPaused = false;
   } else {
-    // Bắt đầu phiên mới
     startStudySession();
     timerDuration = isStudyPhase
       ? parseInt(studyMinutesInput.value) * 60
@@ -1407,10 +1495,9 @@ function startTimer() {
       }
       updateTimerDisplay();
     }
-  }, 200); // Cập nhật thường xuyên hơn để chính xác
+  }, 200);
 }
 
-// Hàm tạm dừng đếm ngược
 function pauseTimer() {
   isPaused = true;
   clearInterval(countdownInterval);
@@ -1420,7 +1507,6 @@ function pauseTimer() {
   console.log('Tạm dừng đếm ngược');
 }
 
-// Hàm dừng và reset đếm ngược
 function stopTimer() {
   endStudySession();
   clearInterval(countdownInterval);
@@ -1437,8 +1523,6 @@ function stopTimer() {
   console.log('Dừng đếm ngược');
   stopNotificationSound();
   console.log('Dừng âm thanh');
-  // Xóa tất cả session timers
-  // sessionTimers = {};
 }
 
 function startBreakTimer() {
@@ -1455,29 +1539,6 @@ function startBreakTimer() {
   console.log('Chuyển sang nghỉ');
 }
 
-function updateTimer() {
-  if (!isPaused) {
-    timeLeft--;
-    updateTimerDisplay();
-
-    if (timeLeft <= 0) {
-      clearInterval(countdownInterval);
-      if (isStudyPhase) {
-        // Hết giờ học, chuyển sang nghỉ
-        isStudyPhase = false;
-        timeLeft = parseInt(breakMinutesInput.value) * 60;
-        if (timerStatus) timerStatus.textContent = 'Đang nghỉ...';
-        showModal(breakModal);
-        console.log('Hết giờ học, chuyển sang nghỉ:', timeLeft);
-      } else {
-        // Hết giờ nghỉ, dừng hẳn
-        stopTimer();
-        console.log('Hết giờ nghỉ, dừng hẳn');
-      }
-    }
-  }
-}
-
 function updateBreakMessage(studyMinutes, breakMinutes) {
   const breakMessage = document.getElementById('break-message');
   if (breakMessage) {
@@ -1486,140 +1547,120 @@ function updateBreakMessage(studyMinutes, breakMinutes) {
   }
 }
 
-//////////////////////
-// TASK MANAGEMENT ///
-//////////////////////
+// Cập nhật hàm handleTimerCompletion để có âm thanh báo
+function handleTimerCompletion() {
+    clearInterval(countdownInterval);
 
-async function toggleTaskDone(date, taskIndex) {
-  try {
-    const ref = db.ref(`schedule/${date}/tasks/${taskIndex}`);
-    const snapshot = await ref.once('value');
-    const currentDone = snapshot.val().done;
+    if (isStudyPhase) {
+        isStudyPhase = false;
+        timerDuration = parseInt(breakMinutesInput.value) * 60;
+        timerStartTime = new Date().getTime();
 
-    // 1. Cập nhật trạng thái trên Firebase
-    await ref.update({ done: !currentDone });
+        isManualClose = false;
+        showModal(breakModal);
 
-    // 2. Tìm và cập nhật trực tiếp phần tử DOM tương ứng
-    const taskElement = document.querySelector(`.day-card[data-date="${date}"] .study-item[data-task-index="${taskIndex}"]`);
-    if (taskElement) {
-      taskElement.classList.toggle('done', !currentDone);
-      const icon = taskElement.querySelector('.check-btn i');
-      if (icon) {
-        icon.className = !currentDone ? 'fas fa-check-circle' : 'far fa-circle';
-      }
+        if (document.hidden) {
+            showNotification("⏰ Hết giờ học!", `Đã hoàn thành ${studyMinutesInput.value} phút học tập!`);
+        }
+    } else {
+        stopTimer();
+        if (document.hidden) {
+            showNotification("🔄 Hết giờ nghỉ!", `Đã nghỉ ${breakMinutesInput.value} phút. Sẵn sàng học tiếp!`);
+        }
     }
 
-    const newStreak = await calculateStreak();
-    updateStreakDisplay(newStreak);
-
-    // 3. Cập nhật progress bar mà không tải lại toàn bộ
-    updateProgress();
-
-    // 4. Cập nhật thống kê và biểu đồ khi chuyển tab
-    const activeTab = document.querySelector('.tab.active');
-    if (activeTab && activeTab.dataset.tab === 'stats') {
-      initCharts();
+    // Phát âm thanh báo với nhiều âm thanh dự phòng
+    if (Notification.permission === 'granted') {
+        playNotificationSound();
     }
-
-  } catch (error) {
-    console.error("Lỗi khi cập nhật nhiệm vụ:", error);
-  }
+    
+    // Thêm rung cho thiết bị di động nếu hỗ trợ
+    if ('vibrate' in navigator) {
+        navigator.vibrate([200, 100, 200, 100, 200]);
+    }
 }
 
-function updateStreakDisplay(streakData) {
-  const streakElement = document.getElementById('streak-days');
-  if (streakElement) {
-    streakElement.textContent = streakData.current;
-  }
+// Cập nhật hàm playNotificationSound với nhiều âm thanh dự phòng
+function playNotificationSound() {
+    try {
+        if (notificationAudio) {
+            notificationAudio.pause();
+            notificationAudio.currentTime = 0;
+        }
+
+        // Danh sách âm thanh dự phòng
+        const soundUrls = [
+            'https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3',
+            'https://assets.mixkit.co/sfx/preview/mixkit-bell-notification-933.mp3',
+            'https://assets.mixkit.co/sfx/preview/mixkit-achievement-bell-600.mp3',
+            'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+zuwGQyCP....'
+        ];
+
+        // Thử phát âm thanh từ danh sách
+        const playSound = (index = 0) => {
+            if (index >= soundUrls.length) {
+                console.log('Không thể phát âm thanh thông báo');
+                return;
+            }
+
+            notificationAudio = new Audio(soundUrls[index]);
+            notificationAudio.volume = 0.7;
+            
+            const playPromise = notificationAudio.play();
+
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    console.log('Phát âm thanh thành công!');
+                }).catch(error => {
+                    console.log(`Thử âm thanh tiếp theo (${index + 1})`);
+                    playSound(index + 1);
+                });
+            }
+        };
+
+        playSound();
+        
+    } catch (error) {
+        console.error("Lỗi khi phát âm thanh:", error);
+        
+        // Fallback: tạo âm thanh bằng Web Audio API
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 1);
+            
+            console.log('Phát âm thanh dự phòng bằng Web Audio API');
+        } catch (webAudioError) {
+            console.error("Không thể phát âm thanh:", webAudioError);
+        }
+    }
 }
 
-async function initCharts() {
-  // Hủy biểu đồ cũ nếu tồn tại
-  if (progressChart) {
-    progressChart.destroy();
-    progressChart = null;
-  }
-  if (timeDistributionChart) {
-    timeDistributionChart.destroy();
-    timeDistributionChart = null;
-  }
-  if (skillRadarChart) {
-    skillRadarChart.destroy();
-    skillRadarChart = null;
-  }
-
-  const stats = await getStudyStatistics();
-  updateStatsCards(stats);
-  initProgressChart(stats.weeklyProgress);
-  initTimeDistributionChart(stats.timeDistribution);
-  initSkillRadarChart(stats.skillAssessment);
-  displayTaskCategories(stats.taskCategories);
-  await displayEffectiveStudyTime();
-}
-
-async function showStudyReminder() {
-  const analysis = await analyzeStudyPatterns();
-  const now = new Date();
-  const currentHour = now.getHours();
-  const currentHourKey = `${currentHour}:00-${currentHour + 1}:00`;
-
-  if (analysis.bestTime.hour === currentHourKey) {
-    // Hiển thị thông báo
-    showNotification(
-      "Thời gian học tốt nhất!",
-      `Đây là khoảng thời gian bạn học hiệu quả nhất (${analysis.bestTime.hour})`
-    );
-  }
-}
-
-//////////////////////
-//   NOTIFICATION  ///
-//////////////////////
 function showNotification(title, message) {
-  // Kiểm tra trình duyệt hỗ trợ Notification
   if (!("Notification" in window)) {
     console.log("Trình duyệt không hỗ trợ thông báo");
     return;
   }
 
-  // Kiểm tra quyền hiển thị thông báo
   if (Notification.permission === "granted") {
     new Notification(title, { body: message });
   }
-  // Nếu chưa có quyền, yêu cầu quyền
   else if (Notification.permission !== "denied") {
     Notification.requestPermission().then(permission => {
       if (permission === "granted") {
         new Notification(title, { body: message });
       }
     });
-  }
-}
-
-// SOUND
-function playNotificationSound() {
-  try {
-    if (notificationAudio) {
-      notificationAudio.pause();
-      notificationAudio.currentTime = 0;
-    }
-
-    notificationAudio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3');
-
-    // Thêm xử lý promise
-    const playPromise = notificationAudio.play();
-
-    if (playPromise !== undefined) {
-      playPromise.catch(error => {
-        // Chỉ log lỗi nếu không phải do interrupt
-        if (error.name !== 'AbortError') {
-          console.error("Lỗi phát âm thanh:", error);
-        }
-      });
-    }
-    console.log('Phát âm thanh!');
-  } catch (error) {
-    console.error("Lỗi khi phát âm thanh:", error);
   }
 }
 
@@ -1631,94 +1672,48 @@ function stopNotificationSound() {
   }
 }
 
-function handleTimerCompletion() {
-  clearInterval(countdownInterval);
-
-  if (isStudyPhase) {
-    // Chuyển sang trạng thái nghỉ
-    isStudyPhase = false;
-    timerDuration = parseInt(breakMinutesInput.value) * 60;
-    timerStartTime = new Date().getTime();
-
-    // Reset trạng thái đóng modal
-    isManualClose = false;
-
-    // Hiển thị modal
-    showModal(breakModal);
-
-    // Thông báo
-    if (document.hidden) {
-      showNotification("⏰ Hết giờ học!", `Đã hoàn thành ${studyMinutesInput.value} phút học tập!`);
-    }
-  } else {
-    // Xử lý khi hết giờ nghỉ
-    stopTimer();
-    if (document.hidden) {
-      showNotification("🔄 Hết giờ nghỉ!", `Đã nghỉ ${breakMinutesInput.value} phút. Sẵn sàng học tiếp!`);
-    }
-  }
-
-  if (Notification.permission === 'granted') {
-    playNotificationSound();
-  }
-}
-
-// Gọi 1 lần mỗi giờ
-setInterval(showStudyReminder, 3600000);
-
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) {
-    // Khi chuyển sang tab khác
-    stopNotificationSound();
-  } else {
-    // Khi quay lại tab
-    if (!isManualClose && !isStudyPhase && timeLeft > 0) {
-      // Chỉ hiện modal nếu chưa đóng thủ công và đang trong giờ nghỉ
-      showModal(breakModal);
-    }
-  }
-});
-
-// Thêm listener để cập nhật streak khi dữ liệu thay đổi
 function setupRealTimeListeners() {
-  // Lắng nghe thay đổi trong schedule
   db.ref('schedule').on('value', async () => {
     const newStreak = await calculateStreak();
     updateStreakDisplay(newStreak);
   });
 
-  // Lắng nghe thay đổi trong studySessions
   db.ref('studySessions').on('value', async () => {
     const newStreak = await calculateStreak();
     updateStreakDisplay(newStreak);
   });
 }
 
-////////////////////////////
-//       Mobile           //
-// Touch event handlers
-function setupTouchEvents() {
-  if (!isMobile) return;
+function getTodayDateString() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
-  // Better touch handling for buttons
-  document.querySelectorAll('.btn').forEach(btn => {
-    btn.addEventListener('touchstart', function(e) {
-      this.style.transform = 'scale(0.95)';
-      e.preventDefault();
-    });
-    
-    btn.addEventListener('touchend', function() {
-      this.style.transform = 'scale(1)';
-    });
-  });
-
-  // Prevent default touch behavior
-  document.addEventListener('touchmove', function(e) {
-    if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') {
-      return; // Allow scrolling in text areas
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    stopNotificationSound();
+  } else {
+    if (!isManualClose && !isStudyPhase && timeLeft > 0) {
+      showModal(breakModal);
     }
-    e.preventDefault();
-  }, { passive: false });
+  }
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && timerStartTime) {
+    const now = new Date().getTime();
+    const elapsed = Math.floor((now - timerStartTime) / 1000);
+    timeLeft = Math.max(timerDuration - elapsed, 0);
+    updateTimerDisplay();
+
+    if (timeLeft <= 0) {
+      handleTimerCompletion();
+    }
+  }
+});
+
+function initTools() {
+  console.log('Đã khởi tạo tab công cụ');
 }
 
 // Initialize the app
@@ -1733,9 +1728,7 @@ document.addEventListener("DOMContentLoaded", () => {
     timeLeft = parseInt(studyMinutesInput.value) * 60;
     updateTimerDisplay();
   }
-  // Thêm sự kiện click toàn trang để mở khóa âm thanh
   document.body.addEventListener('click', () => {
-    // Chỉ cần gọi một lần, trình duyệt sẽ ghi nhớ
     const dummyAudio = new Audio();
     dummyAudio.play().then(() => {
       console.log("Âm thanh đã được mở khóa");
@@ -1744,23 +1737,3 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }, { once: true });
 });
-
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && timerStartTime) {
-    // Khi quay lại tab, tính toán lại timeLeft
-    const now = new Date().getTime();
-    const elapsed = Math.floor((now - timerStartTime) / 1000);
-    timeLeft = Math.max(timerDuration - elapsed, 0);
-    updateTimerDisplay();
-
-    if (timeLeft <= 0) {
-      handleTimerCompletion();
-    }
-  }
-});
-
-function initTools() {
-  console.log('Đã khởi tạo tab công cụ');
-  // Khởi tạo các công cụ ở đây
-  // Bao gồm cả writing practice và text-to-speech
-}

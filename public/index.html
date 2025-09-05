@@ -109,8 +109,8 @@
         </div>
 
         <div class="tab-content" id="stats-tab">
-            <div class="stats-container"> <!-- Thêm container chính -->
-                <div class="stat-section"> <!-- Phần thẻ thống kê -->
+            <div class="stats-container">
+                <div class="stat-section">
                     <div class="card">
                         <h2 class="card-title"><i class="fas fa-chart-pie"></i> Tổng quan học tập</h2>
                         <div class="stats-grid">
@@ -139,7 +139,6 @@
                             </div>
                         </div>
 
-                        <!-- Biểu đồ tiến độ tuần (full width) -->
                         <div class="stat-section full-width">
                             <div class="card">
                                 <div class="chart-header">
@@ -152,7 +151,6 @@
                         </div>
 
                         <div class="dual-chart-row">
-                            <!-- Biểu đồ đánh giá kỹ năng -->
                             <div class="stat-section half-width">
                                 <div class="card">
                                     <div class="chart-header">
@@ -185,7 +183,6 @@
                             </div>
                         </div>
 
-                        <!-- Trong phần Đánh giá thời gian học hiệu quả -->
                         <div class="stat-section">
                             <div class="card">
                                 <div class="chart-header">
@@ -203,12 +200,6 @@
                                     <div class="stat-value" id="weekly-study-time">0h</div>
                                     <div class="stat-label">Tuần này</div>
                                 </div>
-                                <!-- 
-                                <div class="stat-card">
-                                    <i class="fas fa-chart-line fa-2x"></i>
-                                    <div class="stat-value" id="best-study-time">Chưa có dữ liệu</div>
-                                    <div class="stat-label">Giờ học hiệu quả</div>
-                                </div> -->
 
                                 <div class="stat-card">
                                     <i class="fas fa-chart-line fa-2x"></i>
@@ -301,14 +292,20 @@
                     <div class="card">
                         <h2 class="card-title"><i class="fas fa-pencil-alt"></i> Luyện viết chữ Hán</h2>
                         <div class="tool-section">
-                            <textarea id="writing-text" placeholder="Nhập văn bản tiếng Nhật để luyện viết..."
-                                rows="5"></textarea>
+                            <textarea id="writing-text" placeholder="Nhập văn bản tiếng Nhật để luyện viết..." rows="5"></textarea>
                             <div class="tool-controls">
                                 <button id="generate-grid" class="btn btn-primary">Tạo lưới luyện viết</button>
                                 <button id="export-pdf" class="btn btn-secondary" disabled>Xuất PDF toàn bộ</button>
                                 <button id="export-kanji-pdf" class="btn btn-secondary">Xuất PDF theo kanji</button>
+                                <button id="clear-writing-text" class="btn btn-secondary">
+                                    <i class="fas fa-eraser"></i> Xóa tất cả
+                                </button>
+                                <div class="font-size-control">
+                                    <label>Cỡ chữ:</label>
+                                    <input type="range" id="font-size-slider" min="12" max="40" value="20" step="2">
+                                    <span id="font-size-value">20px</span>
+                                </div>
                             </div>
-
 
                             <div id="writing-grid-container" class="hidden">
                                 <div id="writing-grid"></div>
@@ -320,8 +317,7 @@
                     <div class="card">
                         <h2 class="card-title"><i class="fas fa-volume-up"></i> Đọc văn bản (Text-to-Speech)</h2>
                         <div class="tool-section">
-                            <textarea id="tts-text" placeholder="Nhập văn bản tiếng Nhật để nghe..."
-                                rows="5"></textarea>
+                            <textarea id="tts-text" placeholder="Nhập văn bản tiếng Nhật để nghe..." rows="5"></textarea>
                             <div class="tool-controls">
                                 <div class="voice-control">
                                     <label>Giọng đọc:</label>
@@ -335,13 +331,12 @@
                                     <span id="speed-value">1.0x</span>
                                 </div>
                                 <div class="tts-buttons">
-                                    <button id="play-tts" class="btn btn-primary"><i class="fas fa-play"></i>
-                                        Phát</button>
-                                    <button id="pause-tts" class="btn btn-secondary" disabled><i
-                                            class="fas fa-pause"></i>
-                                        Tạm dừng</button>
-                                    <button id="stop-tts" class="btn btn-secondary" disabled><i class="fas fa-stop"></i>
-                                        Dừng</button>
+                                    <button id="play-tts" class="btn btn-primary"><i class="fas fa-play"></i> Phát</button>
+                                    <button id="pause-tts" class="btn btn-secondary" disabled><i class="fas fa-pause"></i> Tạm dừng</button>
+                                    <button id="stop-tts" class="btn btn-secondary" disabled><i class="fas fa-stop"></i> Dừng</button>
+                                    <button id="clear-tts-text" class="btn btn-secondary">
+                                        <i class="fas fa-eraser"></i> Xóa tất cả
+                                    </button>
                                 </div>
                             </div>
                             <div id="tts-highlight-container" class="hidden">
@@ -352,45 +347,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- <div class="tab-content" id="ai-tab">
-            <div class="card">
-                <h2 class="card-title">
-                    <i class="fas fa-robot"></i> Trợ lý AI Học tập
-                </h2>
-
-                <div class="ai-suggestion">
-                    <h3><i class="fas fa-lightbulb"></i> Gợi ý học tập</h3>
-                    <p id="ai-suggestion-content">Bạn nên tập trung vào các điểm ngữ pháp N2 trước khi chuyển sang N1.
-                        Hãy dành ít nhất 45 phút mỗi ngày cho việc học ngữ pháp và làm bài tập.</p>
-                </div>
-
-                <div class="ai-suggestion">
-                    <h3><i class="fas fa-question-circle"></i> Hỏi đáp với AI</h3>
-                    <p>Đặt câu hỏi về ngữ pháp, từ vựng hoặc bất kỳ thắc mắc nào:</p>
-                    <textarea style="resize: none;" class="task-input" id="ai-question"
-                        placeholder="Câu hỏi của bạn..."></textarea>
-                    <button class="week-btn" id="submit-question">Gửi câu hỏi</button>
-                    <div id="ai-response"
-                        style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px; display: none;">
-                        <p><strong>Trả lời:</strong> <span id="ai-answer"></span></p>
-                    </div>
-                    <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
-                        <p>
-                            <strong>Ví dụ:</strong> "Sự khác nhau giữa ～はずだ và ～べきだ?"
-                        </p>
-                    </div>
-                </div>
-
-                <div class="ai-suggestion">
-                    <h3><i class="fas fa-chart-line"></i> Phân tích tiến độ</h3>
-                    <div id="progress-analysis">
-                        <p>Dựa trên dữ liệu học tập của bạn, AI gợi ý bạn nên tập trung nhiều hơn vào kỹ năng nghe hiểu.
-                            Hãy dành thêm 20% thời gian học cho kỹ năng này.</p>
-                    </div>
-                </div>
-            </div>
-        </div> -->
 
         <footer>
             <p>Lộ trình học JLPT N1 - Được thiết kế dành riêng cho bạn</p>
@@ -445,16 +401,10 @@
                 <div class="timer-display" id="timer-display">45:00</div>
                 <div class="timer-controls">
                     <button class="timer-btn start" id="start-timer">Bắt đầu</button>
-                    <button class="timer-btn pause" id="pause-timer" style="display: none">
-                        Tạm dừng
-                    </button>
-                    <button class="timer-btn stop" id="stop-timer" style="display: none">
-                        Dừng
-                    </button>
+                    <button class="timer-btn pause" id="pause-timer" style="display: none">Tạm dừng</button>
+                    <button class="timer-btn stop" id="stop-timer" style="display: none">Dừng</button>
                 </div>
-                <div class="timer-status" id="timer-status">
-                    Sẵn sàng bắt đầu học...
-                </div>
+                <div class="timer-status" id="timer-status">Sẵn sàng bắt đầu học...</div>
             </div>
 
             <div class="rest-suggestion">
@@ -484,6 +434,67 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <script src="js/tools.js"></script>
+
+    <script>
+        // Thêm các event listener cho tính năng mới
+        document.addEventListener('DOMContentLoaded', function() {
+            // Font size control cho writing practice
+            const fontSizeSlider = document.getElementById('font-size-slider');
+            const fontSizeValue = document.getElementById('font-size-value');
+            const clearWritingBtn = document.getElementById('clear-writing-text');
+            const clearTtsBtn = document.getElementById('clear-tts-text');
+
+            if (fontSizeSlider && fontSizeValue) {
+                fontSizeSlider.addEventListener('input', function() {
+                    const size = this.value;
+                    fontSizeValue.textContent = size + 'px';
+                    
+                    // Cập nhật size cho grid hiện tại
+                    const grid = document.getElementById('writing-grid');
+                    if (grid) {
+                        const cells = grid.querySelectorAll('.character-cell');
+                        cells.forEach(cell => {
+                            const cellSize = Math.max(parseInt(size) + 20, 40); // Ô luôn lớn hơn chữ ít nhất 20px
+                            cell.style.fontSize = size + 'px';
+                            cell.style.width = cellSize + 'px';
+                            cell.style.height = cellSize + 'px';
+                        });
+                    }
+                });
+            }
+
+            // Clear writing text
+            if (clearWritingBtn) {
+                clearWritingBtn.addEventListener('click', function() {
+                    const writingText = document.getElementById('writing-text');
+                    const gridContainer = document.getElementById('writing-grid-container');
+                    const exportPdfBtn = document.getElementById('export-pdf');
+                    const exportKanjiPdfBtn = document.getElementById('export-kanji-pdf');
+                    
+                    if (writingText) writingText.value = '';
+                    if (gridContainer) gridContainer.classList.add('hidden');
+                    if (exportPdfBtn) exportPdfBtn.disabled = true;
+                    if (exportKanjiPdfBtn) exportKanjiPdfBtn.disabled = true;
+                });
+            }
+
+            // Clear TTS text
+            if (clearTtsBtn) {
+                clearTtsBtn.addEventListener('click', function() {
+                    const ttsText = document.getElementById('tts-text');
+                    const highlightContainer = document.getElementById('tts-highlight-container');
+                    
+                    if (ttsText) ttsText.value = '';
+                    if (highlightContainer) highlightContainer.classList.add('hidden');
+                    
+                    // Dừng phát âm nếu đang phát
+                    if (window.speechSynthesis && window.speechSynthesis.speaking) {
+                        window.speechSynthesis.cancel();
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 
 </html>
