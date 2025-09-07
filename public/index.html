@@ -109,8 +109,8 @@
         </div>
 
         <div class="tab-content" id="stats-tab">
-            <div class="stats-container"> <!-- Thêm container chính -->
-                <div class="stat-section"> <!-- Phần thẻ thống kê -->
+            <div class="stats-container">
+                <div class="stat-section">
                     <div class="card">
                         <h2 class="card-title"><i class="fas fa-chart-pie"></i> Tổng quan học tập</h2>
                         <div class="stats-grid">
@@ -139,7 +139,6 @@
                             </div>
                         </div>
 
-                        <!-- Biểu đồ tiến độ tuần (full width) -->
                         <div class="stat-section full-width">
                             <div class="card">
                                 <div class="chart-header">
@@ -152,11 +151,19 @@
                         </div>
 
                         <div class="dual-chart-row">
-                            <!-- Biểu đồ đánh giá kỹ năng -->
                             <div class="stat-section half-width">
                                 <div class="card">
                                     <div class="chart-header">
                                         <h3><i class="fas fa-star"></i> Đánh giá kỹ năng</h3>
+                                    </div>
+                                    <div class="filter-group">
+                                        <label for="skill-chart-filter">Lọc biểu đồ kỹ năng:</label>
+                                        <select id="skill-chart-filter">
+                                            <option value="all">Tất cả</option>
+                                            <option value="language">Ngôn ngữ</option>
+                                            <option value="it">IT</option>
+                                            <option value="other">Khác</option>
+                                        </select>
                                     </div>
                                     <div class="chart-wrapper medium-chart">
                                         <canvas id="skillRadarChart"></canvas>
@@ -167,6 +174,15 @@
                                 <div class="card">
                                     <div class="chart-header">
                                         <h3><i class="fas fa-clock"></i> Phân bố thời gian học</h3>
+                                    </div>
+                                    <div class="filter-group">
+                                        <label for="time-chart-filter">Lọc biểu đồ thời gian:</label>
+                                        <select id="time-chart-filter">
+                                            <option value="all">Tất cả</option>
+                                            <option value="language">Ngôn ngữ</option>
+                                            <option value="it">IT</option>
+                                            <option value="other">Khác</option>
+                                        </select>
                                     </div>
                                     <div class="chart-wrapper medium-chart">
                                         <canvas id="timeDistributionChart"></canvas>
@@ -185,30 +201,29 @@
                             </div>
                         </div>
 
-                        <!-- Trong phần Đánh giá thời gian học hiệu quả -->
                         <div class="stat-section">
                             <div class="card">
                                 <div class="chart-header">
                                     <h3><i class="fas fa-book"></i> Đánh giá thời gian học hiệu quả</h3>
                                 </div>
 
-                                <div class="stat-card">
-                                    <i class="fas fa-calendar-day fa-2x"></i>
-                                    <div class="stat-value" id="daily-study-time">0h 0m</div>
-                                    <div class="stat-label">Hôm nay</div>
-                                </div>
+                                <div class="study-time-comparison">
+                                    <div class="time-comparison-card">
+                                        <h4><i class="fas fa-calendar-day"></i> Hôm nay</h4>
+                                        <div class="time-value" id="daily-study-time-task">0h 0m</div>
+                                        <div class="time-source">(Từ completed tasks)</div>
+                                        <div class="time-value" id="daily-study-time-session">0h 0m</div>
+                                        <div class="time-source">(Từ study sessions)</div>
+                                    </div>
 
-                                <div class="stat-card">
-                                    <i class="fas fa-calendar-week fa-2x"></i>
-                                    <div class="stat-value" id="weekly-study-time">0h</div>
-                                    <div class="stat-label">Tuần này</div>
+                                    <div class="time-comparison-card">
+                                        <h4><i class="fas fa-calendar-week"></i> Tuần này</h4>
+                                        <div class="time-value" id="weekly-study-time-task">0h</div>
+                                        <div class="time-source">(Từ completed tasks)</div>
+                                        <div class="time-value" id="weekly-study-time-session">0h</div>
+                                        <div class="time-source">(Từ study sessions)</div>
+                                    </div>
                                 </div>
-                                <!-- 
-                                <div class="stat-card">
-                                    <i class="fas fa-chart-line fa-2x"></i>
-                                    <div class="stat-value" id="best-study-time">Chưa có dữ liệu</div>
-                                    <div class="stat-label">Giờ học hiệu quả</div>
-                                </div> -->
 
                                 <div class="stat-card">
                                     <i class="fas fa-chart-line fa-2x"></i>
@@ -224,68 +239,17 @@
 
         <div class="tab-content" id="resources-tab">
             <div class="card">
-                <h2 class="card-title">
-                    <i class="fas fa-book"></i> Tài nguyên học tập
-                </h2>
+                <div style="justify-content: space-between; padding-bottom: 15px">
+                    <h2 class="card-title">
+                        <i class="fas fa-book"></i> Tài nguyên học tập
+                    </h2>
+                    <button class="btn btn-secondary" id="edit-resources-btn">
+                        <i class="fas fa-edit"></i> Chỉnh sửa
+                    </button>
+                </div>
 
-                <div class="resources">
-                    <h3><i class="fas fa-book-open"></i> Sách giáo trình</h3>
-                    <ul class="resource-list">
-                        <li class="resource-item">
-                            <i class="fas fa-book"></i><a
-                                href="https://drive.google.com/drive/folders/18pEPRYZCFwDM1mfG-Ul8LxIkrQjNuAYc?usp=sharing"
-                                target="_blank" rel="noopener noreferrer">
-                                Shin Kanzen Master N1</a>
-                        </li>
-                        <li class="resource-item">
-                            <i class="fas fa-book"></i><a
-                                href="https://drive.google.com/drive/folders/1A53-PaWkIfyKqYBrDeEI3PPHnAQMUjU8?usp=sharing"
-                                target="_blank" rel="noopener noreferrer">
-                                Soumatome N1</a>
-                        </li>
-                    </ul>
-
-                    <h3><i class="fas fa-headphones"></i> Tài nguyên nghe</h3>
-                    <ul class="resource-list">
-                        <li class="resource-item">
-                            <i class="fas fa-podcast"></i><a href="https://www3.nhk.or.jp/news/easy/" target="_blank"
-                                rel="noopener noreferrer"> NHK News Web
-                                Easy</a>
-                        </li>
-                        <li class="resource-item">
-                            <i class="fas fa-globe"></i><a href="https://supernative.tv/ja/" target="_blank"
-                                rel="noopener noreferrer"> Super Native Japanese</a>
-                        </li>
-                        <li class="resource-item">
-                            <i class="fas fa-podcast"></i><a href="https://nihongoconteppei.com/" target="_blank"
-                                rel="noopener noreferrer"> Nihongo con
-                                Teppei</a>
-                        </li>
-                    </ul>
-
-                    <h3><i class="fas fa-laptop"></i> Website & Ứng dụng & Công cụ hỗ trợ</h3>
-                    <ul class="resource-list">
-                        <li class="resource-item">
-                            <i class="fas fa-mobile-alt"></i><a
-                                href="https://docs.google.com/spreadsheets/d/1_blVZly36X8U-23NPxMeUjpf4n7c5YVv/edit?usp=sharing&ouid=102464601056562595135&rtpof=true&sd=true"
-                                target="_blank" rel="noopener noreferrer"> Log Excel</a>
-                        </li>
-                        <li class="resource-item">
-                            <i class="fas fa-mobile-alt"></i><a href="https://recall.cards/app" target="_blank"
-                                rel="noopener noreferrer"> Recall Card</a>
-                        </li>
-                        <li class="resource-item">
-                            <i class="fas fa-globe"></i><a href="https://flashcard-ashen-three.vercel.app/"
-                                target="_blank" rel="noopener noreferrer">Flashcard
-                                Web Cá Nhân</a>
-                        </li>
-                        <li class="resource-item">
-                            <i class="fas fa-globe"></i><a
-                                href="https://www.tiengnhatdongian.com/flashcard-category/jlpt-n2/flashcard-2500-tu-vung-n2/"
-                                target="_blank" rel="noopener noreferrer">Flashcard
-                                Web Tiengnhatdongian</a>
-                        </li>
-                    </ul>
+                <div class="resources" id="resources-display">
+                    <!-- Nội dung tài nguyên sẽ được render từ JavaScript -->
                 </div>
             </div>
         </div>
@@ -307,8 +271,15 @@
                                 <button id="generate-grid" class="btn btn-primary">Tạo lưới luyện viết</button>
                                 <button id="export-pdf" class="btn btn-secondary" disabled>Xuất PDF toàn bộ</button>
                                 <button id="export-kanji-pdf" class="btn btn-secondary">Xuất PDF theo kanji</button>
+                                <button id="clear-writing-text" class="btn btn-secondary">
+                                    <i class="fas fa-eraser"></i> Xóa tất cả
+                                </button>
+                                <div class="font-size-control">
+                                    <label>Cỡ chữ:</label>
+                                    <input type="range" id="font-size-slider" min="12" max="40" value="20" step="2">
+                                    <span id="font-size-value">20px</span>
+                                </div>
                             </div>
-
 
                             <div id="writing-grid-container" class="hidden">
                                 <div id="writing-grid"></div>
@@ -338,10 +309,12 @@
                                     <button id="play-tts" class="btn btn-primary"><i class="fas fa-play"></i>
                                         Phát</button>
                                     <button id="pause-tts" class="btn btn-secondary" disabled><i
-                                            class="fas fa-pause"></i>
-                                        Tạm dừng</button>
+                                            class="fas fa-pause"></i> Tạm dừng</button>
                                     <button id="stop-tts" class="btn btn-secondary" disabled><i class="fas fa-stop"></i>
                                         Dừng</button>
+                                    <button id="clear-tts-text" class="btn btn-secondary">
+                                        <i class="fas fa-eraser"></i> Xóa tất cả
+                                    </button>
                                 </div>
                             </div>
                             <div id="tts-highlight-container" class="hidden">
@@ -352,45 +325,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- <div class="tab-content" id="ai-tab">
-            <div class="card">
-                <h2 class="card-title">
-                    <i class="fas fa-robot"></i> Trợ lý AI Học tập
-                </h2>
-
-                <div class="ai-suggestion">
-                    <h3><i class="fas fa-lightbulb"></i> Gợi ý học tập</h3>
-                    <p id="ai-suggestion-content">Bạn nên tập trung vào các điểm ngữ pháp N2 trước khi chuyển sang N1.
-                        Hãy dành ít nhất 45 phút mỗi ngày cho việc học ngữ pháp và làm bài tập.</p>
-                </div>
-
-                <div class="ai-suggestion">
-                    <h3><i class="fas fa-question-circle"></i> Hỏi đáp với AI</h3>
-                    <p>Đặt câu hỏi về ngữ pháp, từ vựng hoặc bất kỳ thắc mắc nào:</p>
-                    <textarea style="resize: none;" class="task-input" id="ai-question"
-                        placeholder="Câu hỏi của bạn..."></textarea>
-                    <button class="week-btn" id="submit-question">Gửi câu hỏi</button>
-                    <div id="ai-response"
-                        style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px; display: none;">
-                        <p><strong>Trả lời:</strong> <span id="ai-answer"></span></p>
-                    </div>
-                    <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
-                        <p>
-                            <strong>Ví dụ:</strong> "Sự khác nhau giữa ～はずだ và ～べきだ?"
-                        </p>
-                    </div>
-                </div>
-
-                <div class="ai-suggestion">
-                    <h3><i class="fas fa-chart-line"></i> Phân tích tiến độ</h3>
-                    <div id="progress-analysis">
-                        <p>Dựa trên dữ liệu học tập của bạn, AI gợi ý bạn nên tập trung nhiều hơn vào kỹ năng nghe hiểu.
-                            Hãy dành thêm 20% thời gian học cho kỹ năng này.</p>
-                    </div>
-                </div>
-            </div>
-        </div> -->
 
         <footer>
             <p>Lộ trình học JLPT N1 - Được thiết kế dành riêng cho bạn</p>
@@ -445,16 +379,10 @@
                 <div class="timer-display" id="timer-display">45:00</div>
                 <div class="timer-controls">
                     <button class="timer-btn start" id="start-timer">Bắt đầu</button>
-                    <button class="timer-btn pause" id="pause-timer" style="display: none">
-                        Tạm dừng
-                    </button>
-                    <button class="timer-btn stop" id="stop-timer" style="display: none">
-                        Dừng
-                    </button>
+                    <button class="timer-btn pause" id="pause-timer" style="display: none">Tạm dừng</button>
+                    <button class="timer-btn stop" id="stop-timer" style="display: none">Dừng</button>
                 </div>
-                <div class="timer-status" id="timer-status">
-                    Sẵn sàng bắt đầu học...
-                </div>
+                <div class="timer-status" id="timer-status">Sẵn sàng bắt đầu học...</div>
             </div>
 
             <div class="rest-suggestion">
@@ -477,6 +405,52 @@
                 <!-- Nội dung sẽ được cập nhật bằng JavaScript -->
             </p>
             <button class="week-btn" id="start-break-btn">Bắt đầu nghỉ ngơi</button>
+        </div>
+    </div>
+
+    <!-- Modal quản lý tài nguyên -->
+    <div class="modal" id="manage-resources-modal">
+        <div class="modal-content">
+            <span class="close-modal" id="close-resources-modal">&times;</span>
+            <h2><i class="fas fa-edit"></i> Quản lý tài nguyên học tập</h2>
+
+            <div class="resource-categories">
+                <div class="resource-category">
+                    <h3><i class="fas fa-book-open"></i> Sách giáo trình</h3>
+                    <div id="textbook-resources">
+                        <!-- Tài nguyên sẽ được render ở đây -->
+                    </div>
+                    <button class="btn btn-primary add-resource-btn" data-category="textbook">
+                        <i class="fas fa-plus"></i> Thêm sách
+                    </button>
+                </div>
+
+                <div class="resource-category">
+                    <h3><i class="fas fa-headphones"></i> Tài nguyên nghe</h3>
+                    <div id="listening-resources">
+                        <!-- Tài nguyên sẽ được render ở đây -->
+                    </div>
+                    <button class="btn btn-primary add-resource-btn" data-category="listening">
+                        <i class="fas fa-plus"></i> Thêm tài nguyên nghe
+                    </button>
+                </div>
+
+                <div class="resource-category">
+                    <h3><i class="fas fa-laptop"></i> Website & Ứng dụng</h3>
+                    <div id="website-resources">
+                        <!-- Tài nguyên sẽ được render ở đây -->
+                    </div>
+                    <button class="btn btn-primary add-resource-btn" data-category="website">
+                        <i class="fas fa-plus"></i> Thêm website
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn btn-primary" id="save-resources">
+                    <i class="fas fa-save"></i> Lưu thay đổi
+                </button>
+            </div>
         </div>
     </div>
 
