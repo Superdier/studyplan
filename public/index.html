@@ -156,6 +156,15 @@
                                     <div class="chart-header">
                                         <h3><i class="fas fa-star"></i> Đánh giá kỹ năng</h3>
                                     </div>
+                                    <div class="filter-group">
+                                        <label for="skill-chart-filter">Lọc biểu đồ kỹ năng:</label>
+                                        <select id="skill-chart-filter">
+                                            <option value="all">Tất cả</option>
+                                            <option value="language">Ngôn ngữ</option>
+                                            <option value="it">IT</option>
+                                            <option value="other">Khác</option>
+                                        </select>
+                                    </div>
                                     <div class="chart-wrapper medium-chart">
                                         <canvas id="skillRadarChart"></canvas>
                                     </div>
@@ -165,6 +174,15 @@
                                 <div class="card">
                                     <div class="chart-header">
                                         <h3><i class="fas fa-clock"></i> Phân bố thời gian học</h3>
+                                    </div>
+                                    <div class="filter-group">
+                                        <label for="time-chart-filter">Lọc biểu đồ thời gian:</label>
+                                        <select id="time-chart-filter">
+                                            <option value="all">Tất cả</option>
+                                            <option value="language">Ngôn ngữ</option>
+                                            <option value="it">IT</option>
+                                            <option value="other">Khác</option>
+                                        </select>
                                     </div>
                                     <div class="chart-wrapper medium-chart">
                                         <canvas id="timeDistributionChart"></canvas>
@@ -189,16 +207,22 @@
                                     <h3><i class="fas fa-book"></i> Đánh giá thời gian học hiệu quả</h3>
                                 </div>
 
-                                <div class="stat-card">
-                                    <i class="fas fa-calendar-day fa-2x"></i>
-                                    <div class="stat-value" id="daily-study-time">0h 0m</div>
-                                    <div class="stat-label">Hôm nay</div>
-                                </div>
+                                <div class="study-time-comparison">
+                                    <div class="time-comparison-card">
+                                        <h4><i class="fas fa-calendar-day"></i> Hôm nay</h4>
+                                        <div class="time-value" id="daily-study-time-task">0h 0m</div>
+                                        <div class="time-source">(Từ completed tasks)</div>
+                                        <div class="time-value" id="daily-study-time-session">0h 0m</div>
+                                        <div class="time-source">(Từ study sessions)</div>
+                                    </div>
 
-                                <div class="stat-card">
-                                    <i class="fas fa-calendar-week fa-2x"></i>
-                                    <div class="stat-value" id="weekly-study-time">0h</div>
-                                    <div class="stat-label">Tuần này</div>
+                                    <div class="time-comparison-card">
+                                        <h4><i class="fas fa-calendar-week"></i> Tuần này</h4>
+                                        <div class="time-value" id="weekly-study-time-task">0h</div>
+                                        <div class="time-source">(Từ completed tasks)</div>
+                                        <div class="time-value" id="weekly-study-time-session">0h</div>
+                                        <div class="time-source">(Từ study sessions)</div>
+                                    </div>
                                 </div>
 
                                 <div class="stat-card">
@@ -215,68 +239,17 @@
 
         <div class="tab-content" id="resources-tab">
             <div class="card">
-                <h2 class="card-title">
-                    <i class="fas fa-book"></i> Tài nguyên học tập
-                </h2>
+                <div style="justify-content: space-between; padding-bottom: 15px">
+                    <h2 class="card-title">
+                        <i class="fas fa-book"></i> Tài nguyên học tập
+                    </h2>
+                    <button class="btn btn-secondary" id="edit-resources-btn">
+                        <i class="fas fa-edit"></i> Chỉnh sửa
+                    </button>
+                </div>
 
-                <div class="resources">
-                    <h3><i class="fas fa-book-open"></i> Sách giáo trình</h3>
-                    <ul class="resource-list">
-                        <li class="resource-item">
-                            <i class="fas fa-book"></i><a
-                                href="https://drive.google.com/drive/folders/18pEPRYZCFwDM1mfG-Ul8LxIkrQjNuAYc?usp=sharing"
-                                target="_blank" rel="noopener noreferrer">
-                                Shin Kanzen Master N1</a>
-                        </li>
-                        <li class="resource-item">
-                            <i class="fas fa-book"></i><a
-                                href="https://drive.google.com/drive/folders/1A53-PaWkIfyKqYBrDeEI3PPHnAQMUjU8?usp=sharing"
-                                target="_blank" rel="noopener noreferrer">
-                                Soumatome N1</a>
-                        </li>
-                    </ul>
-
-                    <h3><i class="fas fa-headphones"></i> Tài nguyên nghe</h3>
-                    <ul class="resource-list">
-                        <li class="resource-item">
-                            <i class="fas fa-podcast"></i><a href="https://www3.nhk.or.jp/news/easy/" target="_blank"
-                                rel="noopener noreferrer"> NHK News Web
-                                Easy</a>
-                        </li>
-                        <li class="resource-item">
-                            <i class="fas fa-globe"></i><a href="https://supernative.tv/ja/" target="_blank"
-                                rel="noopener noreferrer"> Super Native Japanese</a>
-                        </li>
-                        <li class="resource-item">
-                            <i class="fas fa-podcast"></i><a href="https://nihongoconteppei.com/" target="_blank"
-                                rel="noopener noreferrer"> Nihongo con
-                                Teppei</a>
-                        </li>
-                    </ul>
-
-                    <h3><i class="fas fa-laptop"></i> Website & Ứng dụng & Công cụ hỗ trợ</h3>
-                    <ul class="resource-list">
-                        <li class="resource-item">
-                            <i class="fas fa-mobile-alt"></i><a
-                                href="https://docs.google.com/spreadsheets/d/1_blVZly36X8U-23NPxMeUjpf4n7c5YVv/edit?usp=sharing&ouid=102464601056562595135&rtpof=true&sd=true"
-                                target="_blank" rel="noopener noreferrer"> Log Excel</a>
-                        </li>
-                        <li class="resource-item">
-                            <i class="fas fa-mobile-alt"></i><a href="https://recall.cards/app" target="_blank"
-                                rel="noopener noreferrer"> Recall Card</a>
-                        </li>
-                        <li class="resource-item">
-                            <i class="fas fa-globe"></i><a href="https://flashcard-ashen-three.vercel.app/"
-                                target="_blank" rel="noopener noreferrer">Flashcard
-                                Web Cá Nhân</a>
-                        </li>
-                        <li class="resource-item">
-                            <i class="fas fa-globe"></i><a
-                                href="https://www.tiengnhatdongian.com/flashcard-category/jlpt-n2/flashcard-2500-tu-vung-n2/"
-                                target="_blank" rel="noopener noreferrer">Flashcard
-                                Web Tiengnhatdongian</a>
-                        </li>
-                    </ul>
+                <div class="resources" id="resources-display">
+                    <!-- Nội dung tài nguyên sẽ được render từ JavaScript -->
                 </div>
             </div>
         </div>
@@ -292,7 +265,8 @@
                     <div class="card">
                         <h2 class="card-title"><i class="fas fa-pencil-alt"></i> Luyện viết chữ Hán</h2>
                         <div class="tool-section">
-                            <textarea id="writing-text" placeholder="Nhập văn bản tiếng Nhật để luyện viết..." rows="5"></textarea>
+                            <textarea id="writing-text" placeholder="Nhập văn bản tiếng Nhật để luyện viết..."
+                                rows="5"></textarea>
                             <div class="tool-controls">
                                 <button id="generate-grid" class="btn btn-primary">Tạo lưới luyện viết</button>
                                 <button id="export-pdf" class="btn btn-secondary" disabled>Xuất PDF toàn bộ</button>
@@ -317,7 +291,8 @@
                     <div class="card">
                         <h2 class="card-title"><i class="fas fa-volume-up"></i> Đọc văn bản (Text-to-Speech)</h2>
                         <div class="tool-section">
-                            <textarea id="tts-text" placeholder="Nhập văn bản tiếng Nhật để nghe..." rows="5"></textarea>
+                            <textarea id="tts-text" placeholder="Nhập văn bản tiếng Nhật để nghe..."
+                                rows="5"></textarea>
                             <div class="tool-controls">
                                 <div class="voice-control">
                                     <label>Giọng đọc:</label>
@@ -331,9 +306,12 @@
                                     <span id="speed-value">1.0x</span>
                                 </div>
                                 <div class="tts-buttons">
-                                    <button id="play-tts" class="btn btn-primary"><i class="fas fa-play"></i> Phát</button>
-                                    <button id="pause-tts" class="btn btn-secondary" disabled><i class="fas fa-pause"></i> Tạm dừng</button>
-                                    <button id="stop-tts" class="btn btn-secondary" disabled><i class="fas fa-stop"></i> Dừng</button>
+                                    <button id="play-tts" class="btn btn-primary"><i class="fas fa-play"></i>
+                                        Phát</button>
+                                    <button id="pause-tts" class="btn btn-secondary" disabled><i
+                                            class="fas fa-pause"></i> Tạm dừng</button>
+                                    <button id="stop-tts" class="btn btn-secondary" disabled><i class="fas fa-stop"></i>
+                                        Dừng</button>
                                     <button id="clear-tts-text" class="btn btn-secondary">
                                         <i class="fas fa-eraser"></i> Xóa tất cả
                                     </button>
@@ -430,71 +408,56 @@
         </div>
     </div>
 
+    <!-- Modal quản lý tài nguyên -->
+    <div class="modal" id="manage-resources-modal">
+        <div class="modal-content">
+            <span class="close-modal" id="close-resources-modal">&times;</span>
+            <h2><i class="fas fa-edit"></i> Quản lý tài nguyên học tập</h2>
+
+            <div class="resource-categories">
+                <div class="resource-category">
+                    <h3><i class="fas fa-book-open"></i> Sách giáo trình</h3>
+                    <div id="textbook-resources">
+                        <!-- Tài nguyên sẽ được render ở đây -->
+                    </div>
+                    <button class="btn btn-primary add-resource-btn" data-category="textbook">
+                        <i class="fas fa-plus"></i> Thêm sách
+                    </button>
+                </div>
+
+                <div class="resource-category">
+                    <h3><i class="fas fa-headphones"></i> Tài nguyên nghe</h3>
+                    <div id="listening-resources">
+                        <!-- Tài nguyên sẽ được render ở đây -->
+                    </div>
+                    <button class="btn btn-primary add-resource-btn" data-category="listening">
+                        <i class="fas fa-plus"></i> Thêm tài nguyên nghe
+                    </button>
+                </div>
+
+                <div class="resource-category">
+                    <h3><i class="fas fa-laptop"></i> Website & Ứng dụng</h3>
+                    <div id="website-resources">
+                        <!-- Tài nguyên sẽ được render ở đây -->
+                    </div>
+                    <button class="btn btn-primary add-resource-btn" data-category="website">
+                        <i class="fas fa-plus"></i> Thêm website
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn btn-primary" id="save-resources">
+                    <i class="fas fa-save"></i> Lưu thay đổi
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="js/script.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <script src="js/tools.js"></script>
-
-    <script>
-        // Thêm các event listener cho tính năng mới
-        document.addEventListener('DOMContentLoaded', function() {
-            // Font size control cho writing practice
-            const fontSizeSlider = document.getElementById('font-size-slider');
-            const fontSizeValue = document.getElementById('font-size-value');
-            const clearWritingBtn = document.getElementById('clear-writing-text');
-            const clearTtsBtn = document.getElementById('clear-tts-text');
-
-            if (fontSizeSlider && fontSizeValue) {
-                fontSizeSlider.addEventListener('input', function() {
-                    const size = this.value;
-                    fontSizeValue.textContent = size + 'px';
-                    
-                    // Cập nhật size cho grid hiện tại
-                    const grid = document.getElementById('writing-grid');
-                    if (grid) {
-                        const cells = grid.querySelectorAll('.character-cell');
-                        cells.forEach(cell => {
-                            const cellSize = Math.max(parseInt(size) + 20, 40); // Ô luôn lớn hơn chữ ít nhất 20px
-                            cell.style.fontSize = size + 'px';
-                            cell.style.width = cellSize + 'px';
-                            cell.style.height = cellSize + 'px';
-                        });
-                    }
-                });
-            }
-
-            // Clear writing text
-            if (clearWritingBtn) {
-                clearWritingBtn.addEventListener('click', function() {
-                    const writingText = document.getElementById('writing-text');
-                    const gridContainer = document.getElementById('writing-grid-container');
-                    const exportPdfBtn = document.getElementById('export-pdf');
-                    const exportKanjiPdfBtn = document.getElementById('export-kanji-pdf');
-                    
-                    if (writingText) writingText.value = '';
-                    if (gridContainer) gridContainer.classList.add('hidden');
-                    if (exportPdfBtn) exportPdfBtn.disabled = true;
-                    if (exportKanjiPdfBtn) exportKanjiPdfBtn.disabled = true;
-                });
-            }
-
-            // Clear TTS text
-            if (clearTtsBtn) {
-                clearTtsBtn.addEventListener('click', function() {
-                    const ttsText = document.getElementById('tts-text');
-                    const highlightContainer = document.getElementById('tts-highlight-container');
-                    
-                    if (ttsText) ttsText.value = '';
-                    if (highlightContainer) highlightContainer.classList.add('hidden');
-                    
-                    // Dừng phát âm nếu đang phát
-                    if (window.speechSynthesis && window.speechSynthesis.speaking) {
-                        window.speechSynthesis.cancel();
-                    }
-                });
-            }
-        });
-    </script>
 </body>
 
 </html>

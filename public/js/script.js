@@ -35,20 +35,31 @@ let sessionStartTime = null;
 let sessionTimers = {};
 let timerStartTime = null;
 let timerDuration = 0;
+let currentSkillFilter = 'all';
+let currentTimeFilter = 'all';
+let resourcesData = {
+  textbook: [],
+  listening: [],
+  website: []
+};
+let customTaskTypes = {
+  it: [],
+  other: []
+};
 
 // Subject và Task Type mapping
 const subjectTaskTypes = {
-    'language': [
-        { value: 'vocabulary', label: 'Từ vựng' },
-        { value: 'grammar', label: 'Ngữ pháp' },
-        { value: 'kanji', label: 'Kanji' },
-        { value: 'reading', label: 'Đọc hiểu' },
-        { value: 'listening', label: 'Nghe hiểu' },
-        { value: 'conversation', label: 'Hội thoại' },
-        { value: 'other', label: 'Khác' }
-    ],
-    'it': [],
-    'other': []
+  'language': [
+    { value: 'vocabulary', label: 'Từ vựng' },
+    { value: 'grammar', label: 'Ngữ pháp' },
+    { value: 'kanji', label: 'Kanji' },
+    { value: 'reading', label: 'Đọc hiểu' },
+    { value: 'listening', label: 'Nghe hiểu' },
+    { value: 'conversation', label: 'Hội thoại' },
+    { value: 'other', label: 'Khác' }
+  ],
+  'it': [],
+  'other': []
 };
 
 // DOM Elements
@@ -75,13 +86,23 @@ const startTimerBtn = document.getElementById('start-timer');
 const pauseTimerBtn = document.getElementById('pause-timer');
 const stopTimerBtn = document.getElementById('stop-timer');
 
+document.getElementById('skill-chart-filter')?.addEventListener('change', function (e) {
+  currentSkillFilter = e.target.value;
+  initCharts();
+});
+
+document.getElementById('time-chart-filter')?.addEventListener('change', function (e) {
+  currentTimeFilter = e.target.value;
+  initCharts();
+});
+
 // Custom alert function
 function showCustomAlert(message) {
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.style.display = 'flex';
-    modal.style.zIndex = '10001';
-    modal.innerHTML = `
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.style.display = 'flex';
+  modal.style.zIndex = '10001';
+  modal.innerHTML = `
         <div class="modal-content" style="max-width: 400px; width: auto;">
             <h3 style="margin-top: 0; color: #1a2a6c;">
                 <i class="fas fa-exclamation-triangle" style="color: #fdbb2d; margin-right: 10px;"></i>
@@ -95,13 +116,13 @@ function showCustomAlert(message) {
             </div>
         </div>
     `;
-    document.body.appendChild(modal);
-    
-    setTimeout(() => {
-        if (modal.parentNode) {
-            modal.remove();
-        }
-    }, 5000);
+  document.body.appendChild(modal);
+
+  setTimeout(() => {
+    if (modal.parentNode) {
+      modal.remove();
+    }
+  }, 5000);
 }
 
 function showModal(modalElement) {
@@ -119,7 +140,10 @@ function showModal(modalElement) {
 function hideModal(modalElement) {
   if (modalElement) {
     modalElement.style.display = 'none';
-    stopNotificationSound();
+    // Dừng âm thanh nếu là modal countdown hoặc break
+    if (modalElement === countdownModal || modalElement === breakModal) {
+      stopNotificationSound();
+    }
     if (modalElement === breakModal) {
       isManualClose = true;
     }
@@ -133,6 +157,27 @@ function hideBreakModal() {
 }
 
 // Weekly schedule functions
+async function loadCustomTaskTypes() {
+  try {
+    const snapshot = await db.ref('customTaskTypes').once('value');
+    const data = snapshot.val();
+
+    if (data) {
+      customTaskTypes = data;
+    }
+  } catch (error) {
+    console.error('Lỗi khi tải custom task types:', error);
+  }
+}
+
+async function saveCustomTaskTypes() {
+  try {
+    await db.ref('customTaskTypes').set(customTaskTypes);
+  } catch (error) {
+    console.error('Lỗi khi lưu custom task types:', error);
+  }
+}
+
 function getWeekRange(startDate) {
   const result = [];
   for (let i = 0; i < 7; i++) {
@@ -295,21 +340,21 @@ function parseStudyTime(timeStr) {
 
 // Cập nhật hàm renderTasksInModal để hỗ trợ subject dropdown và giữ trạng thái done
 function renderTasksInModal(tasks) {
-    if (!tasksContainer) return;
+  if (!tasksContainer) return;
 
-    tasksContainer.innerHTML = "";
-    let totalMinutes = 0;
+  tasksContainer.innerHTML = "";
+  let totalMinutes = 0;
 
-    tasks.forEach((task, index) => {
-        const duration = task.duration || 0;
-        const note = task.note || "";
-        const subject = task.subject || 'language';
-        const isDone = task.done || false; // Giữ trạng thái done
-        totalMinutes += duration;
+  tasks.forEach((task, index) => {
+    const duration = task.duration || 0;
+    const note = task.note || "";
+    const subject = task.subject || 'language';
+    const isDone = task.done || false; // Giữ trạng thái done
+    totalMinutes += duration;
 
-        const taskEl = document.createElement("div");
-        taskEl.className = "task-item";
-        taskEl.innerHTML = `
+    const taskEl = document.createElement("div");
+    taskEl.className = "task-item";
+    taskEl.innerHTML = `
             <div class="task-row-extended">
                 <select class="task-subject" data-index="${index}">
                     <option value="language" ${subject === 'language' ? 'selected' : ''}>Ngôn ngữ</option>
@@ -328,191 +373,334 @@ function renderTasksInModal(tasks) {
             </div>
             <input type="hidden" class="task-done-status" data-index="${index}" value="${isDone}">
         `;
-        tasksContainer.appendChild(taskEl);
-    });
-
-    // Thêm event listeners cho subject dropdowns
-    document.querySelectorAll('.task-subject').forEach(select => {
-        select.addEventListener('change', function() {
-            const index = this.getAttribute('data-index');
-            const subject = this.value;
-            const taskTypeContainer = this.parentNode;
-            const oldTaskType = taskTypeContainer.querySelector('.task-type, .task-type-input');
-            
-            // Tạo field mới cho task type
-            const newTaskTypeField = createTaskTypeElement(index, subject, '');
-            
-            // Thay thế field cũ
-            taskTypeContainer.replaceChild(newTaskTypeField, oldTaskType);
-        });
-    });
-
-    // Thêm tổng thời gian
-    const totalElement = document.createElement("div");
-    totalElement.className = "total-duration";
-    totalElement.innerHTML = `<strong>Tổng thời gian: ${totalMinutes} phút</strong>`;
-    tasksContainer.appendChild(totalElement);
-}
-
-// Hàm render task type field dựa trên subject
-function renderTaskTypeField(index, subject, currentType = '') {
-    if (subject === 'language') {
-        const options = subjectTaskTypes.language.map(type => 
-            `<option value="${type.value}" ${currentType === type.value ? 'selected' : ''}>${type.label}</option>`
-        ).join('');
-        return `<select class="task-type" data-index="${index}">${options}</select>`;
-    } else {
-        return `<input type="text" class="task-type-input" data-index="${index}" value="${currentType}" placeholder="Loại nhiệm vụ">`;
-    }
-}
-
-// Hàm tạo element cho task type
-function createTaskTypeElement(index, subject, currentType = '') {
-    if (subject === 'language') {
-        const select = document.createElement('select');
-        select.className = 'task-type';
-        select.setAttribute('data-index', index);
-        
-        subjectTaskTypes.language.forEach(type => {
-            const option = document.createElement('option');
-            option.value = type.value;
-            option.textContent = type.label;
-            if (currentType === type.value) option.selected = true;
-            select.appendChild(option);
-        });
-        
-        return select;
-    } else {
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.className = 'task-type-input';
-        input.setAttribute('data-index', index);
-        input.value = currentType;
-        input.placeholder = 'Loại nhiệm vụ';
-        return input;
-    }
-}
-
-// Cập nhật hàm addNewTask
-function addNewTask() {
-    if (!tasksContainer) return;
-
-    // Xóa tổng thời gian cũ
-    const totalElement = tasksContainer.querySelector('.total-duration');
-    if (totalElement) totalElement.remove();
-
-    // Tính index mới
-    const taskCount = tasksContainer.querySelectorAll('.task-item:not(.total-duration)').length;
-
-    const taskEl = document.createElement("div");
-    taskEl.className = "task-item";
-    taskEl.innerHTML = `
-        <div class="task-row-extended">
-            <select class="task-subject" data-index="${taskCount}">
-                <option value="language" selected>Ngôn ngữ</option>
-                <option value="it">IT</option>
-                <option value="other">Khác</option>
-            </select>
-            <select class="task-type" data-index="${taskCount}">
-                <option value="vocabulary">Từ vựng</option>
-                <option value="grammar">Ngữ pháp</option>
-                <option value="kanji">Kanji</option>
-                <option value="reading">Đọc hiểu</option>
-                <option value="listening">Nghe hiểu</option>
-                <option value="conversation">Hội thoại</option>
-                <option value="other">Khác</option>
-            </select>
-            <input type="text" class="task-input" placeholder="Nhập nhiệm vụ mới" data-index="${taskCount}">
-            <input type="number" min="0" class="task-duration" value="30" placeholder="Phút" data-index="${taskCount}">
-            <button class="btn-delete delete-task" data-index="${taskCount}">
-                <i class="fas fa-trash"></i>
-            </button>
-        </div>
-        <div class="task-row">
-            <textarea class="task-note" data-index="${taskCount}" placeholder="Ghi chú..."></textarea>
-        </div>
-        <input type="hidden" class="task-done-status" data-index="${taskCount}" value="false">
-    `;
     tasksContainer.appendChild(taskEl);
+  });
 
-    // Thêm event listener cho subject dropdown mới
-    const newSubjectSelect = taskEl.querySelector('.task-subject');
-    newSubjectSelect.addEventListener('change', function() {
-        const index = this.getAttribute('data-index');
-        const subject = this.value;
-        const taskTypeContainer = this.parentNode;
-        const oldTaskType = taskTypeContainer.querySelector('.task-type, .task-type-input');
-        
-        const newTaskTypeField = createTaskTypeElement(index, subject, '');
-        taskTypeContainer.replaceChild(newTaskTypeField, oldTaskType);
+  // Thêm event listeners cho subject dropdowns
+  document.querySelectorAll('.task-subject').forEach(select => {
+    select.addEventListener('change', function () {
+      const index = this.getAttribute('data-index');
+      const subject = this.value;
+      const taskTypeContainer = this.parentNode;
+      const oldTaskType = taskTypeContainer.querySelector('.task-type, .task-type-input');
+
+      // Tạo field mới cho task type
+      const newTaskTypeField = createTaskTypeElement(index, subject, '');
+
+      // Thay thế field cũ
+      taskTypeContainer.replaceChild(newTaskTypeField, oldTaskType);
     });
+  });
+
+  // Thêm tổng thời gian
+  const totalElement = document.createElement("div");
+  totalElement.className = "total-duration";
+  totalElement.innerHTML = `<strong>Tổng thời gian: ${totalMinutes} phút</strong>`;
+  tasksContainer.appendChild(totalElement);
 }
 
-// Cập nhật hàm saveDayData để lưu subject và giữ trạng thái done
-async function saveDayData() {
-    if (!studyDurationInput) studyDurationInput = document.getElementById("study-duration");
-    if (!tasksContainer) tasksContainer = document.getElementById("tasks-container");
+function renderTaskTypeField(index, subject, currentType = '') {
+  if (subject === 'language') {
+    const options = subjectTaskTypes.language.map(type =>
+      `<option value="${type.value}" ${currentType === type.value ? 'selected' : ''}>${type.label}</option>`
+    ).join('');
+    return `<select class="task-type-select" data-index="${index}">${options}</select>`;
+  } else {
+    // Tạo input với datalist cho gợi ý
+    const options = customTaskTypes[subject].map(type =>
+      `<option value="${type}">${type}</option>`
+    ).join('');
 
-    if (!currentEditingDay || !studyDurationInput || !tasksContainer) return;
+    return `<div class="task-type-container">
+      <input type="text" class="task-type-input" 
+             value="${currentType}" placeholder="Nhập loại nhiệm vụ" 
+             data-index="${index}" data-subject="${subject}"
+             autocomplete="off">
+      <div class="task-type-suggestions" data-subject="${subject}"></div>
+    </div>`;
+  }
+}
 
-    const minutes = parseInt(studyDurationInput.value) || 0;
-    const hours = Math.floor(minutes / 60);
-    const remainingMins = minutes % 60;
-    const timeStr = hours > 0
-        ? `Thời gian: ${hours} giờ ${remainingMins} phút`
-        : `Thời gian: ${minutes} phút`;
+function createTaskTypeElement(index, subject, currentType = '') {
+  if (subject === 'language') {
+    const select = document.createElement('select');
+    select.className = 'task-type-select';
+    select.setAttribute('data-index', index);
 
-    const tasks = [];
-    const taskInputs = tasksContainer.querySelectorAll(".task-input");
-
-    taskInputs.forEach((input, index) => {
-        if (input.value.trim()) {
-            const subjectSelect = tasksContainer.querySelector(`.task-subject[data-index="${index}"]`);
-            const typeSelect = tasksContainer.querySelector(`.task-type[data-index="${index}"]`);
-            const typeInput = tasksContainer.querySelector(`.task-type-input[data-index="${index}"]`);
-            const durationInput = tasksContainer.querySelector(`.task-duration[data-index="${index}"]`);
-            const noteInput = tasksContainer.querySelector(`.task-note[data-index="${index}"]`);
-            const doneStatus = tasksContainer.querySelector(`.task-done-status[data-index="${index}"]`);
-
-            if (subjectSelect && durationInput) {
-                const subject = subjectSelect.value;
-                let taskType = '';
-                
-                if (subject === 'language' && typeSelect) {
-                    taskType = typeSelect.value;
-                } else if ((subject === 'it' || subject === 'other') && typeInput) {
-                    taskType = typeInput.value;
-                }
-
-                tasks.push({
-                    title: input.value.trim(),
-                    done: doneStatus ? doneStatus.value === 'true' : false, // Giữ trạng thái done
-                    subject: subject,
-                    type: taskType,
-                    duration: parseInt(durationInput.value) || 0,
-                    note: noteInput ? noteInput.value.trim() : ""
-                });
-            }
-        }
+    subjectTaskTypes.language.forEach(type => {
+      const option = document.createElement('option');
+      option.value = type.value;
+      option.textContent = type.label;
+      if (currentType === type.value) option.selected = true;
+      select.appendChild(option);
     });
 
-    try {
-        const weekNumber = Math.floor((new Date(currentEditingDay) - new Date("2025-07-07")) / (7 * 86400000)) + 1;
+    return select;
+  } else {
+    const container = document.createElement('div');
+    container.className = 'task-type-container';
 
-        await db.ref(`schedule/${currentEditingDay}`).set({
-            time: timeStr,
-            tasks: tasks,
-            weekNumber: weekNumber
-        });
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'task-type-input';
+    input.setAttribute('data-index', index);
+    input.setAttribute('data-subject', subject);
+    input.value = currentType;
+    input.placeholder = 'Nhập loại nhiệm vụ';
+    input.autocomplete = 'off';
 
-        if (editDayModal) {
-            hideModal(editDayModal);
-        }
-        loadCurrentWeek();
-    } catch (error) {
-        console.error("Lỗi khi lưu dữ liệu:", error);
-        showCustomAlert("Có lỗi xảy ra khi lưu dữ liệu. Vui lòng thử lại!");
+    // Tạo dropdown suggestions
+    const suggestionsDropdown = document.createElement('div');
+    suggestionsDropdown.className = 'task-type-suggestions';
+    suggestionsDropdown.setAttribute('data-subject', subject);
+
+    container.appendChild(input);
+    container.appendChild(suggestionsDropdown);
+
+    // Chỉ giữ lại event listeners cho hiển thị gợi ý, XÓA phần tự động lưu
+    input.addEventListener('focus', () => {
+      showSuggestions(input, suggestionsDropdown, subject);
+    });
+
+    input.addEventListener('input', () => {
+      showSuggestions(input, suggestionsDropdown, subject);
+    });
+
+    input.addEventListener('blur', () => {
+      setTimeout(() => {
+        suggestionsDropdown.style.display = 'none';
+      }, 200);
+    });
+
+    input.addEventListener('keydown', (e) => {
+      handleSuggestionNavigation(e, suggestionsDropdown, input);
+    });
+
+    // XÓA phần tự động lưu khi blur
+    return container;
+  }
+}
+
+function showSuggestions(input, dropdown, subject) {
+  const value = input.value.toLowerCase();
+  const suggestions = customTaskTypes[subject] || [];
+
+  // Filter suggestions based on input
+  const filteredSuggestions = value
+    ? suggestions.filter(suggestion =>
+      suggestion.toLowerCase().includes(value))
+    : suggestions;
+
+  // Update dropdown content
+  dropdown.innerHTML = '';
+
+  if (filteredSuggestions.length === 0) {
+    dropdown.style.display = 'none';
+    return;
+  }
+
+  filteredSuggestions.forEach(suggestion => {
+    const item = document.createElement('div');
+    item.className = 'task-type-suggestion-item';
+    item.textContent = suggestion;
+    item.addEventListener('mousedown', () => {
+      input.value = suggestion;
+      dropdown.style.display = 'none';
+    });
+    dropdown.appendChild(item);
+  });
+
+  dropdown.style.display = 'block';
+}
+
+function handleSuggestionNavigation(e, dropdown, input) {
+  const items = dropdown.querySelectorAll('.task-type-suggestion-item');
+  if (items.length === 0) return;
+
+  const currentHighlighted = dropdown.querySelector('.highlighted');
+  let currentIndex = currentHighlighted ?
+    Array.from(items).indexOf(currentHighlighted) : -1;
+
+  switch (e.key) {
+    case 'ArrowDown':
+      e.preventDefault();
+      currentIndex = (currentIndex + 1) % items.length;
+      break;
+
+    case 'ArrowUp':
+      e.preventDefault();
+      currentIndex = (currentIndex - 1 + items.length) % items.length;
+      break;
+
+    case 'Enter':
+      e.preventDefault();
+      if (currentHighlighted) {
+        input.value = currentHighlighted.textContent;
+        dropdown.style.display = 'none';
+      }
+      return;
+
+    case 'Escape':
+      dropdown.style.display = 'none';
+      return;
+
+    default:
+      return;
+  }
+
+  // Update highlighting
+  items.forEach(item => item.classList.remove('highlighted'));
+  if (currentIndex >= 0) {
+    items[currentIndex].classList.add('highlighted');
+    items[currentIndex].scrollIntoView({ block: 'nearest' });
+  }
+}
+
+function refreshSuggestions(subject) {
+  const allContainers = document.querySelectorAll(`.task-type-container`);
+
+  allContainers.forEach(container => {
+    const input = container.querySelector('.task-type-input');
+    const dropdown = container.querySelector('.task-type-suggestions');
+
+    if (input && dropdown && input.getAttribute('data-subject') === subject) {
+      // Suggestions will be updated on focus/input
     }
+  });
+}
+
+function addNewTask() {
+  if (!tasksContainer) return;
+
+  // Xóa tổng thời gian cũ
+  const totalElement = tasksContainer.querySelector('.total-duration');
+  if (totalElement) totalElement.remove();
+
+  // Tính index mới
+  const taskCount = tasksContainer.querySelectorAll('.task-item:not(.total-duration)').length;
+
+  const taskEl = document.createElement("div");
+  taskEl.className = "task-item";
+  taskEl.innerHTML = `
+    <div class="task-row-extended">
+      <select class="task-subject" data-index="${taskCount}">
+        <option value="language" selected>Ngôn ngữ</option>
+        <option value="it">IT</option>
+        <option value="other">Khác</option>
+      </select>
+      ${renderTaskTypeField(taskCount, 'language', '')}
+      <input type="text" class="task-input" placeholder="Nhập nhiệm vụ mới" data-index="${taskCount}">
+      <input type="number" min="0" class="task-duration" value="30" placeholder="Phút" data-index="${taskCount}">
+      <button class="btn-delete delete-task" data-index="${taskCount}">
+        <i class="fas fa-trash"></i>
+      </button>
+    </div>
+    <div class="task-row">
+      <textarea class="task-note" data-index="${taskCount}" placeholder="Ghi chú..."></textarea>
+    </div>
+    <input type="hidden" class="task-done-status" data-index="${taskCount}" value="false">
+  `;
+  tasksContainer.appendChild(taskEl);
+
+  // Thêm event listener cho subject dropdown
+  const newSubjectSelect = taskEl.querySelector('.task-subject');
+  newSubjectSelect.addEventListener('change', function () {
+    const index = this.getAttribute('data-index');
+    const subject = this.value;
+    const taskRow = this.closest('.task-row-extended');
+
+    // Tìm phần tử task type hiện tại
+    const oldTaskType = taskRow.querySelector('.task-type-select, .task-type-container');
+
+    if (oldTaskType) {
+      const newTaskTypeField = createTaskTypeElement(index, subject, '');
+      taskRow.replaceChild(newTaskTypeField, oldTaskType);
+    }
+  });
+}
+
+async function saveDayData() {
+  if (!studyDurationInput) studyDurationInput = document.getElementById("study-duration");
+  if (!tasksContainer) tasksContainer = document.getElementById("tasks-container");
+
+  if (!currentEditingDay || !studyDurationInput || !tasksContainer) return;
+
+  const minutes = parseInt(studyDurationInput.value) || 0;
+  const hours = Math.floor(minutes / 60);
+  const remainingMins = minutes % 60;
+  const timeStr = hours > 0
+    ? `Thời gian: ${hours} giờ ${remainingMins} phút`
+    : `Thời gian: ${minutes} phút`;
+
+  const tasks = [];
+  const taskInputs = tasksContainer.querySelectorAll(".task-input");
+  const newTaskTypes = []; // Lưu các task-type mới để thêm vào danh sách
+
+  taskInputs.forEach((input, index) => {
+    if (input.value.trim()) {
+      const subjectSelect = tasksContainer.querySelector(`.task-subject[data-index="${index}"]`);
+      const typeInput = tasksContainer.querySelector(`.task-type-input[data-index="${index}"]`);
+      const typeSelect = tasksContainer.querySelector(`.task-type-select[data-index="${index}"]`);
+      const durationInput = tasksContainer.querySelector(`.task-duration[data-index="${index}"]`);
+      const noteInput = tasksContainer.querySelector(`.task-note[data-index="${index}"]`);
+      const doneStatus = tasksContainer.querySelector(`.task-done-status[data-index="${index}"]`);
+
+      if (subjectSelect && durationInput) {
+        const subject = subjectSelect.value;
+        let taskType = '';
+
+        if (subject === 'language' && typeSelect) {
+          taskType = typeSelect.value;
+        } else if ((subject === 'it' || subject === 'other') && typeInput) {
+          taskType = typeInput.value.trim();
+          // Chỉ thêm vào danh sách chờ lưu, chưa lưu ngay
+          if (taskType && !customTaskTypes[subject].includes(taskType.toLowerCase())) {
+            newTaskTypes.push({ subject, taskType });
+          }
+        }
+
+        tasks.push({
+          title: input.value.trim(),
+          done: doneStatus ? doneStatus.value === 'true' : false,
+          subject: subject,
+          type: taskType,
+          duration: parseInt(durationInput.value) || 0,
+          note: noteInput ? noteInput.value.trim() : ""
+        });
+      }
+    }
+  });
+
+  try {
+    const weekNumber = Math.floor((new Date(currentEditingDay) - new Date("2025-07-07")) / (7 * 86400000)) + 1;
+
+    // Lưu dữ liệu nhiệm vụ trước
+    await db.ref(`schedule/${currentEditingDay}`).set({
+      time: timeStr,
+      tasks: tasks,
+      weekNumber: weekNumber
+    });
+
+    // Sau đó lưu các task-type mới vào customTaskTypes
+    if (newTaskTypes.length > 0) {
+      for (const { subject, taskType } of newTaskTypes) {
+        const normalizedType = taskType.trim().toLowerCase();
+        if (!customTaskTypes[subject].includes(normalizedType)) {
+          customTaskTypes[subject].push(normalizedType);
+          customTaskTypes[subject].sort();
+        }
+      }
+      await saveCustomTaskTypes();
+    }
+
+    if (editDayModal) {
+      hideModal(editDayModal);
+    }
+    loadCurrentWeek();
+  } catch (error) {
+    console.error("Lỗi khi lưu dữ liệu:", error);
+    showCustomAlert("Có lỗi xảy ra khi lưu dữ liệu. Vui lòng thử lại!");
+  }
 }
 
 function detectTaskType(title) {
@@ -550,6 +738,48 @@ function updateProgress() {
 // ----------------------------
 // STATISTICS & CHARTS FUNCTIONS - UPDATED
 // ----------------------------
+
+async function migrateOldDataToLanguageCategory() {
+  try {
+    const snapshot = await db.ref('schedule').once('value');
+    const scheduleData = snapshot.val() || {};
+    let needsUpdate = false;
+
+    Object.entries(scheduleData).forEach(([date, dayData]) => {
+      if (dayData.tasks) {
+        dayData.tasks.forEach((task, index) => {
+          // Nếu task không có subject nhưng có type thuộc ngôn ngữ
+          if (!task.subject && task.type &&
+            ['vocabulary', 'grammar', 'kanji', 'reading', 'listening', 'conversation', 'other'].includes(task.type)) {
+            task.subject = 'language';
+            needsUpdate = true;
+          }
+          // Nếu task không có subject và type, nhưng title chứa từ khóa ngôn ngữ
+          else if (!task.subject && !task.type && task.title) {
+            const title = task.title.toLowerCase();
+            if (title.match(/nghe|listening|聴解|vocabulary|từ vựng|grammar|ngữ pháp|kanji|đọc|reading|読解|hội thoại|conversation/i)) {
+              task.subject = 'language';
+              if (!task.type) {
+                task.type = detectTaskType(task.title);
+              }
+              needsUpdate = true;
+            }
+          }
+        });
+
+        if (needsUpdate) {
+          db.ref(`schedule/${date}`).update({ tasks: dayData.tasks });
+        }
+      }
+    });
+
+    if (needsUpdate) {
+      console.log('Đã cập nhật dữ liệu cũ sang category ngôn ngữ');
+    }
+  } catch (error) {
+    console.error('Lỗi khi migrate dữ liệu:', error);
+  }
+}
 
 async function getStudyStatistics() {
   try {
@@ -640,7 +870,7 @@ async function getStudyStatistics() {
           weekData.completedTasks++;
           totalStudyTime += duration;
           weekData.studyTime += duration;
-          
+
           taskTypeData.completed++;
           categoryData.completed++;
         }
@@ -818,14 +1048,6 @@ function initProgressChart(weeklyData) {
       labels: weeklyData.map(item => `Tuần ${item.week}`),
       datasets: [
         {
-          label: 'Tỷ lệ hoàn thành (%)',
-          data: weeklyData.map(item => item.progress),
-          backgroundColor: 'rgba(26, 42, 108, 0.8)',
-          borderColor: 'rgba(26, 42, 108, 1)',
-          borderWidth: 1,
-          yAxisID: 'y'
-        },
-        {
           label: 'Thời gian học (giờ)',
           data: weeklyData.map(item => Math.round(item.studyTime / 60)),
           type: 'line',
@@ -837,6 +1059,14 @@ function initProgressChart(weeklyData) {
           pointBorderWidth: 2,
           pointRadius: 5,
           yAxisID: 'y1'
+        },
+        {
+          label: 'Tỷ lệ hoàn thành (%)',
+          data: weeklyData.map(item => item.progress),
+          backgroundColor: 'rgba(26, 42, 108, 0.8)',
+          borderColor: 'rgba(26, 42, 108, 1)',
+          borderWidth: 1,
+          yAxisID: 'y'
         }
       ]
     },
@@ -886,23 +1116,57 @@ function initProgressChart(weeklyData) {
   });
 }
 
-function initSubjectDistributionChart(subjectData) {
+function initSubjectDistributionChart(distributionData) {
   const ctx = document.getElementById('timeDistributionChart')?.getContext('2d');
-  if (!ctx || !subjectData) return;
+  if (!ctx || !distributionData) return;
 
   if (timeDistributionChart) {
     timeDistributionChart.destroy();
   }
 
-  const data = Object.values(subjectData);
-  const labels = Object.keys(subjectData).map(key => {
-    const translations = {
-      'language': 'Ngôn ngữ',
-      'it': 'Công nghệ thông tin',
-      'other': 'Khác'
-    };
-    return translations[key] || key;
-  });
+  // Determine if we're showing subject distribution or task type distribution
+  const isSubjectDistribution = currentTimeFilter === 'all';
+
+  let labels, data, backgroundColor;
+
+  if (isSubjectDistribution) {
+    // Subject distribution (for 'all' filter)
+    labels = Object.keys(distributionData).map(key => {
+      const translations = {
+        'language': 'Ngôn ngữ',
+        'it': 'Công nghệ thông tin',
+        'other': 'Khác'
+      };
+      return translations[key] || key;
+    });
+
+    data = Object.values(distributionData);
+    backgroundColor = [
+      '#1a2a6c',  // Language - Xanh đậm
+      '#4caf50',  // IT - Xanh lá
+      '#ff9800'   // Other - Cam
+    ];
+  } else {
+    // Task type distribution (for specific subject filter)
+    labels = Object.keys(distributionData).map(key => {
+      const translations = {
+        'vocabulary': 'Từ vựng',
+        'grammar': 'Ngữ pháp',
+        'kanji': 'Kanji',
+        'reading': 'Đọc hiểu',
+        'listening': 'Nghe hiểu',
+        'conversation': 'Hội thoại',
+        'other': 'Khác',
+        // Add more translations for IT and Other task types as needed
+      };
+      return translations[key] || key;
+    });
+
+    data = Object.values(distributionData);
+
+    // Generate colors for task types
+    backgroundColor = generateColors(Object.keys(distributionData).length);
+  }
 
   timeDistributionChart = new Chart(ctx, {
     type: 'doughnut',
@@ -910,11 +1174,7 @@ function initSubjectDistributionChart(subjectData) {
       labels: labels,
       datasets: [{
         data: data,
-        backgroundColor: [
-          '#1a2a6c',  // Language - Xanh đậm
-          '#4caf50',  // IT - Xanh lá
-          '#ff9800'   // Other - Cam
-        ],
+        backgroundColor: backgroundColor,
         borderWidth: 0,
         borderRadius: 8,
         hoverBorderWidth: 3,
@@ -950,7 +1210,20 @@ function initSubjectDistributionChart(subjectData) {
   });
 }
 
-function initSkillRadarChart(skillData) {
+// Helper function to generate colors for task types
+function generateColors(count) {
+  const colors = [];
+  const hueStep = 360 / count;
+
+  for (let i = 0; i < count; i++) {
+    const hue = i * hueStep;
+    colors.push(`hsl(${hue}, 70%, 60%)`);
+  }
+
+  return colors;
+}
+
+function initSkillRadarChart(chartData) {
   const ctx = document.getElementById('skillRadarChart')?.getContext('2d');
   if (!ctx) return;
 
@@ -958,26 +1231,48 @@ function initSkillRadarChart(skillData) {
     skillRadarChart.destroy();
   }
 
-  const labels = Object.keys(skillData).map(key => {
-    const translations = {
-      'vocabulary': 'Từ vựng',
-      'grammar': 'Ngữ pháp',
-      'kanji': 'Kanji',
-      'reading': 'Đọc hiểu',
-      'listening': 'Nghe hiểu',
-      'conversation': 'Hội thoại',
-      'other': 'Khác'
-    };
-    return translations[key] || key;
-  });
+  // Determine if we're showing subject distribution or skill distribution
+  const isSubjectDistribution = currentSkillFilter === 'all';
+
+  let labels, data;
+
+  if (isSubjectDistribution) {
+    // Show subject distribution when "all" is selected
+    labels = Object.keys(chartData).map(key => {
+      const translations = {
+        'language': 'Ngôn ngữ',
+        'it': 'Công nghệ thông tin',
+        'other': 'Khác'
+      };
+      return translations[key] || key;
+    });
+
+    data = Object.values(chartData);
+  } else {
+    // Show skill distribution for specific subject
+    labels = Object.keys(chartData).map(key => {
+      const translations = {
+        'vocabulary': 'Từ vựng',
+        'grammar': 'Ngữ pháp',
+        'kanji': 'Kanji',
+        'reading': 'Đọc hiểu',
+        'listening': 'Nghe hiểu',
+        'conversation': 'Hội thoại',
+        'other': 'Khác'
+      };
+      return translations[key] || key;
+    });
+
+    data = Object.values(chartData);
+  }
 
   skillRadarChart = new Chart(ctx, {
     type: 'radar',
     data: {
       labels: labels,
       datasets: [{
-        label: 'Phân bố thời gian (%)',
-        data: Object.values(skillData),
+        label: isSubjectDistribution ? 'Phân bố thời gian theo môn (%)' : 'Phân bố thời gian theo kỹ năng (%)',
+        data: data,
         backgroundColor: 'rgba(26, 42, 108, 0.2)',
         borderColor: 'rgba(26, 42, 108, 1)',
         pointBackgroundColor: 'rgba(253, 187, 45, 1)',
@@ -1026,6 +1321,16 @@ function displayTaskCategories(categories) {
 
   container.innerHTML = '';
 
+  if (categories.length === 0) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 20px; color: #666;">
+        <i class="fas fa-info-circle" style="font-size: 2rem; margin-bottom: 10px;"></i>
+        <p>Chưa có dữ liệu bài tập. Hãy hoàn thành một số nhiệm vụ để xem thống kê!</p>
+      </div>
+    `;
+    return;
+  }
+
   const translations = {
     'vocabulary': 'Từ vựng',
     'grammar': 'Ngữ pháp',
@@ -1064,104 +1369,100 @@ function displayTaskCategories(categories) {
 }
 
 async function displayEffectiveStudyTime() {
-  const dailyEl = document.getElementById('daily-study-time');
-  const weeklyEl = document.getElementById('weekly-study-time');
+  const dailyTaskEl = document.getElementById('daily-study-time-task');
+  const dailySessionEl = document.getElementById('daily-study-time-session');
+  const weeklyTaskEl = document.getElementById('weekly-study-time-task');
+  const weeklySessionEl = document.getElementById('weekly-study-time-session');
 
-  if (!dailyEl || !weeklyEl) return;
+  if (!dailyTaskEl || !dailySessionEl || !weeklyTaskEl || !weeklySessionEl) return;
 
   try {
     const analysis = await analyzeStudyPatterns();
 
-    const dailyMins = analysis.dailyStudyTime || 0;
-    if (dailyMins > 0) {
-      const hours = Math.floor(dailyMins / 60);
-      const mins = dailyMins % 60;
+    const formatTime = (minutes) => {
+      if (minutes === 0) return "0m";
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+    };
 
-      if (hours > 0) {
-        dailyEl.textContent = mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-      } else {
-        dailyEl.textContent = `${mins}m`;
-      }
-    } else {
-      dailyEl.textContent = "0m";
-    }
-
-    const weeklyMins = analysis.weeklyStudyTime || 0;
-    if (weeklyMins > 0) {
-      const hours = Math.floor(weeklyMins / 60);
-      const mins = weeklyMins % 60;
-
-      if (hours > 0) {
-        weeklyEl.textContent = mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-      } else {
-        weeklyEl.textContent = `${mins}m`;
-      }
-    } else {
-      weeklyEl.textContent = "0h";
-    }
-
+    dailyTaskEl.textContent = formatTime(analysis.dailyStudyTimeTask);
+    dailySessionEl.textContent = formatTime(analysis.dailyStudyTimeSession);
+    weeklyTaskEl.textContent = formatTime(analysis.weeklyStudyTimeTask);
+    weeklySessionEl.textContent = formatTime(analysis.weeklyStudyTimeSession);
   } catch (error) {
     console.error("Lỗi khi hiển thị thời gian học hiệu quả:", error);
-    dailyEl.textContent = "0m";
-    weeklyEl.textContent = "0h";
+    dailyTaskEl.textContent = "0m";
+    dailySessionEl.textContent = "0m";
+    weeklyTaskEl.textContent = "0h";
+    weeklySessionEl.textContent = "0h";
   }
 }
 
 async function analyzeStudyPatterns() {
   try {
-    const snapshot = await db.ref('studySessions').once('value');
-    const sessionsData = snapshot.val() || {};
+    const [scheduleSnapshot, sessionsSnapshot] = await Promise.all([
+      db.ref('schedule').once('value'),
+      db.ref('studySessions').once('value')
+    ]);
 
-    let dailyStudyTime = 0;
-    let weeklyStudyTime = 0;
-    const hourlyStats = Array(24).fill(0);
+    const scheduleData = scheduleSnapshot.val() || {};
+    const sessionsData = sessionsSnapshot.val() || {};
+
+    let dailyStudyTimeTask = 0;
+    let weeklyStudyTimeTask = 0;
+    let dailyStudyTimeSession = 0;
+    let weeklyStudyTimeSession = 0;
 
     const todayKey = formatDate(new Date());
     const weekStart = getStartOfWeek(new Date());
 
+    // Tính từ completed tasks
+    Object.entries(scheduleData).forEach(([date, dayData]) => {
+      if (!dayData.tasks) return;
+
+      const isToday = date === todayKey;
+      const isThisWeek = new Date(date) >= weekStart;
+
+      dayData.tasks.forEach(task => {
+        if (task.done) {
+          const duration = task.duration || 0;
+
+          if (isToday) dailyStudyTimeTask += duration;
+          if (isThisWeek) weeklyStudyTimeTask += duration;
+        }
+      });
+    });
+
+    // Tính từ study sessions
     Object.entries(sessionsData).forEach(([date, sessions]) => {
       const isToday = date === todayKey;
       const isThisWeek = new Date(date) >= weekStart;
 
       Object.values(sessions).forEach(session => {
-        if (session.type !== "completed") return;
+        if (session.type === "completed") {
+          const duration = parseInt(session.duration) || 0;
 
-        const duration = parseInt(session.duration) || 0;
-
-        if (isToday) dailyStudyTime += duration;
-
-        if (isThisWeek) weeklyStudyTime += duration;
-
-        if (session.start) {
-          const hour = new Date(session.start).getHours();
-          hourlyStats[hour] += duration;
+          if (isToday) dailyStudyTimeSession += duration;
+          if (isThisWeek) weeklyStudyTimeSession += duration;
         }
       });
     });
 
-    let maxHour = -1;
-    let maxDuration = 0;
-    for (let hour = 0; hour < 24; hour++) {
-      if (hourlyStats[hour] > maxDuration) {
-        maxDuration = hourlyStats[hour];
-        maxHour = hour;
-      }
-    }
-
-    const bestTime = maxHour >= 0 ?
-      { hour: `${maxHour}:00-${maxHour + 1}:00`, duration: maxDuration } :
-      null;
-
     return {
-      dailyStudyTime: dailyStudyTime || 0,
-      weeklyStudyTime: weeklyStudyTime || 0,
-      bestTime: bestTime || "Chưa có dữ liệu"
+      dailyStudyTimeTask,
+      dailyStudyTimeSession,
+      weeklyStudyTimeTask,
+      weeklyStudyTimeSession,
+      bestTime: "Chưa có dữ liệu"
     };
   } catch (error) {
     console.error("Lỗi phân tích dữ liệu:", error);
     return {
-      dailyStudyTime: 0,
-      weeklyStudyTime: 0,
+      dailyStudyTimeTask: 0,
+      dailyStudyTimeSession: 0,
+      weeklyStudyTimeTask: 0,
+      weeklyStudyTimeSession: 0,
       bestTime: "Chưa có dữ liệu"
     };
   }
@@ -1183,11 +1484,77 @@ async function initCharts() {
 
   const stats = await getStudyStatistics();
   updateStatsCards(stats);
-  initProgressChart(stats.weeklyProgress);
-  initSubjectDistributionChart(stats.subjectDistribution);
-  initSkillRadarChart(stats.languageSkills);
-  displayTaskCategories(stats.taskCategories);
+
+  // Apply filters to charts
+  const filteredStats = filterStatsBySubject(stats, currentSkillFilter, currentTimeFilter);
+
+  // Determine which data to use for each chart
+  const skillChartData = currentSkillFilter === 'all' ?
+    filteredStats.subjectDistribution : filteredStats.languageSkills;
+
+  const timeChartData = currentTimeFilter === 'all' ?
+    filteredStats.subjectDistribution : filteredStats.subjectDistribution;
+
+  initProgressChart(filteredStats.weeklyProgress);
+  initSubjectDistributionChart(timeChartData);
+  initSkillRadarChart(skillChartData);
+  displayTaskCategories(filteredStats.taskCategories);
   await displayEffectiveStudyTime();
+}
+
+function filterStatsBySubject(stats, skillFilter, timeFilter) {
+  const filtered = { ...stats };
+
+  // Filter skill radar chart data
+  if (skillFilter !== 'all') {
+    // Keep only the selected subject's task types
+    const subjectTasks = stats.taskCategories.filter(task => task.subject === skillFilter);
+    const taskTypes = subjectTasks.map(task => task.type);
+
+    // Filter language skills
+    const filteredSkills = {};
+    Object.keys(stats.languageSkills).forEach(skill => {
+      if (taskTypes.includes(skill)) {
+        filteredSkills[skill] = stats.languageSkills[skill];
+      }
+    });
+    filtered.languageSkills = filteredSkills;
+
+    // Filter task categories
+    filtered.taskCategories = subjectTasks;
+  }
+
+  // Filter time distribution chart data
+  if (timeFilter !== 'all') {
+    // Calculate task type distribution for the selected subject
+    const subjectTaskTypes = {};
+    let totalSubjectTime = 0;
+
+    // Calculate total time for the subject
+    stats.taskTypeDistribution.forEach(item => {
+      if (item.subject === timeFilter) {
+        totalSubjectTime += item.time;
+      }
+    });
+
+    // Calculate percentages for each task type
+    stats.taskTypeDistribution.forEach(item => {
+      if (item.subject === timeFilter) {
+        subjectTaskTypes[item.type] = Math.round((item.time / totalSubjectTime) * 100);
+      }
+    });
+
+    // For IT and Other subjects, use task type distribution
+    if (timeFilter === 'it' || timeFilter === 'other') {
+      filtered.subjectDistribution = subjectTaskTypes;
+    }
+    // For Language, use language skills distribution
+    else if (timeFilter === 'language') {
+      filtered.subjectDistribution = stats.languageSkills;
+    }
+  }
+
+  return filtered;
 }
 
 // ----------------------------
@@ -1362,7 +1729,7 @@ function setupEventListeners() {
   if (closeEditModal) {
     closeEditModal.addEventListener("click", (e) => {
       e.preventDefault();
-      editDayModal.classList.remove("active");
+      hideModal(editDayModal);
     });
 
     if (editDayModal) {
@@ -1549,101 +1916,101 @@ function updateBreakMessage(studyMinutes, breakMinutes) {
 
 // Cập nhật hàm handleTimerCompletion để có âm thanh báo
 function handleTimerCompletion() {
-    clearInterval(countdownInterval);
+  clearInterval(countdownInterval);
 
-    if (isStudyPhase) {
-        isStudyPhase = false;
-        timerDuration = parseInt(breakMinutesInput.value) * 60;
-        timerStartTime = new Date().getTime();
+  if (isStudyPhase) {
+    isStudyPhase = false;
+    timerDuration = parseInt(breakMinutesInput.value) * 60;
+    timerStartTime = new Date().getTime();
 
-        isManualClose = false;
-        showModal(breakModal);
+    isManualClose = false;
+    showModal(breakModal);
 
-        if (document.hidden) {
-            showNotification("⏰ Hết giờ học!", `Đã hoàn thành ${studyMinutesInput.value} phút học tập!`);
-        }
-    } else {
-        stopTimer();
-        if (document.hidden) {
-            showNotification("🔄 Hết giờ nghỉ!", `Đã nghỉ ${breakMinutesInput.value} phút. Sẵn sàng học tiếp!`);
-        }
+    if (document.hidden) {
+      showNotification("⏰ Hết giờ học!", `Đã hoàn thành ${studyMinutesInput.value} phút học tập!`);
     }
+  } else {
+    stopTimer();
+    if (document.hidden) {
+      showNotification("🔄 Hết giờ nghỉ!", `Đã nghỉ ${breakMinutesInput.value} phút. Sẵn sàng học tiếp!`);
+    }
+  }
 
-    // Phát âm thanh báo với nhiều âm thanh dự phòng
-    if (Notification.permission === 'granted') {
-        playNotificationSound();
-    }
-    
-    // Thêm rung cho thiết bị di động nếu hỗ trợ
-    if ('vibrate' in navigator) {
-        navigator.vibrate([200, 100, 200, 100, 200]);
-    }
+  // Phát âm thanh báo với nhiều âm thanh dự phòng
+  if (Notification.permission === 'granted') {
+    playNotificationSound();
+  }
+
+  // Thêm rung cho thiết bị di động nếu hỗ trợ
+  if ('vibrate' in navigator) {
+    navigator.vibrate([200, 100, 200, 100, 200]);
+  }
 }
 
 // Cập nhật hàm playNotificationSound với nhiều âm thanh dự phòng
 function playNotificationSound() {
-    try {
-        if (notificationAudio) {
-            notificationAudio.pause();
-            notificationAudio.currentTime = 0;
-        }
-
-        // Danh sách âm thanh dự phòng
-        const soundUrls = [
-            'https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3',
-            'https://assets.mixkit.co/sfx/preview/mixkit-bell-notification-933.mp3',
-            'https://assets.mixkit.co/sfx/preview/mixkit-achievement-bell-600.mp3',
-            'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+zuwGQyCP....'
-        ];
-
-        // Thử phát âm thanh từ danh sách
-        const playSound = (index = 0) => {
-            if (index >= soundUrls.length) {
-                console.log('Không thể phát âm thanh thông báo');
-                return;
-            }
-
-            notificationAudio = new Audio(soundUrls[index]);
-            notificationAudio.volume = 0.7;
-            
-            const playPromise = notificationAudio.play();
-
-            if (playPromise !== undefined) {
-                playPromise.then(() => {
-                    console.log('Phát âm thanh thành công!');
-                }).catch(error => {
-                    console.log(`Thử âm thanh tiếp theo (${index + 1})`);
-                    playSound(index + 1);
-                });
-            }
-        };
-
-        playSound();
-        
-    } catch (error) {
-        console.error("Lỗi khi phát âm thanh:", error);
-        
-        // Fallback: tạo âm thanh bằng Web Audio API
-        try {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1);
-            
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 1);
-            
-            console.log('Phát âm thanh dự phòng bằng Web Audio API');
-        } catch (webAudioError) {
-            console.error("Không thể phát âm thanh:", webAudioError);
-        }
+  try {
+    if (notificationAudio) {
+      notificationAudio.pause();
+      notificationAudio.currentTime = 0;
     }
+
+    // Danh sách âm thanh dự phòng
+    const soundUrls = [
+      'https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3',
+      'https://assets.mixkit.co/sfx/preview/mixkit-bell-notification-933.mp3',
+      'https://assets.mixkit.co/sfx/preview/mixkit-achievement-bell-600.mp3',
+      'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+zuwGQyCP....'
+    ];
+
+    // Thử phát âm thanh từ danh sách
+    const playSound = (index = 0) => {
+      if (index >= soundUrls.length) {
+        console.log('Không thể phát âm thanh thông báo');
+        return;
+      }
+
+      notificationAudio = new Audio(soundUrls[index]);
+      notificationAudio.volume = 0.7;
+
+      const playPromise = notificationAudio.play();
+
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          console.log('Phát âm thanh thành công!');
+        }).catch(error => {
+          console.log(`Thử âm thanh tiếp theo (${index + 1})`);
+          playSound(index + 1);
+        });
+      }
+    };
+
+    playSound();
+
+  } catch (error) {
+    console.error("Lỗi khi phát âm thanh:", error);
+
+    // Fallback: tạo âm thanh bằng Web Audio API
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1);
+
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 1);
+
+      console.log('Phát âm thanh dự phòng bằng Web Audio API');
+    } catch (webAudioError) {
+      console.error("Không thể phát âm thanh:", webAudioError);
+    }
+  }
 }
 
 function showNotification(title, message) {
@@ -1689,6 +2056,204 @@ function getTodayDateString() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+////////////////////////////
+//   QUẢN LÝ TÀI NGUYÊN   //
+////////////////////////////
+
+async function loadResources() {
+  try {
+    const snapshot = await db.ref('resources').once('value');
+    const data = snapshot.val();
+
+    if (data) {
+      resourcesData = data;
+    } else {
+      // Dữ liệu mặc định
+      resourcesData = {
+        textbook: [
+          { name: 'Shin Kanzen Master N1', url: 'https://drive.google.com/drive/folders/18pEPRYZCFwDM1mfG-Ul8LxIkrQjNuAYc?usp=sharing' },
+          { name: 'Soumatome N1', url: 'https://drive.google.com/drive/folders/1A53-PaWkIfyKqYBrDeEI3PPHnAQMUjU8?usp=sharing' }
+        ],
+        listening: [
+          { name: 'NHK News Web Easy', url: 'https://www3.nhk.or.jp/news/easy/' },
+          { name: 'Super Native Japanese', url: 'https://supernative.tv/ja/' },
+          { name: 'Nihongo con Teppei', url: 'https://nihongoconteppei.com/' }
+        ],
+        website: [
+          { name: 'Log Excel', url: 'https://docs.google.com/spreadsheets/d/1_blVZly36X8U-23NPxMeUjpf4n7c5YVv/edit?usp=sharing&ouid=102464601056562595135&rtpof=true&sd=true' },
+          { name: 'Recall Card', url: 'https://recall.cards/app' },
+          { name: 'Flashcard Web Cá Nhân', url: 'https://flashcard-ashen-three.vercel.app/' },
+          { name: 'Flashcard Web Tiengnhatdongian', url: 'https://www.tiengnhatdongian.com/flashcard-category/jlpt-n2/flashcard-2500-tu-vung-n2/' }
+        ]
+      };
+
+      await db.ref('resources').set(resourcesData);
+    }
+
+    renderResourcesDisplay();
+  } catch (error) {
+    console.error('Lỗi khi tải tài nguyên:', error);
+  }
+}
+
+function renderResourcesDisplay() {
+  const container = document.getElementById('resources-display');
+  if (!container) return;
+
+  const categories = {
+    textbook: { title: 'Sách giáo trình', icon: 'fas fa-book-open' },
+    listening: { title: 'Tài nguyên nghe', icon: 'fas fa-headphones' },
+    website: { title: 'Website & Ứng dụng', icon: 'fas fa-laptop' }
+  };
+
+  let html = '';
+
+  Object.entries(categories).forEach(([categoryKey, categoryInfo]) => {
+    const resources = resourcesData[categoryKey] || [];
+
+    html += `
+      <div class="resource-display-category">
+        <h3><i class="${categoryInfo.icon}"></i> ${categoryInfo.title}</h3>
+        <ul class="resource-list">
+    `;
+
+    resources.forEach(resource => {
+      const icon = categoryKey === 'textbook' ? 'fas fa-book' :
+        categoryKey === 'listening' ? 'fas fa-podcast' :
+          'fas fa-globe';
+
+      html += `
+        <li class="resource-display-item">
+          <i class="${icon}"></i>
+          <a href="${resource.url}" target="_blank" rel="noopener noreferrer">${resource.name}</a>
+        </li>
+      `;
+    });
+
+    html += `
+        </ul>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+}
+
+function renderResourcesEdit() {
+  const categories = {
+    textbook: { container: 'textbook-resources', title: 'Sách giáo trình' },
+    listening: { container: 'listening-resources', title: 'Tài nguyên nghe' },
+    website: { container: 'website-resources', title: 'Website & Ứng dụng' }
+  };
+
+  Object.entries(categories).forEach(([categoryKey, categoryInfo]) => {
+    const container = document.getElementById(categoryInfo.container);
+    if (!container) return;
+
+    const resources = resourcesData[categoryKey] || [];
+
+    let html = '';
+
+    resources.forEach((resource, index) => {
+      html += `
+        <div class="resource-item-edit">
+          <input type="text" class="resource-name" value="${resource.name}" 
+                 data-category="${categoryKey}" data-index="${index}" placeholder="Tên tài nguyên">
+          <input type="url" class="resource-url" value="${resource.url}" 
+                 data-category="${categoryKey}" data-index="${index}" placeholder="URL">
+          <button class="btn-delete-resource" data-category="${categoryKey}" data-index="${index}">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+      `;
+    });
+
+    container.innerHTML = html;
+  });
+}
+
+async function saveResources() {
+  try {
+    // Lấy dữ liệu từ form
+    const resourceInputs = document.querySelectorAll('.resource-item-edit');
+    const newResourcesData = { textbook: [], listening: [], website: [] };
+
+    resourceInputs.forEach(input => {
+      const nameInput = input.querySelector('.resource-name');
+      const urlInput = input.querySelector('.resource-url');
+      const category = nameInput.getAttribute('data-category');
+
+      if (nameInput.value.trim() && urlInput.value.trim()) {
+        newResourcesData[category].push({
+          name: nameInput.value.trim(),
+          url: urlInput.value.trim()
+        });
+      }
+    });
+
+    // Lưu vào Firebase
+    await db.ref('resources').set(newResourcesData);
+    resourcesData = newResourcesData;
+
+    // Cập nhật hiển thị
+    renderResourcesDisplay();
+    hideModal(document.getElementById('manage-resources-modal'));
+
+    showCustomAlert('Đã lưu tài nguyên thành công!');
+  } catch (error) {
+    console.error('Lỗi khi lưu tài nguyên:', error);
+    showCustomAlert('Có lỗi xảy ra khi lưu tài nguyên!');
+  }
+}
+
+// Thêm event listeners cho quản lý tài nguyên
+function setupResourcesEventListeners() {
+  // Nút chỉnh sửa tài nguyên
+  document.getElementById('edit-resources-btn')?.addEventListener('click', () => {
+    renderResourcesEdit();
+    showModal(document.getElementById('manage-resources-modal'));
+  });
+
+  // Nút đóng modal tài nguyên
+  document.getElementById('close-resources-modal')?.addEventListener('click', () => {
+    hideModal(document.getElementById('manage-resources-modal'));
+  });
+
+  // Nút lưu tài nguyên
+  document.getElementById('save-resources')?.addEventListener('click', saveResources);
+
+  // Nút thêm tài nguyên
+  document.querySelectorAll('.add-resource-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+      const category = this.getAttribute('data-category');
+      const container = document.getElementById(`${category}-resources`);
+
+      const newItem = document.createElement('div');
+      newItem.className = 'resource-item-edit';
+      newItem.innerHTML = `
+        <input type="text" class="resource-name" data-category="${category}" 
+               data-index="new" placeholder="Tên tài nguyên">
+        <input type="url" class="resource-url" data-category="${category}" 
+               data-index="new" placeholder="URL">
+        <button class="btn-delete-resource">
+          <i class="fas fa-trash"></i>
+        </button>
+      `;
+
+      container.appendChild(newItem);
+    });
+  });
+
+  // Xóa tài nguyên (delegate)
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('.btn-delete-resource')) {
+      const btn = e.target.closest('.btn-delete-resource');
+      const item = btn.closest('.resource-item-edit');
+      item.remove();
+    }
+  });
+}
+
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     stopNotificationSound();
@@ -1717,17 +2282,25 @@ function initTools() {
 }
 
 // Initialize the app
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   currentWeekStart = getStartOfWeek();
   updateRemainingDays();
+  await loadCustomTaskTypes();
+
   loadCurrentWeek();
   setupEventListeners();
   setupTabNavigation();
   setupRealTimeListeners();
+
   if (studyMinutesInput) {
     timeLeft = parseInt(studyMinutesInput.value) * 60;
     updateTimerDisplay();
   }
+
+  migrateOldDataToLanguageCategory();
+  loadResources();
+  setupResourcesEventListeners();
+
   document.body.addEventListener('click', () => {
     const dummyAudio = new Audio();
     dummyAudio.play().then(() => {
@@ -1736,4 +2309,10 @@ document.addEventListener("DOMContentLoaded", () => {
       console.log("Người dùng cần tương tác trước khi phát âm thanh");
     });
   }, { once: true });
+
+  // Khởi tạo biểu đồ
+  initCharts();
+
+  // Cập nhật thời gian học hiệu quả
+  displayEffectiveStudyTime();
 });
