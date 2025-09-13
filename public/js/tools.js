@@ -449,7 +449,7 @@ async function exportKanjiPDF() {
         }
 
         for (const word of kanjiWords) {
-            const wordFontSize = mmToPt(cellSize * 0.7);
+            const wordFontSize = mmToPt(cellSize * 0.7); // giữ nguyên size chữ
 
             doc.setFontSize(10);
             doc.setTextColor(50, 50, 50);
@@ -481,7 +481,10 @@ async function exportKanjiPDF() {
                 doc.rect(x, y, wordCellWidth - gap, cellSize);
                 doc.setTextColor(160);
                 doc.setFontSize(wordFontSize);
-                doc.text(word, x + (wordCellWidth - gap) / 2, y + cellSize / 2, {
+
+                // giữ nguyên size chữ, chỉ dịch xuống 1.5mm để cách viền
+                const padding = 1.5;
+                doc.text(word, x + (wordCellWidth - gap) / 2, y + cellSize / 2 + padding, {
                     align: 'center',
                     baseline: 'middle'
                 });
