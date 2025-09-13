@@ -365,7 +365,7 @@ async function exportKanjiPDF() {
     }
 
     try {
-        const fontUrl = '/assets/fonts/NotoSansJP-VariableFont_wght.ttf';
+        const fontUrl = '/public/assets/fonts/NotoSansJP-VariableFont_wght.ttf';
         console.log("Font fetch URL:", fontUrl);
         const fontResp = await fetch(fontUrl);
         if (!fontResp.ok) throw new Error('Không thể tải font từ ' + fontUrl);
@@ -391,7 +391,6 @@ async function exportKanjiPDF() {
 
         const textLines = doc.splitTextToSize(text, pageW - 2 * margin);
         doc.setFontSize(10);
-        doc.text(textLines, margin, y);
         y += (textLines.length * 5) + 10;
         if (y > pageH - margin) {
             doc.addPage();
@@ -477,14 +476,21 @@ async function exportKanjiPDF() {
                     y = margin + 10;
                 }
 
+                // khoảng cách padding 1.5mm mỗi phía
+                const padding = 1.5;
+
+                // vẽ khung ngoài
                 doc.setDrawColor(150);
                 doc.rect(x, y, wordCellWidth - gap, cellSize);
+
+                // vẽ chữ bên trong với padding
                 doc.setTextColor(160);
                 doc.setFontSize(wordFontSize);
 
-                // giữ nguyên size chữ, chỉ dịch xuống 1.5mm để cách viền
-                const padding = 1.5;
-                doc.text(word, x + (wordCellWidth - gap) / 2, y + cellSize / 2 + padding, {
+                const innerWidth = (wordCellWidth - gap) - padding * 2;
+                const innerHeight = cellSize - padding * 2;
+
+                doc.text(word, x + padding + innerWidth / 2, y + padding + innerHeight / 2, {
                     align: 'center',
                     baseline: 'middle'
                 });
