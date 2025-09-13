@@ -46,6 +46,10 @@ let customTaskTypes = {
   it: [],
   other: []
 };
+let isTimerMinimized = false;
+let minimizedTimerInterval = null
+// Biến toàn cục mới
+let floatingTimerInterval = null;
 
 // Subject và Task Type mapping
 const subjectTaskTypes = {
@@ -85,6 +89,20 @@ const breakMinutesInput = document.getElementById('break-minutes');
 const startTimerBtn = document.getElementById('start-timer');
 const pauseTimerBtn = document.getElementById('pause-timer');
 const stopTimerBtn = document.getElementById('stop-timer');
+const floatingTimerDisplay = document.getElementById('floating-timer-display');
+const restoreTimerBtn = document.getElementById('restore-timer-btn');
+const stopFloatingTimerBtn = document.getElementById('stop-floating-timer');
+
+const minimizeTimerBtn = document.getElementById('minimize-timer');
+const timerFloatingContainer = document.createElement('div');
+timerFloatingContainer.id = 'floating-timer-container';
+timerFloatingContainer.className = 'floating-timer minimized';
+timerFloatingContainer.innerHTML = `
+  <div class="floating-timer-content">
+    <span id="floating-timer-display">00:00</span>
+  </div>
+`;
+document.body.appendChild(timerFloatingContainer);
 
 document.getElementById('skill-chart-filter')?.addEventListener('change', function (e) {
   currentSkillFilter = e.target.value;
@@ -364,12 +382,12 @@ function renderTasksInModal(tasks) {
                 ${renderTaskTypeField(index, subject, task.type)}
                 <input type="text" class="task-input" value="${task.title}" data-index="${index}">
                 <input type="number" min="0" class="task-duration" value="${duration}" data-index="${index}" placeholder="Phút">
-                <button class="btn-delete delete-task" data-index="${index}">
-                    <i class="fas fa-trash"></i>
-                </button>
             </div>
             <div class="task-row">
-                <textarea class="task-note" data-index="${index}" placeholder="Thêm ghi chú cho nhiệm vụ...">${note}</textarea>
+                  <button class="btn-delete delete-task" data-index="${index}">
+                      <i class="fas fa-trash"></i>
+                  </button>
+                  <textarea class="task-note" data-index="${index}" placeholder="Thêm ghi chú cho nhiệm vụ...">${note}</textarea>
             </div>
             <input type="hidden" class="task-done-status" data-index="${index}" value="${isDone}">
         `;
@@ -591,11 +609,11 @@ function addNewTask() {
       ${renderTaskTypeField(taskCount, 'language', '')}
       <input type="text" class="task-input" placeholder="Nhập nhiệm vụ mới" data-index="${taskCount}">
       <input type="number" min="0" class="task-duration" value="30" placeholder="Phút" data-index="${taskCount}">
+    </div>
+    <div class="task-row">
       <button class="btn-delete delete-task" data-index="${taskCount}">
         <i class="fas fa-trash"></i>
       </button>
-    </div>
-    <div class="task-row">
       <textarea class="task-note" data-index="${taskCount}" placeholder="Ghi chú..."></textarea>
     </div>
     <input type="hidden" class="task-done-status" data-index="${taskCount}" value="false">
@@ -1824,11 +1842,68 @@ function updateStreakDisplay(streakData) {
   }
 }
 
+function minimizeTimer() {
+  isTimerMinimized = true;
+
+  // Ẩn modal chính
+  hideModal(countdownModal);
+
+  // Hiển thị đồng hồ nổi
+  timerFloatingContainer.classList.remove('minimized');
+
+  // Cập nhật đồng hồ nổi
+  updateFloatingTimerDisplay();
+
+  // Bắt đầu cập nhật đồng hồ nổi
+  if (minimizedTimerInterval) clearInterval(minimizedTimerInterval);
+  minimizedTimerInterval = setInterval(updateFloatingTimerDisplay, 1000);
+}
+
+function restoreTimer() {
+  isTimerMinimized = false;
+
+  // Ẩn đồng hồ nổi
+  timerFloatingContainer.classList.add('minimized');
+
+  // Hiển thị modal chính
+  showModal(countdownModal);
+
+  // Dừng cập nhật đồng hồ nổi
+  if (minimizedTimerInterval) {
+    clearInterval(minimizedTimerInterval);
+    minimizedTimerInterval = null;
+  }
+}
+
+function updateFloatingTimerDisplay() {
+  if (!isTimerMinimized) return;
+
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
+  if (floatingTimerDisplay) {
+    floatingTimerDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+    // Thay đổi màu sắc khi sắp hết giờ
+    if (timeLeft < 60) {
+      floatingTimerDisplay.style.color = '#ff4757';
+    } else {
+      floatingTimerDisplay.style.color = '';
+    }
+  }
+}
+
 function updateTimerDisplay() {
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
+
+  // Cập nhật đồng hồ chính
   if (timerDisplay) {
     timerDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  // Cập nhật đồng hồ nổi nếu đang thu nhỏ
+  if (isTimerMinimized) {
+    updateFloatingTimerDisplay();
   }
 }
 
@@ -1874,6 +1949,79 @@ function pauseTimer() {
   console.log('Tạm dừng đếm ngược');
 }
 
+// Hàm thu nhỏ bộ đếm giờ thành bong bóng
+function minimizeToBubble() {
+  isTimerMinimized = true;
+
+  // Ẩn modal chính
+  hideModal(countdownModal);
+
+  // Hiển thị bong bóng
+  const bubble = document.getElementById('floating-timer-bubble');
+  if (bubble) {
+    bubble.classList.remove('minimized');
+  }
+
+  // Cập nhật hiển thị bong bóng
+  updateBubbleTimerDisplay();
+
+  // Bắt đầu cập nhật bong bóng
+  if (floatingTimerInterval) clearInterval(floatingTimerInterval);
+  floatingTimerInterval = setInterval(updateBubbleTimerDisplay, 1000);
+}
+
+// Hàm khôi phục từ bong bóng về modal
+function restoreFromBubble() {
+  isTimerMinimized = false;
+
+  // Ẩn bong bóng
+  const bubble = document.getElementById('floating-timer-bubble');
+  if (bubble) {
+    bubble.classList.add('minimized');
+  }
+
+  // Hiển thị modal chính
+  showModal(countdownModal);
+
+  // Dừng cập nhật bong bóng
+  if (floatingTimerInterval) {
+    clearInterval(floatingTimerInterval);
+    floatingTimerInterval = null;
+  }
+}
+
+// Cập nhật trạng thái cảnh báo
+function updateBubbleWarningState() {
+  const bubble = document.getElementById('floating-timer-bubble');
+  if (!bubble) return;
+
+  if (timeLeft < 60) {
+    bubble.classList.add('warning');
+  } else {
+    bubble.classList.remove('warning');
+  }
+}
+
+// Cập nhật hiển thị đồng hồ trên bong bóng
+function updateBubbleTimerDisplay() {
+  if (!isTimerMinimized) return;
+
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
+  const bubbleDisplay = document.getElementById('bubble-timer-display');
+
+  if (bubbleDisplay) {
+    bubbleDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+    // Thay đổi màu sắc khi sắp hết giờ
+    if (timeLeft < 60) {
+      bubbleDisplay.style.color = '#ff4757';
+    } else {
+      bubbleDisplay.style.color = '';
+    }
+  }
+}
+
 function stopTimer() {
   endStudySession();
   clearInterval(countdownInterval);
@@ -1887,9 +2035,76 @@ function stopTimer() {
   pauseTimerBtn.style.display = 'none';
   stopTimerBtn.style.display = 'none';
 
+  // Ẩn bong bóng nếu đang hiển thị
+  if (isTimerMinimized) {
+    const bubble = document.getElementById('floating-timer-bubble');
+    if (bubble) {
+      bubble.classList.add('minimized');
+    }
+    isTimerMinimized = false;
+  }
+
+  // Dừng cập nhật bong bóng
+  if (floatingTimerInterval) {
+    clearInterval(floatingTimerInterval);
+    floatingTimerInterval = null;
+  }
+
   console.log('Dừng đếm ngược');
   stopNotificationSound();
   console.log('Dừng âm thanh');
+}
+
+// Thêm sự kiện cho nút thu nhỏ và khôi phục
+if (minimizeTimerBtn) {
+  minimizeTimerBtn.addEventListener('click', minimizeToBubble);
+}
+
+// Thêm sự kiện cho nút khôi phục trên bong bóng
+document.getElementById('restore-timer-bubble')?.addEventListener('click', restoreFromBubble);
+
+// Thêm sự kiện cho nút dừng trên bong bóng
+document.getElementById('stop-timer-bubble')?.addEventListener('click', stopTimer);
+
+// Cho phép kéo bong bóng (tùy chọn)
+let isDragging = false;
+let dragOffset = { x: 0, y: 0 };
+const bubble = document.getElementById('floating-timer-bubble');
+
+if (bubble) {
+  bubble.addEventListener('mousedown', function (e) {
+    isDragging = true;
+    dragOffset.x = e.clientX - bubble.getBoundingClientRect().left;
+    dragOffset.y = e.clientY - bubble.getBoundingClientRect().top;
+    bubble.style.cursor = 'grabbing';
+  });
+
+  document.addEventListener('mousemove', function (e) {
+    if (isDragging) {
+      bubble.style.left = (e.clientX - dragOffset.x) + 'px';
+      bubble.style.top = (e.clientY - dragOffset.y) + 'px';
+      bubble.style.right = 'unset';
+      bubble.style.bottom = 'unset';
+    }
+  });
+
+  document.addEventListener('mouseup', function () {
+    isDragging = false;
+    bubble.style.cursor = 'pointer';
+  });
+}
+
+// Thêm sự kiện cho nút thu nhỏ và khôi phục
+if (minimizeTimerBtn) {
+  minimizeTimerBtn.addEventListener('click', minimizeTimer);
+}
+
+if (restoreTimerBtn) {
+  restoreTimerBtn.addEventListener('click', restoreTimer);
+}
+
+if (stopFloatingTimerBtn) {
+  stopFloatingTimerBtn.addEventListener('click', stopTimer);
 }
 
 function startBreakTimer() {

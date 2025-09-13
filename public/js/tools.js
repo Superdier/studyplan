@@ -69,11 +69,11 @@ function clearTtsText() {
     if (ttsHighlightContainer) {
         ttsHighlightContainer.classList.add('hidden');
     }
-    
+
     // Dừng phát âm nếu đang phát
     if (synth && synth.speaking) {
         synth.cancel();
-        
+
         // Reset button states
         if (playTtsBtn) playTtsBtn.disabled = false;
         if (pauseTtsBtn) pauseTtsBtn.disabled = true;
@@ -88,26 +88,26 @@ function clearTtsText() {
 // Font size control function - IMPROVED
 function updateFontSize() {
     if (!fontSizeSlider || !fontSizeValue) return;
-    
+
     currentFontSize = parseInt(fontSizeSlider.value);
     fontSizeValue.textContent = currentFontSize + 'px';
-    
+
     // Cập nhật size cho grid hiện tại
     if (writingGrid) {
         const cells = writingGrid.querySelectorAll('.character-cell');
         const cellSize = Math.max(currentFontSize + 20, 40); // Ô luôn lớn hơn chữ ít nhất 20px
         const gap = Math.max(Math.floor(cellSize * 0.15), 5); // Gap động theo size ô (15% của cell size, tối thiểu 5px)
-        
+
         cells.forEach(cell => {
             cell.style.fontSize = currentFontSize + 'px';
             cell.style.width = cellSize + 'px';
             cell.style.height = cellSize + 'px';
             cell.style.margin = Math.floor(gap / 2) + 'px'; // Chia đôi gap cho margin mỗi bên
         });
-        
+
         // Cập nhật gap cho container
         writingGrid.style.gap = gap + 'px';
-        
+
         // Cập nhật padding container dựa trên size
         const containerPadding = Math.max(Math.floor(cellSize * 0.3), 10);
         writingGrid.style.padding = containerPadding + 'px';
@@ -178,7 +178,7 @@ function showCustomAlert(message) {
         </div>
     `;
     document.body.appendChild(modal);
-    
+
     // Auto remove after 5 seconds
     setTimeout(() => {
         if (modal.parentNode) {
@@ -209,7 +209,7 @@ async function exportToPDF() {
     }
 
     try {
-        const fontUrl = '/public/assets/fonts/NotoSansJP-VariableFont_wght.ttf';
+        const fontUrl = '/assets/fonts/NotoSansJP-VariableFont_wght.ttf';
         console.log("Font fetch URL:", fontUrl);
 
         const fontResp = await fetch(fontUrl);
@@ -365,7 +365,7 @@ async function exportKanjiPDF() {
     }
 
     try {
-        const fontUrl = '/public/assets/fonts/NotoSansJP-VariableFont_wght.ttf';
+        const fontUrl = '/assets/fonts/NotoSansJP-VariableFont_wght.ttf';
         console.log("Font fetch URL:", fontUrl);
         const fontResp = await fetch(fontUrl);
         if (!fontResp.ok) throw new Error('Không thể tải font từ ' + fontUrl);
@@ -387,7 +387,6 @@ async function exportKanjiPDF() {
 
         doc.setFontSize(14);
         doc.setTextColor(20, 20, 20);
-        doc.text('Văn bản đã nhập:', pageW / 2, y, { align: 'center' });
         y += 8;
 
         const textLines = doc.splitTextToSize(text, pageW - 2 * margin);
@@ -510,33 +509,28 @@ function fallbackCanvasExportKanjiWithWords(text) {
     const pageW = doc.internal.pageSize.getWidth();
     const pageH = doc.internal.pageSize.getHeight();
     const margin = 15;
-    const cellSize = Math.max((currentFontSize * 0.35), 12);
-    const gap = Math.max(cellSize * 0.2, 3);
+    const cellSize = 14; // mm
+    const gap = 4;
+    const scale = 4; // tăng độ nét ảnh
 
     let x = margin;
-    let y = 15;
+    let y = margin + 10;
 
-    doc.setFontSize(14);
-    doc.text('Văn bản đã nhập:', pageW / 2, y, { align: 'center' });
-    y += 8;
-    doc.setFontSize(10);
-    const textLines = doc.splitTextToSize(text, pageW - 2 * margin);
-    doc.text(textLines, margin, y);
-    y += (textLines.length * 5) + 10;
-    if (y > pageH - margin) {
-        doc.addPage();
-        y = margin;
-    }
-
+    // Tách Kanji đơn và từ Kanji
     const uniqueKanjiChars = [...new Set(Array.from(text).filter(isKanji))];
     const kanjiWords = [...new Set(text.match(/[\u4e00-\u9faf]{2,}/g) || [])];
 
+    // Kanji đơn
     uniqueKanjiChars.forEach(char => {
-        doc.setFontSize(14);
-        doc.text(`Luyện viết chữ: ${char}`, pageW / 2, y, { align: 'center' });
-        y += 10;
+        doc.setFontSize(12);
+        y += 8;
 
-        for (let i = 0; i < 10; i++) {
+        // 1 ô mẫu (chỉ chữ, không khung)
+        addSampleImage(char, cellSize, x, y);
+        x += cellSize + gap;
+
+        // 19 ô luyện (có khung)
+        for (let i = 0; i < 19; i++) {
             if (x + cellSize > pageW - margin) {
                 x = margin;
                 y += cellSize + gap;
@@ -544,78 +538,88 @@ function fallbackCanvasExportKanjiWithWords(text) {
             if (y + cellSize > pageH - margin) {
                 doc.addPage();
                 x = margin;
-                y = margin;
+                y = margin + 10;
             }
 
-            const canvas = document.createElement('canvas');
-            canvas.width = Math.round(cellSize * 3);
-            canvas.height = Math.round(cellSize * 3);
-            const ctx = canvas.getContext('2d');
-            ctx.strokeStyle = '#999';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
-            ctx.fillStyle = '#C8C8C8';
-            ctx.font = `${Math.round(canvas.height * 0.6)}px "Noto Sans JP", "Yu Gothic", "Meiryo", sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(char, canvas.width / 2, canvas.height / 2);
-
-            const imgData = canvas.toDataURL('image/png');
-            doc.addImage(imgData, 'PNG', x, y, cellSize, cellSize);
+            addPracticeImage(char, cellSize, x, y);
             x += cellSize + gap;
         }
+
         x = margin;
-        y += cellSize + gap + 10;
+        y += cellSize + gap + 8;
     });
 
+    // Kanji từ
     kanjiWords.forEach(word => {
-        const wordFontSize = (cellSize * 0.7);
+        const wordWidth = cellSize * word.length;
+
         doc.setFontSize(10);
-        doc.setTextColor(50, 50, 50);
-        doc.text(word, margin, y - 2);
 
-        for (let i = 0; i < 10; i++) {
-            doc.setFontSize(wordFontSize);
-            const wordWidthInPoints = doc.getStringUnitWidth(word) * wordFontSize;
-            const wordWidthInMm = wordWidthInPoints * 25.4 / 72;
+        // 1 ô mẫu (chỉ chữ, không khung)
+        addSampleImage(word, wordWidth, x, y);
+        x += wordWidth + gap;
 
-            const wordCellWidth = Math.max(wordWidthInMm, cellSize) + gap;
-            if (x + wordCellWidth > pageW - margin) {
+        // 5 ô luyện (có khung)
+        for (let i = 0; i < 5; i++) {
+            if (x + wordWidth > pageW - margin) {
                 x = margin;
-                y += cellSize + gap + 10;
-                if (y + cellSize > pageH - margin) {
-                    doc.addPage();
-                    y = margin + 10;
-                }
+                y += cellSize + gap;
             }
-
             if (y + cellSize > pageH - margin) {
                 doc.addPage();
                 x = margin;
                 y = margin + 10;
             }
 
-            const canvas = document.createElement('canvas');
-            canvas.width = Math.round(wordCellWidth * 3);
-            canvas.height = Math.round(cellSize * 3);
-            const ctx = canvas.getContext('2d');
-            ctx.strokeStyle = '#999';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
-            ctx.fillStyle = '#C8C8C8';
-            ctx.font = `${Math.round(canvas.height * 0.6)}px "Noto Sans JP", "Yu Gothic", "Meiryo", sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(word, canvas.width / 2, canvas.height / 2);
-            const imgData = canvas.toDataURL('image/png');
-            doc.addImage(imgData, 'PNG', x, y, wordCellWidth, cellSize);
-            x += wordCellWidth;
+            addPracticeImage(word, wordWidth, x, y);
+            x += wordWidth + gap;
         }
+
         x = margin;
-        y += cellSize + gap + 10;
+        y += cellSize + gap + 8;
     });
 
-    doc.save('luyen-viet-kanji-fallback.pdf');
+    doc.save("kanji-practice-fallback.pdf");
+
+    // --- helper: tạo hình ảnh mẫu (chữ không khung) ---
+    function addSampleImage(text, width, posX, posY) {
+        const canvas = document.createElement("canvas");
+        canvas.width = width * scale;
+        canvas.height = cellSize * scale;
+        const ctx = canvas.getContext("2d");
+
+        ctx.scale(scale, scale);
+        ctx.fillStyle = "#000";
+        ctx.font = `${cellSize * 0.6}px 'Noto Sans JP','Yu Gothic','Meiryo',sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(text, width / 2, cellSize / 2);
+
+        const imgData = canvas.toDataURL("image/png");
+        doc.addImage(imgData, "PNG", posX, posY, width, cellSize);
+    }
+
+    // --- helper: tạo hình ảnh luyện tập (có khung + chữ mờ) ---
+    function addPracticeImage(text, width, posX, posY) {
+        const canvas = document.createElement("canvas");
+        canvas.width = width * scale;
+        canvas.height = cellSize * scale;
+        const ctx = canvas.getContext("2d");
+
+        ctx.scale(scale, scale);
+        ctx.strokeStyle = "#000";
+        ctx.strokeRect(0, 0, width, cellSize);
+
+        // chữ mờ rất nhạt
+        ctx.fillStyle = "rgba(0,0,0,0.08)";
+        ctx.font = `${cellSize * 0.6}px 'Noto Sans JP','Yu Gothic','Meiryo',sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(text, width / 2, cellSize / 2);
+
+        const imgData = canvas.toDataURL("image/png");
+        doc.addImage(imgData, "PNG", posX, posY, width, cellSize);
+    }
 }
 
 ///////////////////////////////
@@ -624,21 +628,21 @@ function fallbackCanvasExportKanjiWithWords(text) {
 
 function loadVoices() {
     voices = synth.getVoices();
-    
-    const japaneseVoices = voices.filter(voice => 
+
+    const japaneseVoices = voices.filter(voice =>
         voice.lang.includes('ja') || voice.lang.includes('JP')
     );
-    
+
     if (ttsVoiceSelect) {
         ttsVoiceSelect.innerHTML = '';
-        
+
         japaneseVoices.forEach(voice => {
             const option = document.createElement('option');
             option.value = voice.name;
             option.textContent = `${voice.name} (${voice.lang})`;
             ttsVoiceSelect.appendChild(option);
         });
-        
+
         if (japaneseVoices.length === 0 && voices.length > 0) {
             const option = document.createElement('option');
             option.value = voices[0].name;
@@ -716,7 +720,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 function playTTS() {
     if (!ttsText) return;
-    
+
     const text = ttsText.value.trim();
 
     if (!text) {
@@ -727,7 +731,7 @@ function playTTS() {
     if (typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined') {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         const audioContext = new AudioContext();
-        
+
         if (audioContext.state === 'suspended') {
             audioContext.resume().then(() => {
                 console.log('Audio context resumed');
@@ -757,7 +761,7 @@ function playTTS() {
 
     utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'ja-JP';
-    
+
     if (ttsSpeed) {
         utterance.rate = parseFloat(ttsSpeed.value);
     }
@@ -806,7 +810,7 @@ function playTTS() {
 
 function pauseTTS() {
     if (!synth) return;
-    
+
     if (synth.speaking && !synth.paused) {
         synth.pause();
         if (pauseTtsBtn) {
@@ -824,7 +828,7 @@ function pauseTTS() {
 
 function stopTTS() {
     if (!synth) return;
-    
+
     if (synth.speaking) {
         synth.cancel();
 
@@ -859,6 +863,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
-    
+
     setTimeout(loadVoices, 500);
 });
