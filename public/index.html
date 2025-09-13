@@ -361,8 +361,18 @@
     <!-- Modal đếm ngược thời gian học -->
     <div class="modal" id="countdown-modal">
         <div class="modal-content">
-            <span class="close-modal" id="close-countdown-modal">&times;</span>
-            <h2><i class="fas fa-clock"></i> Thời gian học tập</h2>
+            <div class="modal-header">
+                <h2 class="modal-title">⏳ Bộ đếm ngược</h2>
+                <div class="modal-actions">
+                    <button id="minimize-timer" class="modal-minimize-btn" title="Thu nhỏ">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                    <button id="close-countdown-modal" class="modal-close-btn" title="Đóng">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+
 
             <div class="timer-settings">
                 <div class="timer-setting">
@@ -454,9 +464,19 @@
         </div>
     </div>
 
+    <!-- Floating timer bubble -->
+    <div id="floating-timer-bubble" class="floating-timer-bubble minimized">
+        <div class="timer-text" id="bubble-timer-display">25:00</div>
+        <div class="timer-controls">
+            <button id="restore-timer-bubble"><i class="fas fa-expand"></i></button>
+            <button id="stop-timer-bubble"><i class="fas fa-stop"></i></button>
+        </div>
+    </div>
+
     <script src="js/script.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://unpkg.com/jspdf-font@1.0.0/Roboto-Regular-normal.js"></script>
     <script src="js/tools.js"></script>
 </body>
 
