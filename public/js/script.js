@@ -1679,6 +1679,11 @@ function setupEventListeners() {
     loadCurrentWeek();
   });
 
+  document.getElementById("current-week-btn")?.addEventListener("click", () => {
+    currentWeekStart = getStartOfWeek(new Date());
+    loadCurrentWeek();
+  });
+
   if (startStudyBtn) {
     startStudyBtn.addEventListener("click", () => {
       showModal(countdownModal);
