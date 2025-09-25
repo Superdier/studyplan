@@ -51,6 +51,7 @@ let minimizedTimerInterval = null
 let floatingTimerInterval = null;
 let jlptScores = [];
 let currentEditingScoreId = null;
+let progressHeatmapChart = null;
 
 // Subject và Task Type mapping
 const subjectTaskTypes = {
@@ -2251,6 +2252,290 @@ function setupJLptScoresEventListeners() {
     }
   });
 }
+
+// Progress Heat Map
+// Hàm tạo Progress Heatmap
+function createProgressHeatmap(jlptScores) {
+  console.log('Creating Progress Heatmap with scores:', jlptScores);
+  
+  if (!jlptScores || jlptScores.length < 2) {
+    displayNoHeatmapData();
+    return;
+  }
+
+  // Tính toán dữ liệu tiến bộ
+  const progressData = calculateProgressData(jlptScores);
+  
+  // Render heatmap
+  renderProgressHeatmap(progressData);
+}
+
+// Tính toán dữ liệu tiến bộ từ điểm JLPT
+function calculateProgressData(scores) {
+  const skills = ['Kiến thức ngôn ngữ', 'Đọc hiểu', 'Nghe hiểu'];
+  const skillKeys = ['language', 'reading', 'listening'];
+  
+  // Sắp xếp theo ngày
+  const sortedScores = scores.sort((a, b) => new Date(a.date) - new Date(b.date));
+  
+  const weeks = [];
+  const progressData = [];
+
+  // Tính deltaScore cho mỗi lần thi (từ lần 2 trở đi)
+  for (let i = 1; i < sortedScores.length; i++) {
+    const currentScore = sortedScores[i];
+    const previousScore = sortedScores[i - 1];
+    const weekLabel = `Lần ${i + 1}`;
+    
+    weeks.push(weekLabel);
+
+    // Tính cho từng kỹ năng
+    skillKeys.forEach((skillKey, skillIndex) => {
+      const deltaScore = currentScore[skillKey] - previousScore[skillKey];
+      
+      progressData.push({
+        skillIndex,
+        weekIndex: i - 1,
+        skillName: skills[skillIndex],
+        week: weekLabel,
+        deltaScore,
+        currentScore: currentScore[skillKey],
+        previousScore: previousScore[skillKey],
+        date: currentScore.date,
+        testTitle: currentScore.title || `Bài thi ${i + 1}`
+      });
+    });
+  }
+
+  return {
+    skills,
+    weeks,
+    data: progressData
+  };
+}
+
+// Render Progress Heatmap
+function renderProgressHeatmap(progressData) {
+  const container = document.getElementById('progress-heatmap-container');
+  if (!container) return;
+
+  const { skills, weeks, data } = progressData;
+
+  // Tạo mapping data
+  const gridData = new Map();
+  data.forEach(item => {
+    const key = `${item.skillIndex}-${item.weekIndex}`;
+    gridData.set(key, item);
+  });
+
+  // CSS classes cho màu sắc
+  const getCellClass = (deltaScore) => {
+    if (deltaScore === null || deltaScore === undefined) return 'cell-no-data';
+    if (deltaScore === 0) return 'cell-neutral';
+    
+    if (deltaScore > 0) {
+      if (deltaScore >= 10) return 'cell-positive-5';
+      if (deltaScore >= 7) return 'cell-positive-4';
+      if (deltaScore >= 5) return 'cell-positive-3';
+      if (deltaScore >= 3) return 'cell-positive-2';
+      return 'cell-positive-1';
+    } else {
+      const abs = Math.abs(deltaScore);
+      if (abs >= 10) return 'cell-negative-5';
+      if (abs >= 7) return 'cell-negative-4';
+      if (abs >= 5) return 'cell-negative-3';
+      if (abs >= 3) return 'cell-negative-2';
+      return 'cell-negative-1';
+    }
+  };
+
+  // HTML cho heatmap
+  let heatmapHTML = `
+    <div class="heatmap-grid">
+      <div class="heatmap-header">
+        <div class="heatmap-header-skill">Kỹ năng</div>
+        ${weeks.map(week => `<div class="heatmap-header-week">${week}</div>`).join('')}
+      </div>
+  `;
+
+  // Render các hàng dữ liệu
+  skills.forEach((skill, skillIndex) => {
+    heatmapHTML += `<div class="heatmap-row">`;
+    heatmapHTML += `<div class="heatmap-skill-label">${skill}</div>`;
+    
+    weeks.forEach((week, weekIndex) => {
+      const key = `${skillIndex}-${weekIndex}`;
+      const cellData = gridData.get(key);
+      
+      if (cellData) {
+        const deltaScore = cellData.deltaScore;
+        const cellClass = getCellClass(deltaScore);
+        const displayValue = deltaScore > 0 ? `+${deltaScore}` : deltaScore.toString();
+        
+        heatmapHTML += `
+          <div class="heatmap-cell ${cellClass}" 
+               data-skill="${skill}" 
+               data-week="${week}" 
+               data-delta="${deltaScore}"
+               data-current="${cellData.currentScore}"
+               data-previous="${cellData.previousScore}"
+               data-test="${cellData.testTitle}"
+               title="${skill}, ${week}: ${deltaScore > 0 ? '+' : ''}${deltaScore} điểm (từ ${cellData.previousScore} → ${cellData.currentScore}) - ${cellData.testTitle}">
+            ${displayValue}
+          </div>
+        `;
+      } else {
+        heatmapHTML += `
+          <div class="heatmap-cell cell-no-data" title="Chưa có dữ liệu">-</div>
+        `;
+      }
+    });
+    
+    heatmapHTML += `</div>`;
+  });
+
+  heatmapHTML += `</div>`;
+
+  // Render container
+  container.innerHTML = `
+    <div class="heatmap-chart">
+      ${heatmapHTML}
+    </div>
+    <div class="heatmap-summary">
+      ${renderHeatmapSummary(data)}
+    </div>
+  `;
+}
+
+// Render thống kê tóm tắt cho heatmap
+function renderHeatmapSummary(data) {
+  if (!data || data.length === 0) return '';
+  
+  const totalChanges = data.length;
+  const positiveChanges = data.filter(d => d.deltaScore > 0).length;
+  const negativeChanges = data.filter(d => d.deltaScore < 0).length;
+  const neutralChanges = data.filter(d => d.deltaScore === 0).length;
+  
+  const avgImprovement = data.reduce((sum, d) => sum + d.deltaScore, 0) / totalChanges;
+  const maxImprovement = Math.max(...data.map(d => d.deltaScore));
+  const maxDecline = Math.min(...data.map(d => d.deltaScore));
+
+  // Tìm kỹ năng tiến bộ nhất
+  const skillProgress = {};
+  data.forEach(d => {
+    if (!skillProgress[d.skillName]) {
+      skillProgress[d.skillName] = [];
+    }
+    skillProgress[d.skillName].push(d.deltaScore);
+  });
+
+  let bestSkill = '';
+  let bestAvg = -Infinity;
+  Object.keys(skillProgress).forEach(skill => {
+    const avg = skillProgress[skill].reduce((a, b) => a + b, 0) / skillProgress[skill].length;
+    if (avg > bestAvg) {
+      bestAvg = avg;
+      bestSkill = skill;
+    }
+  });
+
+  return `
+    <div class="heatmap-stats">
+      <h4><i class="fas fa-chart-bar"></i> Thống kê tiến bộ</h4>
+      <div class="heatmap-stats-grid">
+        <div class="heatmap-stat-item">
+          <div class="stat-value">${totalChanges}</div>
+          <div class="stat-label">Lần đánh giá</div>
+        </div>
+        <div class="heatmap-stat-item positive">
+          <div class="stat-value">${positiveChanges}</div>
+          <div class="stat-label">Lần tiến bộ</div>
+        </div>
+        <div class="heatmap-stat-item negative">
+          <div class="stat-value">${negativeChanges}</div>
+          <div class="stat-label">Lần tụt lùi</div>
+        </div>
+        <div class="heatmap-stat-item">
+          <div class="stat-value ${avgImprovement >= 0 ? 'positive' : 'negative'}">
+            ${avgImprovement > 0 ? '+' : ''}${avgImprovement.toFixed(1)}
+          </div>
+          <div class="stat-label">Trung bình</div>
+        </div>
+        <div class="heatmap-stat-item positive">
+          <div class="stat-value">+${maxImprovement}</div>
+          <div class="stat-label">Tiến bộ tối đa</div>
+        </div>
+        <div class="heatmap-stat-item">
+          <div class="stat-value" style="font-size: 0.9em;">${bestSkill}</div>
+          <div class="stat-label">Kỹ năng mạnh nhất</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Hiển thị thông báo khi không có dữ liệu
+function displayNoHeatmapData() {
+  const container = document.getElementById('progress-heatmap-container');
+  if (!container) return;
+  
+  container.innerHTML = `
+    <div class="no-data-message">
+      <i class="fas fa-chart-bar"></i>
+      <p><strong>Chưa có dữ liệu cho Progress Heatmap</strong></p>
+      <p>Cần ít nhất 2 lần thi JLPT để tạo bản đồ nhiệt tiến bộ</p>
+      <p>Hãy thêm điểm số từ nút "Quản lý điểm JLPT" ở trên</p>
+    </div>
+  `;
+}
+
+// Cập nhật hàm refreshJLptCharts để bao gồm heatmap
+function refreshJLptCharts() {
+  loadJLptScores().then(() => {
+    updateScoresRadarChart();
+    createProgressHeatmap(jlptScores); // Thêm dòng này
+  });
+}
+
+// Cập nhật hàm initCharts để bao gồm heatmap
+async function initCharts() {
+  console.log('=== INIT CHARTS START ===');
+  
+  try {
+    const stats = await getStudyStatistics();
+    console.log('Statistics data loaded:', stats);
+    
+    updateStatsCards(stats);
+
+    // 1. Khởi tạo progressChart
+    console.log('Initializing progressChart...');
+    initProgressChart(stats.weeklyProgress);
+    
+    // 2. Khởi tạo skillRadarChart (JLPT scores)
+    console.log('Initializing skillRadarChart...');
+    updateScoresRadarChart();
+    
+    // 3. Khởi tạo timeDistributionChart
+    console.log('Initializing timeDistributionChart...');
+    const filteredStats = filterStatsBySubject(stats, 'all', currentTimeFilter);
+    const timeChartData = currentTimeFilter === 'all' ? 
+        filteredStats.subjectDistribution : filteredStats.subjectDistribution;
+    
+    initSubjectDistributionChart(timeChartData);
+    displayTaskCategories(filteredStats.taskCategories);
+    await displayEffectiveStudyTime();
+    
+    // 4. Khởi tạo Progress Heatmap - THÊM MỚI
+    console.log('Initializing Progress Heatmap...');
+    createProgressHeatmap(jlptScores);
+    
+    console.log('=== INIT CHARTS COMPLETED ===');
+    
+  } catch (error) {
+    console.error('Lỗi khi khởi tạo biểu đồ:', error);
+  }
+}
+
 
 // ----------------------------
 // COUNTDOWN/TIMER FUNCTIONS
