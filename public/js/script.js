@@ -48,8 +48,9 @@ let customTaskTypes = {
 };
 let isTimerMinimized = false;
 let minimizedTimerInterval = null
-// Biến toàn cục mới
 let floatingTimerInterval = null;
+let jlptScores = [];
+let currentEditingScoreId = null;
 
 // Subject và Task Type mapping
 const subjectTaskTypes = {
@@ -103,16 +104,6 @@ timerFloatingContainer.innerHTML = `
   </div>
 `;
 document.body.appendChild(timerFloatingContainer);
-
-document.getElementById('skill-chart-filter')?.addEventListener('change', function (e) {
-  currentSkillFilter = e.target.value;
-  initCharts();
-});
-
-document.getElementById('time-chart-filter')?.addEventListener('change', function (e) {
-  currentTimeFilter = e.target.value;
-  initCharts();
-});
 
 // Custom alert function
 function showCustomAlert(message) {
@@ -302,6 +293,7 @@ function setupTabNavigation() {
         contentElement.classList.add('active');
 
         if (tabId === 'stats-tab') {
+          refreshJLptCharts();
           initCharts();
         }
         else if (tabId === 'tools-tab') {
@@ -1051,87 +1043,151 @@ async function calculateStreak() {
   }
 }
 
-// UPDATED CHART FUNCTIONS
 function initProgressChart(weeklyData) {
-  const ctx = document.getElementById('progressChart')?.getContext('2d');
-  if (!ctx) return;
-
-  if (progressChart) {
-    progressChart.destroy();
-  }
-
-  progressChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: weeklyData.map(item => `Tuần ${item.week}`),
-      datasets: [
-        {
-          label: 'Thời gian học (giờ)',
-          data: weeklyData.map(item => Math.round(item.studyTime / 60)),
-          type: 'line',
-          borderColor: 'rgba(253, 187, 45, 1)',
-          backgroundColor: 'rgba(253, 187, 45, 0.2)',
-          borderWidth: 3,
-          pointBackgroundColor: 'rgba(253, 187, 45, 1)',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2,
-          pointRadius: 5,
-          yAxisID: 'y1'
-        },
-        {
-          label: 'Tỷ lệ hoàn thành (%)',
-          data: weeklyData.map(item => item.progress),
-          backgroundColor: 'rgba(26, 42, 108, 0.8)',
-          borderColor: 'rgba(26, 42, 108, 1)',
-          borderWidth: 1,
-          yAxisID: 'y'
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: {
-          beginAtZero: true,
-          max: 100,
-          title: { display: true, text: 'Tỷ lệ hoàn thành (%)' },
-          position: 'left',
-          grid: { color: 'rgba(0,0,0,0.1)' }
-        },
-        y1: {
-          beginAtZero: true,
-          title: { display: true, text: 'Giờ học' },
-          position: 'right',
-          grid: { drawOnChartArea: false },
-          ticks: { color: 'rgba(253, 187, 45, 1)' }
-        },
-        x: {
-          grid: { color: 'rgba(0,0,0,0.1)' }
-        }
-      },
-      plugins: {
-        legend: {
-          position: 'top',
-          labels: { usePointStyle: true }
-        },
-        tooltip: {
-          callbacks: {
-            label: function (context) {
-              const label = context.dataset.label || '';
-              const value = context.parsed.y;
-
-              if (context.datasetIndex === 0) {
-                return `${label}: ${value}%`;
-              } else {
-                return `${label}: ${value} giờ`;
-              }
-            }
-          }
-        }
-      }
+    const ctx = document.getElementById('progressChart');
+    
+    // Debug: Kiểm tra phần tử canvas
+    if (!ctx) {
+        console.error('Không tìm thấy phần tử progressChart canvas');
+        return;
     }
-  });
+    
+    const canvasCtx = ctx.getContext('2d');
+    if (!canvasCtx) {
+        console.error('Không thể lấy context của progressChart canvas');
+        return;
+    }
+
+    console.log('Đang khởi tạo progressChart với dữ liệu:', weeklyData);
+
+    // Hủy biểu đồ cũ nếu tồn tại
+    if (progressChart) {
+        progressChart.destroy();
+        progressChart = null;
+    }
+
+    // Kiểm tra dữ liệu
+    if (!weeklyData || weeklyData.length === 0) {
+        console.warn('Không có dữ liệu weeklyData để hiển thị biểu đồ');
+        
+        // Hiển thị thông báo "Không có dữ liệu"
+        canvasCtx.fillStyle = '#666';
+        canvasCtx.font = '16px Arial';
+        canvasCtx.textAlign = 'center';
+        canvasCtx.fillText('Chưa có dữ liệu tiến độ tuần', ctx.width / 2, ctx.height / 2);
+        return;
+    }
+
+    try {
+        progressChart = new Chart(canvasCtx, {
+            type: 'bar',
+            data: {
+                labels: weeklyData.map(item => `Tuần ${item.week}`),
+                datasets: [
+                    {
+                        label: 'Thời gian học (giờ)',
+                        data: weeklyData.map(item => Math.round(item.studyTime / 60)),
+                        type: 'line',
+                        borderColor: 'rgba(253, 187, 45, 1)',
+                        backgroundColor: 'rgba(253, 187, 45, 0.2)',
+                        borderWidth: 3,
+                        pointBackgroundColor: 'rgba(253, 187, 45, 1)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        yAxisID: 'y1'
+                    },
+                    {
+                        label: 'Tỷ lệ hoàn thành (%)',
+                        data: weeklyData.map(item => item.progress),
+                        backgroundColor: 'rgba(26, 42, 108, 0.8)',
+                        borderColor: 'rgba(26, 42, 108, 1)',
+                        borderWidth: 1,
+                        yAxisID: 'y'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: { 
+                            display: true, 
+                            text: 'Tỷ lệ hoàn thành (%)',
+                            font: { weight: 'bold' }
+                        },
+                        position: 'left',
+                        grid: { color: 'rgba(0,0,0,0.1)' },
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    },
+                    y1: {
+                        beginAtZero: true,
+                        title: { 
+                            display: true, 
+                            text: 'Giờ học',
+                            font: { weight: 'bold' }
+                        },
+                        position: 'right',
+                        grid: { drawOnChartArea: false },
+                        ticks: { 
+                            color: 'rgba(253, 187, 45, 1)',
+                            callback: function(value) {
+                                return value + 'h';
+                            }
+                        }
+                    },
+                    x: {
+                        grid: { color: 'rgba(0,0,0,0.1)' },
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { 
+                            usePointStyle: true,
+                            font: { weight: 'bold' }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                const label = context.dataset.label || '';
+                                const value = context.parsed.y;
+
+                                if (context.datasetIndex === 0) {
+                                    return `${label}: ${value}%`;
+                                } else {
+                                    return `${label}: ${value} giờ`;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        console.log('progressChart đã được khởi tạo thành công');
+
+    } catch (error) {
+        console.error('Lỗi khi khởi tạo progressChart:', error);
+        
+        // Hiển thị thông báo lỗi
+        canvasCtx.fillStyle = '#f44336';
+        canvasCtx.font = '14px Arial';
+        canvasCtx.textAlign = 'center';
+        canvasCtx.fillText('Lỗi khi tải biểu đồ tiến độ', ctx.width / 2, ctx.height / 2);
+    }
 }
 
 function initSubjectDistributionChart(distributionData) {
@@ -1486,38 +1542,161 @@ async function analyzeStudyPatterns() {
   }
 }
 
-async function initCharts() {
-  if (progressChart) {
-    progressChart.destroy();
-    progressChart = null;
-  }
-  if (timeDistributionChart) {
-    timeDistributionChart.destroy();
-    timeDistributionChart = null;
-  }
+// Thêm hàm tải riêng từng biểu đồ
+function loadSkillChart() {
   if (skillRadarChart) {
     skillRadarChart.destroy();
     skillRadarChart = null;
   }
 
-  const stats = await getStudyStatistics();
-  updateStatsCards(stats);
+  getStudyStatistics().then(stats => {
+    const filteredStats = filterStatsBySubject(stats, currentSkillFilter, currentTimeFilter);
+    const skillChartData = currentSkillFilter === 'all' ?
+      filteredStats.subjectDistribution : filteredStats.languageSkills;
+    initSkillRadarChart(skillChartData);
+  });
+}
 
-  // Apply filters to charts
-  const filteredStats = filterStatsBySubject(stats, currentSkillFilter, currentTimeFilter);
+function loadTimeDistributionChart() {
+  if (timeDistributionChart) {
+    timeDistributionChart.destroy();
+    timeDistributionChart = null;
+  }
 
-  // Determine which data to use for each chart
-  const skillChartData = currentSkillFilter === 'all' ?
-    filteredStats.subjectDistribution : filteredStats.languageSkills;
+  getStudyStatistics().then(stats => {
+    const filteredStats = filterStatsBySubject(stats, currentSkillFilter, currentTimeFilter);
+    const timeChartData = currentTimeFilter === 'all' ?
+      filteredStats.subjectDistribution : filteredStats.subjectDistribution;
+    initSubjectDistributionChart(timeChartData);
+  });
+}
 
-  const timeChartData = currentTimeFilter === 'all' ?
-    filteredStats.subjectDistribution : filteredStats.subjectDistribution;
+// Cập nhật event listeners cho các nút lọc
+document.getElementById('skill-chart-filter')?.addEventListener('change', function (e) {
+  currentSkillFilter = e.target.value;
+  loadSkillChart();
+});
 
-  initProgressChart(filteredStats.weeklyProgress);
-  initSubjectDistributionChart(timeChartData);
-  initSkillRadarChart(skillChartData);
-  displayTaskCategories(filteredStats.taskCategories);
-  await displayEffectiveStudyTime();
+document.getElementById('time-chart-filter')?.addEventListener('change', function (e) {
+  currentTimeFilter = e.target.value;
+
+  getStudyStatistics().then(stats => {
+    const filteredStats = filterStatsBySubject(stats, 'all', currentTimeFilter);
+    const timeChartData = currentTimeFilter === 'all' ?
+      filteredStats.subjectDistribution : filteredStats.subjectDistribution;
+
+    if (timeDistributionChart) {
+      timeDistributionChart.destroy();
+    }
+    initSubjectDistributionChart(timeChartData);
+  });
+});
+
+// Hàm debug để kiểm tra trạng thái biểu đồ
+function debugCharts() {
+    console.log('=== DEBUG CHARTS ===');
+    
+    // Kiểm tra phần tử canvas
+    const progressCanvas = document.getElementById('progressChart');
+    const skillCanvas = document.getElementById('skillRadarChart');
+    const timeCanvas = document.getElementById('timeDistributionChart');
+    
+    console.log('progressChart canvas:', progressCanvas);
+    console.log('skillRadarChart canvas:', skillCanvas);
+    console.log('timeDistributionChart canvas:', timeCanvas);
+    
+    // Kiểm tra kích thước canvas
+    if (progressCanvas) {
+        console.log('progressChart size:', progressCanvas.offsetWidth, 'x', progressCanvas.offsetHeight);
+    }
+    if (skillCanvas) {
+        console.log('skillRadarChart size:', skillCanvas.offsetWidth, 'x', skillCanvas.offsetHeight);
+    }
+    
+    // Kiểm tra instance biểu đồ
+    console.log('progressChart instance:', progressChart);
+    console.log('skillRadarChart instance:', skillRadarChart);
+    console.log('timeDistributionChart instance:', timeDistributionChart);
+    
+    // Kiểm tra dữ liệu
+    getStudyStatistics().then(stats => {
+        console.log('Weekly data for progressChart:', stats.weeklyProgress);
+        console.log('JLPT scores for skillRadarChart:', jlptScores);
+    });
+}
+
+// Gọi hàm debug khi cần (có thể gọi từ console browser)
+window.debugCharts = debugCharts;
+
+async function initCharts() {
+    console.log('=== INIT CHARTS START ===');
+    
+    // Debug: Kiểm tra phần tử
+    const progressCanvas = document.getElementById('progressChart');
+    if (!progressCanvas) {
+        console.error('Không tìm thấy progressChart canvas element');
+    }
+
+    // Hủy biểu đồ cũ
+    if (progressChart) {
+        progressChart.destroy();
+        progressChart = null;
+    }
+    if (timeDistributionChart) {
+        timeDistributionChart.destroy();
+        timeDistributionChart = null;
+    }
+    if (skillRadarChart) {
+        skillRadarChart.destroy();
+        skillRadarChart = null;
+    }
+
+    try {
+        const stats = await getStudyStatistics();
+        console.log('Statistics data loaded:', stats);
+        
+        updateStatsCards(stats);
+
+        // 1. Khởi tạo progressChart đầu tiên
+        console.log('Initializing progressChart...');
+        initProgressChart(stats.weeklyProgress);
+        
+        // 2. Khởi tạo skillRadarChart (JLPT scores)
+        console.log('Initializing skillRadarChart...');
+        updateScoresRadarChart();
+        
+        // 3. Khởi tạo timeDistributionChart
+        console.log('Initializing timeDistributionChart...');
+        const filteredStats = filterStatsBySubject(stats, 'all', currentTimeFilter);
+        const timeChartData = currentTimeFilter === 'all' ? 
+            filteredStats.subjectDistribution : filteredStats.subjectDistribution;
+        
+        initSubjectDistributionChart(timeChartData);
+        displayTaskCategories(filteredStats.taskCategories);
+        await displayEffectiveStudyTime();
+        
+        console.log('=== INIT CHARTS COMPLETED ===');
+        
+    } catch (error) {
+        console.error('Lỗi khi khởi tạo biểu đồ:', error);
+        
+        // Hiển thị thông báo lỗi trên các canvas
+        const canvases = [
+            document.getElementById('progressChart'),
+            document.getElementById('skillRadarChart'),
+            document.getElementById('timeDistributionChart')
+        ];
+        
+        canvases.forEach(canvas => {
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#f44336';
+                ctx.font = '14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Lỗi tải biểu đồ', canvas.width / 2, canvas.height / 2);
+            }
+        });
+    }
 }
 
 function filterStatsBySubject(stats, skillFilter, timeFilter) {
@@ -1573,6 +1752,504 @@ function filterStatsBySubject(stats, skillFilter, timeFilter) {
   }
 
   return filtered;
+}
+
+// Hàm tải điểm số từ Firebase
+async function loadJLptScores() {
+  try {
+    const snapshot = await db.ref('jlptScores').once('value');
+    const data = snapshot.val();
+
+    if (data) {
+      // Chuyển đổi object thành array
+      jlptScores = Object.keys(data).map(key => ({
+        id: key,
+        ...data[key]
+      }));
+    } else {
+      jlptScores = [];
+    }
+
+    // Sắp xếp theo ngày (mới nhất đầu tiên)
+    jlptScores.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    renderJLptScoresTable();
+    updateJLptStatsSummary();
+    updateScoresRadarChart();
+
+  } catch (error) {
+    console.error('Lỗi khi tải điểm số JLPT:', error);
+    jlptScores = [];
+  }
+}
+
+// Hàm hiển thị bảng điểm số
+function renderJLptScoresTable() {
+  const tbody = document.getElementById('jlpt-scores-list');
+  if (!tbody) return;
+
+  if (jlptScores.length === 0) {
+    tbody.innerHTML = `
+            <tr>
+                <td colspan="9" style="text-align: center; padding: 40px; color: #666;">
+                    <i class="fas fa-chart-line" style="font-size: 3rem; margin-bottom: 15px; display: block;"></i>
+                    <p>Chưa có điểm số nào. Hãy thêm điểm số để theo dõi tiến độ JLPT!</p>
+                </td>
+            </tr>
+        `;
+    return;
+  }
+
+  tbody.innerHTML = jlptScores.map((score, index) => {
+    const passStatus = score.total >= 100; // Điểm đỗ JLPT thường là 100/180
+    const date = new Date(score.date);
+    const formattedDate = date.toLocaleDateString('vi-VN');
+
+    return `
+            <tr>
+                <td>${index + 1}</td>
+                <td>${formattedDate}</td>
+                <td>${score.title}</td>
+                <td>
+                    ${score.link ?
+        `<a href="${score.link}" target="_blank" title="Xem bài thi">
+                            <i class="fas fa-external-link-alt"></i>
+                        </a>` :
+        '-'
+      }
+                </td>
+                <td class="score-cell ${getScoreClass(score.language, 60)}">${score.language}</td>
+                <td class="score-cell ${getScoreClass(score.reading, 60)}">${score.reading}</td>
+                <td class="score-cell ${getScoreClass(score.listening, 60)}">${score.listening}</td>
+                <td class="total-score-cell ${passStatus ? 'score-high' : 'score-low'}">
+                    <strong>${score.total}</strong>/180
+                </td>
+                <td>
+                    <button class="btn-score-action btn-edit-score" data-id="${score.id}">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-score-action btn-delete-score" data-id="${score.id}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+  }).join('');
+
+  // Thêm event listeners cho các nút
+  tbody.querySelectorAll('.btn-edit-score').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const scoreId = e.currentTarget.dataset.id;
+      openEditJLptScoreModal(scoreId);
+    });
+  });
+
+  tbody.querySelectorAll('.btn-delete-score').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const scoreId = e.currentTarget.dataset.id;
+      deleteJLptScore(scoreId);
+    });
+  });
+}
+
+// Hàm xác định class cho điểm số
+function getScoreClass(score, max) {
+  const percentage = (score / max) * 100;
+  if (percentage >= 70) return 'score-high';
+  if (percentage >= 50) return 'score-medium';
+  return 'score-low';
+}
+
+// Hàm cập nhật thống kê tổng quan
+function updateJLptStatsSummary() {
+  const summaryEl = document.getElementById('jlpt-stats-summary');
+  if (!summaryEl) return;
+
+  if (jlptScores.length === 0) {
+    summaryEl.innerHTML = '<div class="stat-summary-item">Chưa có dữ liệu</div>';
+    return;
+  }
+
+  const totalTests = jlptScores.length;
+  const passedTests = jlptScores.filter(score => score.total >= 100).length;
+  const avgTotal = Math.round(jlptScores.reduce((sum, score) => sum + score.total, 0) / totalTests);
+  const passRate = Math.round((passedTests / totalTests) * 100);
+
+  summaryEl.innerHTML = `
+        <div class="stat-summary-item">
+            <div class="stat-summary-value">${totalTests}</div>
+            <div class="stat-summary-label">Bài thi</div>
+        </div>
+        <div class="stat-summary-item">
+            <div class="stat-summary-value">${passedTests}</div>
+            <div class="stat-summary-label">Đỗ</div>
+        </div>
+        <div class="stat-summary-item">
+            <div class="stat-summary-value">${passRate}%</div>
+            <div class="stat-summary-label">Tỷ lệ đỗ</div>
+        </div>
+        <div class="stat-summary-item">
+            <div class="stat-summary-value">${avgTotal}</div>
+            <div class="stat-summary-label">Điểm TB</div>
+        </div>
+    `;
+}
+
+// Hàm mở modal thêm điểm số mới
+function openAddJLptScoreModal() {
+  currentEditingScoreId = null;
+  document.getElementById('jlpt-score-modal-title').textContent = 'Thêm điểm số JLPT';
+
+  // Reset form
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('jlpt-score-date').value = today;
+  document.getElementById('jlpt-score-title').value = '';
+  document.getElementById('jlpt-score-link').value = '';
+  document.getElementById('jlpt-score-language').value = 0;
+  document.getElementById('jlpt-score-reading').value = 0;
+  document.getElementById('jlpt-score-listening').value = 0;
+
+  updateJLptTotalScore();
+  showModal(document.getElementById('jlpt-score-detail-modal'));
+}
+
+// Hàm mở modal sửa điểm số
+function openEditJLptScoreModal(scoreId) {
+  const score = jlptScores.find(s => s.id === scoreId);
+  if (!score) return;
+
+  currentEditingScoreId = scoreId;
+  document.getElementById('jlpt-score-modal-title').textContent = 'Chỉnh sửa điểm số JLPT';
+
+  document.getElementById('jlpt-score-date').value = score.date;
+  document.getElementById('jlpt-score-title').value = score.title;
+  document.getElementById('jlpt-score-link').value = score.link || '';
+  document.getElementById('jlpt-score-language').value = score.language;
+  document.getElementById('jlpt-score-reading').value = score.reading;
+  document.getElementById('jlpt-score-listening').value = score.listening;
+
+  updateJLptTotalScore();
+  showModal(document.getElementById('jlpt-score-detail-modal'));
+}
+
+// Hàm cập nhật tổng điểm
+function updateJLptTotalScore() {
+  const language = parseInt(document.getElementById('jlpt-score-language').value) || 0;
+  const reading = parseInt(document.getElementById('jlpt-score-reading').value) || 0;
+  const listening = parseInt(document.getElementById('jlpt-score-listening').value) || 0;
+  const total = language + reading + listening;
+
+  document.getElementById('jlpt-total-score').textContent = total;
+
+  // Cập nhật trạng thái
+  const statusEl = document.getElementById('jlpt-score-status');
+  statusEl.className = 'score-status ' + (total >= 100 ? 'status-pass' : 'status-fail');
+  statusEl.textContent = total >= 100 ? 'ĐẠT (≥100/180)' : 'CHƯA ĐẠT';
+}
+
+// Hàm lưu điểm số
+async function saveJLptScore() {
+  const date = document.getElementById('jlpt-score-date').value;
+  const title = document.getElementById('jlpt-score-title').value.trim();
+  const link = document.getElementById('jlpt-score-link').value.trim();
+  const language = parseInt(document.getElementById('jlpt-score-language').value) || 0;
+  const reading = parseInt(document.getElementById('jlpt-score-reading').value) || 0;
+  const listening = parseInt(document.getElementById('jlpt-score-listening').value) || 0;
+  const total = language + reading + listening;
+
+  if (!date || !title) {
+    showCustomAlert('Vui lòng điền ngày và tiêu đề!');
+    return;
+  }
+
+  if (language < 0 || language > 60 || reading < 0 || reading > 60 || listening < 0 || listening > 60) {
+    showCustomAlert('Điểm từng phần phải nằm trong khoảng 0-60!');
+    return;
+  }
+
+  const scoreData = {
+    date,
+    title,
+    link: link || '',
+    language,
+    reading,
+    listening,
+    total,
+    updatedAt: new Date().toISOString()
+  };
+
+  try {
+    if (currentEditingScoreId) {
+      // Cập nhật điểm số hiện có
+      await db.ref(`jlptScores/${currentEditingScoreId}`).update(scoreData);
+    } else {
+      // Thêm điểm số mới
+      const newScoreId = `jlpt_${Date.now()}`;
+      scoreData.createdAt = new Date().toISOString();
+      await db.ref(`jlptScores/${newScoreId}`).set(scoreData);
+    }
+
+    hideModal(document.getElementById('jlpt-score-detail-modal'));
+    // Sau khi lưu thành công
+    await loadJLptScores();
+    refreshJLptCharts(); // ← THÊM DÒNG NÀY
+    showCustomAlert('Đã lưu điểm số thành công!');
+
+  } catch (error) {
+    console.error('Lỗi khi lưu điểm số:', error);
+    showCustomAlert('Có lỗi xảy ra khi lưu điểm số!');
+  }
+}
+
+// Hàm xóa điểm số
+async function deleteJLptScore(scoreId) {
+  if (!confirm('Bạn có chắc muốn xóa điểm số này?')) return;
+
+  try {
+    await db.ref(`jlptScores/${scoreId}`).remove();
+    // Sau khi xóa thành công
+    await loadJLptScores();
+    refreshJLptCharts();
+    showCustomAlert('Đã xóa điểm số thành công!');
+  } catch (error) {
+    console.error('Lỗi khi xóa điểm số:', error);
+    showCustomAlert('Có lỗi xảy ra khi xóa điểm số!');
+  }
+}
+
+// Hàm cập nhật biểu đồ radar với điểm số JLPT
+function updateScoresRadarChart() {
+    const ctx = document.getElementById('skillRadarChart')?.getContext('2d');
+    
+    if (!ctx) {
+        console.error('Không tìm thấy skillRadarChart canvas');
+        return;
+    }
+
+    // Hủy biểu đồ cũ nếu có
+    if (skillRadarChart) {
+        skillRadarChart.destroy();
+        skillRadarChart = null;
+    }
+
+    // Nếu không có điểm số, hiển thị thông báo
+    if (jlptScores.length === 0) {
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        
+        // Vẽ thông báo "Chưa có dữ liệu"
+        ctx.fillStyle = '#666';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Chưa có dữ liệu điểm số JLPT', ctx.canvas.width / 2, ctx.canvas.height / 2 - 15);
+        
+        ctx.font = '14px Arial';
+        ctx.fillText('Hãy thêm điểm số để xem biểu đồ', ctx.canvas.width / 2, ctx.canvas.height / 2 + 15);
+        return;
+    }
+
+    // Tính điểm trung bình và cao nhất
+    const averages = {
+        language: 0,
+        reading: 0,
+        listening: 0
+    };
+    
+    const maxScores = {
+        language: 0,
+        reading: 0,
+        listening: 0
+    };
+
+    jlptScores.forEach(score => {
+        averages.language += score.language;
+        averages.reading += score.reading;
+        averages.listening += score.listening;
+        
+        maxScores.language = Math.max(maxScores.language, score.language);
+        maxScores.reading = Math.max(maxScores.reading, score.reading);
+        maxScores.listening = Math.max(maxScores.listening, score.listening);
+    });
+
+    averages.language = Math.round(averages.language / jlptScores.length);
+    averages.reading = Math.round(averages.reading / jlptScores.length);
+    averages.listening = Math.round(averages.listening / jlptScores.length);
+
+    try {
+        skillRadarChart = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: [
+                    `Kiến thức ngôn ngữ`,
+                    `Đọc hiểu`, 
+                    `Nghe hiểu`
+                ],
+                datasets: [
+                    {
+                        label: `Điểm trung bình (${jlptScores.length} bài)`,
+                        data: [averages.language, averages.reading, averages.listening],
+                        backgroundColor: 'rgba(26, 42, 108, 0.2)',
+                        borderColor: 'rgba(26, 42, 108, 1)',
+                        pointBackgroundColor: 'rgba(26, 42, 108, 1)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        borderWidth: 2
+                    },
+                    {
+                        label: 'Điểm cao nhất',
+                        data: [maxScores.language, maxScores.reading, maxScores.listening],
+                        backgroundColor: 'rgba(253, 187, 45, 0.2)',
+                        borderColor: 'rgba(253, 187, 45, 1)',
+                        pointBackgroundColor: 'rgba(253, 187, 45, 1)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        borderWidth: 2,
+                        borderDash: [5, 5]
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 60,
+                        ticks: {
+                            stepSize: 15,
+                            callback: function(value) {
+                                return value + ' điểm';
+                            },
+                            font: {
+                                size: 11
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        },
+                        angleLines: {
+                            color: 'rgba(0,0,0,0.1)'
+                        },
+                        pointLabels: {
+                            font: {
+                                size: 12,
+                                weight: 'bold'
+                            },
+                            color: '#333'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            font: {
+                                size: 12,
+                                weight: 'bold'
+                            },
+                            padding: 20,
+                            usePointStyle: true
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.dataset.label || '';
+                                const skill = context.label;
+                                const value = context.raw;
+                                const avgText = context.datasetIndex === 0 ? 
+                                    ` (TB: ${averages[getSkillKey(skill)]} điểm)` : 
+                                    ` (Cao nhất: ${maxScores[getSkillKey(skill)]} điểm)`;
+                                
+                                return `${label} - ${skill}: ${value} điểm${avgText}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        console.log('skillRadarChart đã được khởi tạo thành công');
+
+    } catch (error) {
+        console.error('Lỗi khi khởi tạo skillRadarChart:', error);
+        
+        // Hiển thị thông báo lỗi
+        ctx.fillStyle = '#f44336';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Lỗi khi tải biểu đồ kỹ năng', ctx.canvas.width / 2, ctx.canvas.height / 2);
+    }
+}
+
+// Hàm helper để lấy key từ tên kỹ năng
+function getSkillKey(skillName) {
+    const skillMap = {
+        'Kiến thức ngôn ngữ': 'language',
+        'Đọc hiểu': 'reading',
+        'Nghe hiểu': 'listening'
+    };
+    return skillMap[skillName] || 'language';
+}
+
+// Hàm tải biểu đồ điểm số độc lập
+function loadJLptScoresChart() {
+  updateScoresRadarChart();
+}
+
+// Hàm refresh biểu đồ khi có thay đổi điểm số
+function refreshJLptCharts() {
+  loadJLptScores();
+  updateScoresRadarChart();
+}
+
+// Hàm thiết lập event listeners cho phần điểm số
+function setupJLptScoresEventListeners() {
+  // Nút mở modal quản lý điểm số
+  document.getElementById('manage-scores-btn')?.addEventListener('click', () => {
+    loadJLptScores();
+    showModal(document.getElementById('jlpt-scores-modal'));
+  });
+
+  // Nút đóng modal quản lý điểm số
+  document.getElementById('close-scores-modal')?.addEventListener('click', () => {
+    hideModal(document.getElementById('jlpt-scores-modal'));
+  });
+
+  // Nút thêm điểm số mới
+  document.getElementById('add-jlpt-score-btn')?.addEventListener('click', openAddJLptScoreModal);
+
+  // Nút đóng modal chi tiết điểm số
+  document.getElementById('close-score-detail-modal')?.addEventListener('click', () => {
+    hideModal(document.getElementById('jlpt-score-detail-modal'));
+  });
+
+  // Nút hủy trong modal chi tiết
+  document.getElementById('cancel-jlpt-score')?.addEventListener('click', () => {
+    hideModal(document.getElementById('jlpt-score-detail-modal'));
+  });
+
+  // Nút lưu điểm số
+  document.getElementById('save-jlpt-score')?.addEventListener('click', saveJLptScore);
+
+  // Tự động tính tổng khi thay đổi điểm từng phần
+  ['jlpt-score-language', 'jlpt-score-reading', 'jlpt-score-listening'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', updateJLptTotalScore);
+  });
+
+  // Đóng modal khi click ra ngoài
+  document.getElementById('jlpt-scores-modal')?.addEventListener('click', (e) => {
+    if (e.target === document.getElementById('jlpt-scores-modal')) {
+      hideModal(document.getElementById('jlpt-scores-modal'));
+    }
+  });
+
+  document.getElementById('jlpt-score-detail-modal')?.addEventListener('click', (e) => {
+    if (e.target === document.getElementById('jlpt-score-detail-modal')) {
+      hideModal(document.getElementById('jlpt-score-detail-modal'));
+    }
+  });
 }
 
 // ----------------------------
@@ -2511,6 +3188,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupEventListeners();
   setupTabNavigation();
   setupRealTimeListeners();
+  setupJLptScoresEventListeners();
+  await loadJLptScores();
 
   if (studyMinutesInput) {
     timeLeft = parseInt(studyMinutesInput.value) * 60;
