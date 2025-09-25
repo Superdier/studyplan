@@ -978,9 +978,38 @@ footer {
 
 .chart-wrapper {
   min-height: 400px;
-  /* Tăng chiều cao tối thiểu */
   margin: 1.5rem 0;
   position: relative;
+}
+
+.chart-wrapper canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.chart-wrapper.medium-chart {
+  min-height: 400px;
+  flex: 1;
+  /* Chiếm không gian còn lại */
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-wrapper.medium-chart canvas {
+  flex: 1;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Đặc biệt cho progressChart */
+.full-width .chart-wrapper.large-chart {
+    min-height: 450px;
+}
+
+/* Debug border để kiểm tra */
+.debug-border {
+    border: 2px solid red !important;
 }
 
 /* Danh sách loại nhiệm vụ */
@@ -1122,6 +1151,21 @@ footer {
 .dual-chart-row {
   display: flex;
   gap: 2rem;
+  align-items: stretch;
+}
+
+.stat-section.half-width {
+  width: 50%;
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-section.half-width .card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  /* Đảm bảo card chiếm toàn bộ chiều cao */
 }
 
 @media (max-width: 992px) {
@@ -1789,5 +1833,680 @@ footer {
     width: 26px;
     height: 26px;
     font-size: 12px;
+  }
+}
+
+/* CSS cho phần quản lý điểm số JLPT */
+#manage-scores-btn {
+  margin-left: auto;
+}
+
+.stats-summary {
+  display: flex;
+  gap: 20px;
+  font-size: 0.9em;
+}
+
+.stat-summary-item {
+  text-align: center;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  min-width: 80px;
+}
+
+.stat-summary-value {
+  font-size: 1.4em;
+  font-weight: bold;
+  color: #1a2a6c;
+}
+
+.stat-summary-label {
+  font-size: 0.8em;
+  color: #666;
+}
+
+.scores-table-container {
+  max-height: 500px;
+  overflow-y: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+}
+
+.scores-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+.scores-table th {
+  background: #1a2a6c;
+  color: white;
+  padding: 12px 15px;
+  text-align: left;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.scores-table td {
+  padding: 10px 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.scores-table tr:hover {
+  background: #f8f9fa;
+}
+
+.scores-table tr:last-child td {
+  border-bottom: none;
+}
+
+.score-cell {
+  text-align: center;
+  font-weight: 600;
+}
+
+.score-high {
+  color: #4caf50;
+}
+
+.score-medium {
+  color: #ff9800;
+}
+
+.score-low {
+  color: #f44336;
+}
+
+.total-score-cell {
+  background: #e3f2fd;
+  font-weight: bold;
+  text-align: center;
+}
+
+.score-input-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.score-input-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.score-input-group label {
+  font-weight: 600;
+  margin-bottom: 5px;
+  color: #333;
+}
+
+.score-input-with-max {
+  display: flex;
+  align-items: center;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.score-input-with-max input {
+  border: none;
+  padding: 8px;
+  width: 100%;
+  text-align: center;
+  font-weight: 600;
+}
+
+.score-max {
+  background: #f5f5f5;
+  padding: 8px 10px;
+  color: #666;
+  font-size: 0.9em;
+}
+
+.score-total-display {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 6px;
+  margin-top: 15px;
+}
+
+.total-score {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.total-score label {
+  font-weight: bold;
+  color: #1a2a6c;
+  font-size: 1.1em;
+}
+
+.total-score-value {
+  font-size: 1.4em;
+  font-weight: bold;
+  color: #1a2a6c;
+}
+
+.score-status {
+  text-align: center;
+  padding: 5px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.status-pass {
+  background: #e8f5e9;
+  color: #4caf50;
+}
+
+.status-fail {
+  background: #ffebee;
+  color: #f44336;
+}
+
+.btn-score-action {
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin: 0 2px;
+  font-size: 0.8em;
+}
+
+.btn-edit-score {
+  background: #fdbb2d;
+  color: #333;
+}
+
+.btn-delete-score {
+  background: #ff6b6b;
+  color: white;
+}
+
+/* Responsive cho bảng điểm số */
+@media (max-width: 768px) {
+  .scores-table-container {
+    font-size: 0.8em;
+  }
+
+  .scores-table th,
+  .scores-table td {
+    padding: 8px 10px;
+  }
+
+  .score-input-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .stats-summary {
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
+/* Legend cho biểu đồ điểm số */
+#jlpt-scores-legend {
+  margin-top: 15px;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  font-size: 0.9em;
+}
+
+.legend-item-jlpt {
+  display: flex;
+  align-items: center;
+  margin: 5px 0;
+  padding: 5px;
+  border-radius: 4px;
+}
+
+.legend-color-jlpt {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  margin-right: 8px;
+  display: inline-block;
+}
+
+.no-scores-message {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+}
+
+.no-scores-message i {
+  font-size: 3rem;
+  margin-bottom: 15px;
+  color: #fdbb2d;
+  display: block;
+}
+
+.no-scores-message p {
+  margin: 10px 0;
+  line-height: 1.5;
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+  .dual-chart-row {
+    flex-direction: column;
+  }
+
+  .stat-section.half-width {
+    width: 100%;
+  }
+
+  .chart-wrapper.medium-chart {
+    min-height: 350px;
+  }
+}
+
+/* Thêm vào file style.css - CSS cho Progress Heatmap */
+
+/* Container chính cho heatmap */
+.progress-heatmap-section {
+  width: 100%;
+  margin-bottom: 2rem;
+}
+
+.progress-heatmap-section .card {
+  padding: 2rem;
+}
+
+/* Grid chính của heatmap */
+.heatmap-chart {
+  overflow-x: auto;
+  margin: 20px 0;
+  padding: 10px 0;
+}
+
+.heatmap-grid {
+  display: inline-block;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  min-width: 600px;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Header của heatmap */
+.heatmap-header {
+  display: flex;
+  background: #1a2a6c;
+  color: white;
+}
+
+.heatmap-header-skill {
+  width: 140px;
+  padding: 15px 12px;
+  font-weight: bold;
+  text-align: center;
+  border-right: 1px solid #2c3e8c;
+  font-size: 0.9em;
+}
+
+.heatmap-header-week {
+  width: 70px;
+  padding: 15px 8px;
+  font-weight: bold;
+  text-align: center;
+  border-right: 1px solid #2c3e8c;
+  font-size: 0.8em;
+}
+
+.heatmap-header-week:last-child {
+  border-right: none;
+}
+
+/* Rows của heatmap */
+.heatmap-row {
+  display: flex;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.heatmap-row:last-child {
+  border-bottom: none;
+}
+
+.heatmap-skill-label {
+  width: 140px;
+  padding: 18px 12px;
+  background: #f8f9fa;
+  border-right: 1px solid #e0e0e0;
+  font-weight: 600;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1a2a6c;
+  font-size: 0.9em;
+  line-height: 1.2;
+}
+
+/* Cells của heatmap */
+.heatmap-cell {
+  width: 70px;
+  height: 70px;
+  border-right: 1px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.9em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.heatmap-cell:last-child {
+  border-right: none;
+}
+
+.heatmap-cell:hover {
+  transform: scale(1.05);
+  z-index: 10;
+  border: 2px solid #1a2a6c;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+
+/* Color scales cho heatmap cells */
+.cell-positive-1 { 
+  background: #e8f5e8; 
+  color: #2e7d2e; 
+}
+
+.cell-positive-2 { 
+  background: #c8e6c8; 
+  color: #2e7d2e; 
+}
+
+.cell-positive-3 { 
+  background: #a8d8a8; 
+  color: #1e5d1e; 
+}
+
+.cell-positive-4 { 
+  background: #88c988; 
+  color: #1e5d1e; 
+}
+
+.cell-positive-5 { 
+  background: #4caf50; 
+  color: white; 
+}
+
+.cell-negative-1 { 
+  background: #ffebee; 
+  color: #c62828; 
+}
+
+.cell-negative-2 { 
+  background: #ffcdd2; 
+  color: #c62828; 
+}
+
+.cell-negative-3 { 
+  background: #ef9a9a; 
+  color: #b71c1c; 
+}
+
+.cell-negative-4 { 
+  background: #e57373; 
+  color: #b71c1c; 
+}
+
+.cell-negative-5 { 
+  background: #f44336; 
+  color: white; 
+}
+
+.cell-neutral { 
+  background: #f5f5f5; 
+  color: #666; 
+}
+
+.cell-no-data { 
+  background: #fafafa; 
+  color: #ccc; 
+}
+
+/* Legend cho heatmap */
+.heatmap-legend {
+  margin-top: 25px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #1a2a6c;
+}
+
+.heatmap-legend h4 {
+  margin: 0 0 15px 0;
+  color: #1a2a6c;
+  font-size: 1.1em;
+  display: flex;
+  align-items: center;
+}
+
+.heatmap-legend h4 i {
+  margin-right: 8px;
+  color: #fdbb2d;
+}
+
+.legend-scale {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85em;
+  padding: 5px 8px;
+  border-radius: 4px;
+  background: white;
+  border: 1px solid #e0e0e0;
+}
+
+.legend-color {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+/* Thống kê tóm tắt cho heatmap */
+.heatmap-summary {
+  margin-top: 25px;
+}
+
+.heatmap-stats h4 {
+  margin: 0 0 15px 0;
+  color: #1a2a6c;
+  font-size: 1.1em;
+  display: flex;
+  align-items: center;
+}
+
+.heatmap-stats h4 i {
+  margin-right: 8px;
+  color: #fdbb2d;
+}
+
+.heatmap-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.heatmap-stat-item {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  text-align: center;
+  border: 1px solid #e0e0e0;
+  border-left: 4px solid #1a2a6c;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.heatmap-stat-item.positive {
+  border-left-color: #4caf50;
+}
+
+.heatmap-stat-item.negative {
+  border-left-color: #f44336;
+}
+
+.heatmap-stat-item .stat-value {
+  font-size: 1.6em;
+  font-weight: bold;
+  color: #1a2a6c;
+  margin-bottom: 5px;
+}
+
+.heatmap-stat-item .stat-value.positive {
+  color: #4caf50;
+}
+
+.heatmap-stat-item .stat-value.negative {
+  color: #f44336;
+}
+
+.heatmap-stat-item .stat-label {
+  font-size: 0.85em;
+  color: #666;
+  font-weight: 500;
+}
+
+/* Thông báo không có dữ liệu */
+.no-data-message {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+}
+
+.no-data-message i {
+  font-size: 3.5rem;
+  margin-bottom: 20px;
+  color: #fdbb2d;
+  display: block;
+}
+
+.no-data-message p {
+  margin: 10px 0;
+  line-height: 1.6;
+}
+
+.no-data-message p:first-of-type {
+  font-weight: bold;
+  font-size: 1.1em;
+  color: #1a2a6c;
+}
+
+/* Responsive design cho heatmap */
+@media (max-width: 992px) {
+  .heatmap-grid {
+    min-width: 500px;
+  }
+  
+  .heatmap-header-skill,
+  .heatmap-skill-label {
+    width: 120px;
+    font-size: 0.8em;
+    padding: 12px 8px;
+  }
+  
+  .heatmap-header-week {
+    width: 60px;
+    font-size: 0.75em;
+    padding: 12px 6px;
+  }
+  
+  .heatmap-cell {
+    width: 60px;
+    height: 60px;
+    font-size: 0.8em;
+  }
+  
+  .heatmap-stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+  }
+  
+  .legend-scale {
+    gap: 10px;
+  }
+  
+  .legend-item {
+    font-size: 0.8em;
+    padding: 4px 6px;
+  }
+}
+
+@media (max-width: 768px) {
+  .heatmap-grid {
+    min-width: 420px;
+  }
+  
+  .heatmap-header-skill,
+  .heatmap-skill-label {
+    width: 100px;
+    font-size: 0.75em;
+    padding: 10px 6px;
+  }
+  
+  .heatmap-header-week {
+    width: 50px;
+    font-size: 0.7em;
+    padding: 10px 4px;
+  }
+  
+  .heatmap-cell {
+    width: 50px;
+    height: 50px;
+    font-size: 0.75em;
+  }
+  
+  .heatmap-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .legend-scale {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .legend-item {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .heatmap-chart {
+    margin: 15px -10px;
+  }
+  
+  .heatmap-grid {
+    min-width: 350px;
+  }
+  
+  .heatmap-stats-grid {
+    grid-template-columns: 1fr;
   }
 }

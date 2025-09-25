@@ -55,6 +55,9 @@
                             Tuần 1: 10/07 - 16/07
                             <span class="phase-badge" style="margin-left: 10px;">Củng cố N2</span>
                         </div>
+                        <button class="week-btn" id="current-week-btn">
+                            <i class="fas fa-calendar-day"></i> Tuần hiện tại
+                        </button>
                         <button class="week-btn" id="next-week">
                             Tuần sau <i class="fas fa-chevron-right"></i>
                         </button>
@@ -113,6 +116,9 @@
                 <div class="stat-section">
                     <div class="card">
                         <h2 class="card-title"><i class="fas fa-chart-pie"></i> Tổng quan học tập</h2>
+                        <button class="btn btn-primary" id="manage-scores-btn">
+                            <i class="fas fa-plus"></i> Quản lý điểm JLPT
+                        </button>
                         <div class="stats-grid">
                             <div class="stat-card">
                                 <i class="fas fa-clock fa-2x"></i>
@@ -156,15 +162,6 @@
                                     <div class="chart-header">
                                         <h3><i class="fas fa-star"></i> Đánh giá kỹ năng</h3>
                                     </div>
-                                    <div class="filter-group">
-                                        <label for="skill-chart-filter">Lọc biểu đồ kỹ năng:</label>
-                                        <select id="skill-chart-filter">
-                                            <option value="all">Tất cả</option>
-                                            <option value="language">Ngôn ngữ</option>
-                                            <option value="it">IT</option>
-                                            <option value="other">Khác</option>
-                                        </select>
-                                    </div>
                                     <div class="chart-wrapper medium-chart">
                                         <canvas id="skillRadarChart"></canvas>
                                     </div>
@@ -188,6 +185,61 @@
                                         <canvas id="timeDistributionChart"></canvas>
                                     </div>
                                     <div class="task-type-list" id="taskTypeList"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Thêm vào stats-tab trong index.html, sau phần dual-chart-row -->
+
+                        <div class="stat-section full-width progress-heatmap-section">
+                            <div class="card">
+                                <div class="chart-header">
+                                    <h3><i class="fas fa-fire"></i> Bản đồ nhiệt Tiến bộ JLPT</h3>
+                                    <p style="margin: 0; font-size: 0.9em; color: #666;">
+                                        Theo dõi sự thay đổi điểm số từng kỹ năng qua các lần thi
+                                    </p>
+                                </div>
+                                <div id="progress-heatmap-container">
+                                    <!-- Progress Heatmap sẽ được render ở đây bởi JavaScript -->
+                                </div>
+
+                                <!-- Legend mặc định -->
+                                <div class="heatmap-legend">
+                                    <h4><i class="fas fa-palette"></i> Thang màu điểm số thay đổi</h4>
+                                    <div class="legend-scale">
+                                        <div class="legend-item">
+                                            <div class="legend-color cell-positive-5"></div>
+                                            <span>Tiến bộ mạnh (+10↑)</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <div class="legend-color cell-positive-3"></div>
+                                            <span>Tiến bộ (+5 đến +9)</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <div class="legend-color cell-positive-1"></div>
+                                            <span>Tiến bộ nhẹ (+1 đến +4)</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <div class="legend-color cell-neutral"></div>
+                                            <span>Không đổi (0)</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <div class="legend-color cell-negative-1"></div>
+                                            <span>Tụt nhẹ (-1 đến -4)</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <div class="legend-color cell-negative-3"></div>
+                                            <span>Tụt (-5 đến -9)</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <div class="legend-color cell-negative-5"></div>
+                                            <span>Tụt mạnh (-10↓)</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <div class="legend-color cell-no-data"></div>
+                                            <span>Chưa có dữ liệu</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -415,6 +467,134 @@
                 <!-- Nội dung sẽ được cập nhật bằng JavaScript -->
             </p>
             <button class="week-btn" id="start-break-btn">Bắt đầu nghỉ ngơi</button>
+        </div>
+    </div>
+
+    <!-- Trong phần stats-tab, thêm nút và modal -->
+    <div class="tab-content" id="stats-tab">
+        <div class="stats-container">
+            <div class="stat-section">
+                <div class="card">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2 class="card-title"><i class="fas fa-chart-pie"></i> Tổng quan học tập</h2>
+                        <button class="btn btn-primary" id="manage-scores-btn">
+                            <i class="fas fa-plus"></i> Quản lý điểm JLPT
+                        </button>
+                    </div>
+                    <!-- ... phần còn lại của card ... -->
+                </div>
+            </div>
+            <!-- ... các phần khác của stats-tab ... -->
+        </div>
+    </div>
+
+    <!-- Modal quản lý điểm số JLPT -->
+    <div class="modal" id="jlpt-scores-modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <span class="close-modal" id="close-scores-modal">&times;</span>
+            <h2><i class="fas fa-chart-bar"></i> Quản lý điểm số JLPT</h2>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin: 20px 0;">
+                <button class="btn btn-primary" id="add-jlpt-score-btn">
+                    <i class="fas fa-plus"></i> Thêm điểm số mới
+                </button>
+                <div class="stats-summary" id="jlpt-stats-summary">
+                    <!-- Thống kê tổng quan sẽ được cập nhật ở đây -->
+                </div>
+            </div>
+
+            <div class="scores-table-container">
+                <table class="scores-table">
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>Ngày thi</th>
+                            <th>Tiêu đề</th>
+                            <th>Link</th>
+                            <th>Ngôn ngữ</th>
+                            <th>Đọc hiểu</th>
+                            <th>Nghe hiểu</th>
+                            <th>Tổng điểm</th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="jlpt-scores-list">
+                        <!-- Danh sách điểm số sẽ được render ở đây -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal thêm/sửa điểm số chi tiết -->
+    <div class="modal" id="jlpt-score-detail-modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <span class="close-modal" id="close-score-detail-modal">&times;</span>
+            <h2><i class="fas fa-edit"></i> <span id="jlpt-score-modal-title">Thêm điểm số JLPT</span></h2>
+
+            <div class="form-group">
+                <label>Ngày thi:</label>
+                <input type="date" id="jlpt-score-date" required>
+            </div>
+
+            <div class="form-group">
+                <label>Tiêu đề:</label>
+                <input type="text" id="jlpt-score-title" placeholder="Ví dụ: Thi thử N1 tháng 7/2025" required>
+            </div>
+
+            <div class="form-group">
+                <label>Link bài thi (tùy chọn):</label>
+                <input type="url" id="jlpt-score-link" placeholder="https://...">
+            </div>
+
+            <div class="score-details-section">
+                <h3 style="color: #1a2a6c; margin-bottom: 15px;">Điểm chi tiết:</h3>
+
+                <div class="score-input-row">
+                    <div class="score-input-group">
+                        <label>Kiến thức ngôn ngữ</label>
+                        <div class="score-input-with-max">
+                            <input type="number" id="jlpt-score-language" min="0" max="60" value="0" required>
+                            <span class="score-max">/60</span>
+                        </div>
+                    </div>
+
+                    <div class="score-input-group">
+                        <label>Đọc hiểu</label>
+                        <div class="score-input-with-max">
+                            <input type="number" id="jlpt-score-reading" min="0" max="60" value="0" required>
+                            <span class="score-max">/60</span>
+                        </div>
+                    </div>
+
+                    <div class="score-input-group">
+                        <label>Nghe hiểu</label>
+                        <div class="score-input-with-max">
+                            <input type="number" id="jlpt-score-listening" min="0" max="60" value="0" required>
+                            <span class="score-max">/60</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="score-total-display">
+                    <div class="total-score">
+                        <label>Tổng điểm:</label>
+                        <div class="total-score-value">
+                            <span id="jlpt-total-score">0</span>
+                            <span class="total-max">/180</span>
+                        </div>
+                    </div>
+                    <div class="score-status" id="jlpt-score-status">
+                        <!-- Hiển thị trạng thái điểm số -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="cancel-jlpt-score">Hủy</button>
+                <button class="btn btn-primary" id="save-jlpt-score">Lưu điểm số</button>
+            </div>
         </div>
     </div>
 
