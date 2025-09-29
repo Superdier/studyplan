@@ -410,7 +410,7 @@
         </div>
     </div>
 
-    <!-- Modal đếm ngược thời gian học -->
+    <!-- Thay thế modal countdown trong index.html -->
     <div class="modal" id="countdown-modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -423,8 +423,9 @@
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
+                <!-- Audio status indicator -->
+                <div class="audio-status-indicator" id="audio-status-indicator"></div>
             </div>
-
 
             <div class="timer-settings">
                 <div class="timer-setting">
@@ -447,6 +448,8 @@
                 <div class="timer-status" id="timer-status">Sẵn sàng bắt đầu học...</div>
             </div>
 
+            <!-- Audio Controls sẽ được thêm động bởi JavaScript -->
+
             <div class="rest-suggestion">
                 <p><i class="fas fa-lightbulb"></i> Sau thời gian học, bạn nên:</p>
                 <ul style="list-style: none;">
@@ -456,6 +459,45 @@
                 </ul>
             </div>
         </div>
+    </div>
+
+    <!-- Cập nhật break modal -->
+    <div class="modal" id="break-modal">
+        <div class="modal-content">
+            <span class="close-modal" id="close-break-modal">&times;</span>
+            <h2><i class="fas fa-coffee"></i> Đã đến lúc nghỉ ngơi!</h2>
+            <p id="break-message">
+                <!-- Nội dung sẽ được cập nhật bằng JavaScript -->
+            </p>
+
+            <!-- Audio notification indicator -->
+            <div style="text-align: center; margin: 15px 0;">
+                <div class="audio-playing-indicator" id="break-audio-indicator" style="display: none;">
+                    <i class="fas fa-volume-up"></i>
+                    <span>Đang phát âm thanh thông báo...</span>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="btn btn-primary" id="start-break-btn">
+                    <i class="fas fa-play"></i> Bắt đầu nghỉ ngơi
+                </button>
+                <button class="btn btn-secondary" onclick="hideBreakModal()" style="margin-left: 10px;">
+                    <i class="fas fa-times"></i> Bỏ qua nghỉ ngơi
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cập nhật floating timer bubble -->
+    <div id="floating-timer-bubble" class="floating-timer-bubble minimized">
+        <div class="timer-text" id="bubble-timer-display">25:00</div>
+        <div class="timer-controls">
+            <button id="restore-timer-bubble" title="Mở rộng"><i class="fas fa-expand"></i></button>
+            <button id="stop-timer-bubble" title="Dừng timer"><i class="fas fa-stop"></i></button>
+        </div>
+        <!-- Audio indicator cho floating timer -->
+        <div class="audio-status-indicator" id="floating-audio-indicator"></div>
     </div>
 
     <!-- Modal nghỉ ngơi -->
@@ -641,15 +683,6 @@
                     <i class="fas fa-save"></i> Lưu thay đổi
                 </button>
             </div>
-        </div>
-    </div>
-
-    <!-- Floating timer bubble -->
-    <div id="floating-timer-bubble" class="floating-timer-bubble minimized">
-        <div class="timer-text" id="bubble-timer-display">25:00</div>
-        <div class="timer-controls">
-            <button id="restore-timer-bubble"><i class="fas fa-expand"></i></button>
-            <button id="stop-timer-bubble"><i class="fas fa-stop"></i></button>
         </div>
     </div>
 

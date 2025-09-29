@@ -52,6 +52,13 @@ let floatingTimerInterval = null;
 let jlptScores = [];
 let currentEditingScoreId = null;
 let progressHeatmapChart = null;
+let audioManager = {
+  audioInstances: new Map(),
+  isEnabled: true,
+  volume: 0.7,
+  isInitialized: false,
+  currentPlayingAudio: null
+};
 
 // Subject và Task Type mapping
 const subjectTaskTypes = {
@@ -106,6 +113,278 @@ timerFloatingContainer.innerHTML = `
 `;
 document.body.appendChild(timerFloatingContainer);
 
+//////// Init Notification Sound ////////
+// Initialize audio system
+function initializeAudioSystem() {
+  console.log('Initializing audio system...');
+  
+  // Tạo các audio instances với fallback
+  const audioSources = {
+    notification: [
+      'data:audio/wav;base64,UklGRnADAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YUwDAAA=',
+      'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav'
+    ],
+    countdown: [
+      'data:audio/wav;base64,UklGRnADAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YUwDAAA='
+    ]
+  };
+
+  Object.entries(audioSources).forEach(([name, sources]) => {
+    createAudioInstance(name, sources);
+  });
+
+  audioManager.isInitialized = true;
+  console.log('Audio system initialized successfully');
+}
+
+// Tạo audio instance với fallback
+function createAudioInstance(name, sources) {
+  let audio = null;
+
+  // Thử tạo từ nguồn đầu tiên
+  for (let source of sources) {
+    try {
+      audio = new Audio(source);
+      audio.volume = audioManager.volume;
+      audio.preload = 'auto';
+      break;
+    } catch (error) {
+      console.warn(`Failed to create audio from ${source}:`, error);
+      continue;
+    }
+  }
+
+  // Nếu không tạo được, dùng Web Audio API
+  if (!audio) {
+    audio = createSyntheticAudio(name);
+  }
+
+  audioManager.audioInstances.set(name, {
+    audio: audio,
+    isPlaying: false,
+    playPromise: null
+  });
+}
+
+// Tạo âm thanh synthetic bằng Web Audio API
+function createSyntheticAudio(type) {
+  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  
+  return {
+    play: function() {
+      return new Promise((resolve) => {
+        try {
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+
+          if (type === 'notification') {
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+            oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.1);
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.2);
+          } else {
+            oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+          }
+
+          oscillator.type = 'sine';
+          gainNode.gain.setValueAtTime(audioManager.volume, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+          oscillator.start();
+          oscillator.stop(audioContext.currentTime + 0.5);
+
+          setTimeout(resolve, 500);
+        } catch (error) {
+          console.error('Synthetic audio failed:', error);
+          resolve();
+        }
+      });
+    },
+    pause: () => {},
+    currentTime: 0,
+    volume: audioManager.volume
+  };
+}
+
+// Tạo audio instance với fallback
+function createAudioInstance(name, sources) {
+  let audio = null;
+
+  // Thử tạo từ nguồn đầu tiên
+  for (let source of sources) {
+    try {
+      audio = new Audio(source);
+      audio.volume = audioManager.volume;
+      audio.preload = 'auto';
+      break;
+    } catch (error) {
+      console.warn(`Failed to create audio from ${source}:`, error);
+      continue;
+    }
+  }
+
+  // Nếu không tạo được, dùng Web Audio API
+  if (!audio) {
+    audio = createSyntheticAudio(name);
+  }
+
+  audioManager.audioInstances.set(name, {
+    audio: audio,
+    isPlaying: false,
+    playPromise: null
+  });
+}
+
+// Tạo âm thanh synthetic bằng Web Audio API
+function createSyntheticAudio(type) {
+  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  
+  return {
+    play: function() {
+      return new Promise((resolve) => {
+        try {
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+
+          if (type === 'notification') {
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+            oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.1);
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.2);
+          } else {
+            oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+          }
+
+          oscillator.type = 'sine';
+          gainNode.gain.setValueAtTime(audioManager.volume, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+          oscillator.start();
+          oscillator.stop(audioContext.currentTime + 0.5);
+
+          setTimeout(resolve, 500);
+        } catch (error) {
+          console.error('Synthetic audio failed:', error);
+          resolve();
+        }
+      });
+    },
+    pause: () => {},
+    currentTime: 0,
+    volume: audioManager.volume
+  };
+}
+
+// Phát âm thanh với kiểm soát tốt hơn
+async function playNotificationSound(options = {}) {
+  if (!audioManager.isEnabled || !audioManager.isInitialized) {
+    console.log('Audio disabled or not initialized');
+    return;
+  }
+
+  const { 
+    type = 'notification', 
+    repeat = false, 
+    repeatCount = 3, 
+    repeatInterval = 1000 
+  } = options;
+
+  const instance = audioManager.audioInstances.get(type);
+  if (!instance) {
+    console.warn(`Audio type ${type} not found`);
+    return;
+  }
+
+  // Dừng âm thanh hiện tại nếu có
+  stopNotificationSound();
+
+  try {
+    instance.isPlaying = true;
+    audioManager.currentPlayingAudio = instance;
+
+    if (repeat) {
+      await playAudioWithRepeat(instance, repeatCount, repeatInterval);
+    } else {
+      await playAudioOnce(instance);
+    }
+  } catch (error) {
+    console.error('Error playing audio:', error);
+    instance.isPlaying = false;
+  }
+}
+
+// Phát âm thanh một lần
+async function playAudioOnce(instance) {
+  try {
+    if (instance.audio.currentTime > 0) {
+      instance.audio.currentTime = 0;
+    }
+
+    const playPromise = instance.audio.play();
+    instance.playPromise = playPromise;
+
+    if (playPromise !== undefined) {
+      await playPromise;
+      console.log('Audio played successfully');
+    }
+  } catch (error) {
+    if (error.name !== 'AbortError') {
+      console.error('Play audio error:', error);
+    }
+  } finally {
+    instance.isPlaying = false;
+    instance.playPromise = null;
+  }
+}
+
+// Phát âm thanh lặp lại
+async function playAudioWithRepeat(instance, count, interval) {
+  for (let i = 0; i < count && instance.isPlaying; i++) {
+    await playAudioOnce(instance);
+    
+    if (i < count - 1 && instance.isPlaying) {
+      await new Promise(resolve => setTimeout(resolve, interval));
+    }
+  }
+}
+
+// Dừng tất cả âm thanh
+function stopNotificationSound() {
+  console.log('Stopping all notification sounds');
+  
+  audioManager.audioInstances.forEach((instance, name) => {
+    try {
+      if (instance.isPlaying) {
+        instance.isPlaying = false;
+        
+        if (instance.playPromise) {
+          instance.playPromise.then(() => {
+            if (instance.audio.pause) {
+              instance.audio.pause();
+              instance.audio.currentTime = 0;
+            }
+          }).catch(() => {
+            // Ignore promise rejection
+          });
+          instance.playPromise = null;
+        } else if (instance.audio.pause) {
+          instance.audio.pause();
+          instance.audio.currentTime = 0;
+        }
+      }
+    } catch (error) {
+      console.warn(`Error stopping audio ${name}:`, error);
+    }
+  });
+
+  audioManager.currentPlayingAudio = null;
+}
+//////// End Audio System ////////
+
 // Custom alert function
 function showCustomAlert(message) {
   const modal = document.createElement('div');
@@ -150,10 +429,13 @@ function showModal(modalElement) {
 function hideModal(modalElement) {
   if (modalElement) {
     modalElement.style.display = 'none';
-    // Dừng âm thanh nếu là modal countdown hoặc break
+    
+    // Dừng âm thanh khi đóng modal timer
     if (modalElement === countdownModal || modalElement === breakModal) {
+      console.log('Timer modal closed - stopping audio');
       stopNotificationSound();
     }
+    
     if (modalElement === breakModal) {
       isManualClose = true;
     }
@@ -161,11 +443,83 @@ function hideModal(modalElement) {
 }
 
 function hideBreakModal() {
+  console.log('Break modal manually closed');
+  stopNotificationSound();
+  
   if (breakModal) {
     breakModal.style.display = 'none';
   }
+  isManualClose = true;
 }
 
+// Thêm audio controls vào timer modal
+function addAudioControlsToModal() {
+  const countdownModalContent = document.querySelector('#countdown-modal .modal-content');
+  if (countdownModalContent && !document.getElementById('audio-controls')) {
+    const audioControlsHTML = `
+      <div id="audio-controls" class="audio-controls">
+        <div class="audio-controls-row">
+          <label class="audio-toggle">
+            <input type="checkbox" id="audio-enabled" ${audioManager.isEnabled ? 'checked' : ''}>
+            <span>Bật âm thanh</span>
+          </label>
+          <label class="volume-control">
+            <span>Âm lượng:</span>
+            <input type="range" id="audio-volume" min="0" max="100" value="${audioManager.volume * 100}">
+            <span id="volume-display">${Math.round(audioManager.volume * 100)}%</span>
+          </label>
+          <button id="test-audio-btn" class="btn btn-secondary btn-small" type="button">
+            Test âm thanh
+          </button>
+        </div>
+      </div>
+    `;
+
+    countdownModalContent.insertAdjacentHTML('beforeend', audioControlsHTML);
+    setupAudioControlsEvents();
+  }
+}
+
+// Thiết lập events cho audio controls
+function setupAudioControlsEvents() {
+  const audioEnabledCheckbox = document.getElementById('audio-enabled');
+  const volumeSlider = document.getElementById('audio-volume');
+  const volumeDisplay = document.getElementById('volume-display');
+  const testAudioBtn = document.getElementById('test-audio-btn');
+
+  if (audioEnabledCheckbox) {
+    audioEnabledCheckbox.addEventListener('change', (e) => {
+      audioManager.isEnabled = e.target.checked;
+      console.log(`Audio ${audioManager.isEnabled ? 'enabled' : 'disabled'}`);
+      
+      if (!audioManager.isEnabled) {
+        stopNotificationSound();
+      }
+    });
+  }
+
+  if (volumeSlider && volumeDisplay) {
+    volumeSlider.addEventListener('input', (e) => {
+      const volume = e.target.value / 100;
+      audioManager.volume = volume;
+      volumeDisplay.textContent = e.target.value + '%';
+      
+      // Cập nhật volume cho tất cả audio instances
+      audioManager.audioInstances.forEach(instance => {
+        if (instance.audio && typeof instance.audio.volume !== 'undefined') {
+          instance.audio.volume = volume;
+        }
+      });
+    });
+  }
+
+  if (testAudioBtn) {
+    testAudioBtn.addEventListener('click', () => {
+      playNotificationSound({ type: 'notification' });
+    });
+  }
+}
+// End custom alert function
 // Weekly schedule functions
 async function loadCustomTaskTypes() {
   try {
@@ -2916,6 +3270,63 @@ function pauseTimer() {
   console.log('Tạm dừng đếm ngược');
 }
 
+// Cập nhật handleTimerCompletion với âm thanh được cải thiện
+function handleTimerCompletion() {
+  clearInterval(countdownInterval);
+
+  if (isStudyPhase) {
+    console.log('Study phase completed');
+    
+    // Phát âm thanh thông báo hết giờ học
+    playNotificationSound({
+      type: 'notification',
+      repeat: true,
+      repeatCount: 3,
+      repeatInterval: 1500
+    });
+
+    // Vibration cho mobile
+    if ('vibrate' in navigator) {
+      navigator.vibrate([300, 100, 300, 100, 300]);
+    }
+
+    isStudyPhase = false;
+    timerDuration = parseInt(breakMinutesInput.value) * 60;
+    timerStartTime = new Date().getTime();
+
+    isManualClose = false;
+    showModal(breakModal);
+    updateBreakMessage(studyMinutesInput.value, breakMinutesInput.value);
+
+    if (document.hidden) {
+      showNotification("Hết giờ học!", `Đã hoàn thành ${studyMinutesInput.value} phút học tập!`);
+    }
+  } else {
+    console.log('Break phase completed');
+    
+    // Phát âm thanh thông báo hết giờ nghỉ
+    playNotificationSound({
+      type: 'notification',
+      repeat: true,
+      repeatCount: 5,
+      repeatInterval: 800
+    });
+
+    // Vibration cho mobile
+    if ('vibrate' in navigator) {
+      navigator.vibrate([200, 50, 200, 50, 200, 50, 200]);
+    }
+
+    stopTimer();
+    
+    if (document.hidden) {
+      showNotification("Hết giờ nghỉ!", `Đã nghỉ ${breakMinutesInput.value} phút. Sẵn sàng học tiếp!`);
+    }
+  }
+}
+  ///// ----------------------------
+ // BONG BÓNG ĐỒNG HỒ NỔI
+///// ----------------------------
 // Hàm thu nhỏ bộ đếm giờ thành bong bóng
 function minimizeToBubble() {
   isTimerMinimized = true;
@@ -2989,7 +3400,13 @@ function updateBubbleTimerDisplay() {
   }
 }
 
+// Cập nhật stopTimer để dừng âm thanh
 function stopTimer() {
+  console.log('Stopping timer - cleaning up audio');
+  
+  // Dừng âm thanh trước tiên
+  stopNotificationSound();
+  
   endStudySession();
   clearInterval(countdownInterval);
   countdownInterval = null;
@@ -2997,12 +3414,14 @@ function stopTimer() {
   isStudyPhase = true;
   timeLeft = parseInt(studyMinutesInput.value) * 60;
   updateTimerDisplay();
+  
   if (timerStatus) timerStatus.textContent = 'Sẵn sàng bắt đầu học...';
+  
   startTimerBtn.style.display = 'inline-block';
   pauseTimerBtn.style.display = 'none';
   stopTimerBtn.style.display = 'none';
 
-  // Ẩn bong bóng nếu đang hiển thị
+  // Ẩn floating timer
   if (isTimerMinimized) {
     const bubble = document.getElementById('floating-timer-bubble');
     if (bubble) {
@@ -3011,15 +3430,15 @@ function stopTimer() {
     isTimerMinimized = false;
   }
 
-  // Dừng cập nhật bong bóng
   if (floatingTimerInterval) {
     clearInterval(floatingTimerInterval);
     floatingTimerInterval = null;
   }
 
-  console.log('Dừng đếm ngược');
-  stopNotificationSound();
-  console.log('Dừng âm thanh');
+  if (minimizedTimerInterval) {
+    clearInterval(minimizedTimerInterval);
+    minimizedTimerInterval = null;
+  }
 }
 
 // Thêm sự kiện cho nút thu nhỏ và khôi phục
@@ -3096,104 +3515,6 @@ function updateBreakMessage(studyMinutes, breakMinutes) {
   }
 }
 
-// Cập nhật hàm handleTimerCompletion để có âm thanh báo
-function handleTimerCompletion() {
-  clearInterval(countdownInterval);
-
-  if (isStudyPhase) {
-    isStudyPhase = false;
-    timerDuration = parseInt(breakMinutesInput.value) * 60;
-    timerStartTime = new Date().getTime();
-
-    isManualClose = false;
-    showModal(breakModal);
-
-    if (document.hidden) {
-      showNotification("⏰ Hết giờ học!", `Đã hoàn thành ${studyMinutesInput.value} phút học tập!`);
-    }
-  } else {
-    stopTimer();
-    if (document.hidden) {
-      showNotification("🔄 Hết giờ nghỉ!", `Đã nghỉ ${breakMinutesInput.value} phút. Sẵn sàng học tiếp!`);
-    }
-  }
-
-  // Phát âm thanh báo với nhiều âm thanh dự phòng
-  if (Notification.permission === 'granted') {
-    playNotificationSound();
-  }
-
-  // Thêm rung cho thiết bị di động nếu hỗ trợ
-  if ('vibrate' in navigator) {
-    navigator.vibrate([200, 100, 200, 100, 200]);
-  }
-}
-
-// Cập nhật hàm playNotificationSound với nhiều âm thanh dự phòng
-function playNotificationSound() {
-  try {
-    if (notificationAudio) {
-      notificationAudio.pause();
-      notificationAudio.currentTime = 0;
-    }
-
-    // Danh sách âm thanh dự phòng
-    const soundUrls = [
-      'https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3',
-      'https://assets.mixkit.co/sfx/preview/mixkit-bell-notification-933.mp3',
-      'https://assets.mixkit.co/sfx/preview/mixkit-achievement-bell-600.mp3',
-      'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+zuwGQyCP....'
-    ];
-
-    // Thử phát âm thanh từ danh sách
-    const playSound = (index = 0) => {
-      if (index >= soundUrls.length) {
-        console.log('Không thể phát âm thanh thông báo');
-        return;
-      }
-
-      notificationAudio = new Audio(soundUrls[index]);
-      notificationAudio.volume = 0.7;
-
-      const playPromise = notificationAudio.play();
-
-      if (playPromise !== undefined) {
-        playPromise.then(() => {
-          console.log('Phát âm thanh thành công!');
-        }).catch(error => {
-          console.log(`Thử âm thanh tiếp theo (${index + 1})`);
-          playSound(index + 1);
-        });
-      }
-    };
-
-    playSound();
-
-  } catch (error) {
-    console.error("Lỗi khi phát âm thanh:", error);
-
-    // Fallback: tạo âm thanh bằng Web Audio API
-    try {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-
-      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1);
-
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 1);
-
-      console.log('Phát âm thanh dự phòng bằng Web Audio API');
-    } catch (webAudioError) {
-      console.error("Không thể phát âm thanh:", webAudioError);
-    }
-  }
-}
 
 function showNotification(title, message) {
   if (!("Notification" in window)) {
@@ -3210,14 +3531,6 @@ function showNotification(title, message) {
         new Notification(title, { body: message });
       }
     });
-  }
-}
-
-function stopNotificationSound() {
-  if (notificationAudio) {
-    notificationAudio.pause();
-    console.log('Dừng âm thanh thông báo.');
-    notificationAudio.currentTime = 0;
   }
 }
 
@@ -3464,6 +3777,24 @@ function initTools() {
 }
 
 // Initialize the app
+// Khởi tạo audio system khi DOM ready
+document.addEventListener("DOMContentLoaded", () => {
+  // Khởi tạo audio sau user interaction đầu tiên
+  const enableAudioOnInteraction = () => {
+    initializeAudioSystem();
+    addAudioControlsToModal();
+    
+    // Remove listeners sau khi đã khởi tạo
+    document.removeEventListener('click', enableAudioOnInteraction);
+    document.removeEventListener('touchstart', enableAudioOnInteraction);
+    document.removeEventListener('keydown', enableAudioOnInteraction);
+  };
+
+  document.addEventListener('click', enableAudioOnInteraction);
+  document.addEventListener('touchstart', enableAudioOnInteraction);
+  document.addEventListener('keydown', enableAudioOnInteraction);
+});
+
 document.addEventListener("DOMContentLoaded", async () => {
   currentWeekStart = getStartOfWeek();
   updateRemainingDays();
