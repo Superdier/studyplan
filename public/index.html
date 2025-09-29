@@ -116,9 +116,6 @@
                 <div class="stat-section">
                     <div class="card">
                         <h2 class="card-title"><i class="fas fa-chart-pie"></i> Tổng quan học tập</h2>
-                        <button class="btn btn-primary" id="manage-scores-btn">
-                            <i class="fas fa-plus"></i> Quản lý điểm JLPT
-                        </button>
                         <div class="stats-grid">
                             <div class="stat-card">
                                 <i class="fas fa-clock fa-2x"></i>
@@ -162,6 +159,27 @@
                                     <div class="chart-header">
                                         <h3><i class="fas fa-star"></i> Đánh giá kỹ năng</h3>
                                     </div>
+                                    <div>
+                                        <div class="skill-chart-controls">
+                                            <div class="skill-filter-group">
+                                                <label for="skill-chart-filter">Hiển thị:</label>
+                                                <select id="skill-chart-filter">
+                                                    <option value="all">Tổng hợp</option>
+                                                    <option value="jlpt">Điểm JLPT</option>
+                                                    <option value="individual">Test riêng</option>
+                                                </select>
+                                            </div>
+                                            <div class="skill-filter-group">
+                                                <button class="btn btn-primary btn-small"
+                                                    id="manage-skill-assessments-btn">
+                                                    <i class="fas fa-plus"></i> Quản lý Test riêng
+                                                </button>
+                                                <button class="btn btn-primary btn-small" id="manage-scores-btn">
+                                                    <i class="fas fa-plus"></i> Quản lý điểm JLPT
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <div class="chart-wrapper medium-chart">
                                         <canvas id="skillRadarChart"></canvas>
                                     </div>
@@ -189,7 +207,6 @@
                             </div>
                         </div>
 
-                        <!-- Thêm vào stats-tab trong index.html, sau phần dual-chart-row -->
 
                         <div class="stat-section full-width progress-heatmap-section">
                             <div class="card">
@@ -316,6 +333,21 @@
                     <!-- Writing Practice Tool -->
                     <div class="card">
                         <h2 class="card-title"><i class="fas fa-pencil-alt"></i> Luyện viết chữ Hán</h2>
+                        <div class="word-split-control">
+                            <label for="custom-delimiters">Dấu phân cách từ:</label>
+                            <input type="text" id="custom-delimiters" value=" 　\n、,;:"
+                                placeholder="Nhập dấu phân cách (ví dụ: 　 ,;)"
+                                style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; width: 200px;">
+                            <button type="button" id="preview-split-btn" class="btn btn-secondary"
+                                style="margin-left: 10px;">
+                                <i class="fas fa-eye"></i> Xem thử
+                            </button>
+                        </div>
+
+                        <!-- Thêm phần preview (tùy chọn) -->
+                        <div id="word-split-preview"
+                            style="margin: 10px 0; padding: 10px; background: #f5f5f5; border-radius: 4px; font-size: 14px; display: none;">
+                        </div>
                         <div class="tool-section">
                             <textarea id="writing-text" placeholder="Nhập văn bản tiếng Nhật để luyện viết..."
                                 rows="5"></textarea>
@@ -410,7 +442,7 @@
         </div>
     </div>
 
-    <!-- Thay thế modal countdown trong index.html -->
+    <!-- Modal countdown -->
     <div class="modal" id="countdown-modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -461,7 +493,7 @@
         </div>
     </div>
 
-    <!-- Cập nhật break modal -->
+    <!-- Break modal -->
     <div class="modal" id="break-modal">
         <div class="modal-content">
             <span class="close-modal" id="close-break-modal">&times;</span>
@@ -565,6 +597,138 @@
                         <!-- Danh sách điểm số sẽ được render ở đây -->
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Modal quản lý skill assessments -->
+    <div class="modal" id="skill-assessments-modal">
+        <div class="modal-content">
+            <span class="close-modal" id="close-skill-assessments-modal">&times;</span>
+            <h2><i class="fas fa-chart-bar"></i> Quản lý Test kỹ năng riêng</h2>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin: 20px 0;">
+                <button class="btn btn-primary" id="add-skill-assessment-btn">
+                    <i class="fas fa-plus"></i> Thêm test mới
+                </button>
+                <div class="skill-assessment-summary" id="skill-assessments-summary">
+                    <!-- Thống kê tóm tắt sẽ được cập nhật ở đây -->
+                </div>
+            </div>
+
+            <div class="skill-assessments-table-container">
+                <table class="skill-assessments-table">
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>Ngày test</th>
+                            <th>Kỹ năng</th>
+                            <th>Tiêu đề</th>
+                            <th>Link</th>
+                            <th>Điểm</th>
+                            <th>Mức độ</th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="skill-assessments-list">
+                        <!-- Danh sách skill assessments sẽ được render ở đây -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="skill-chart-legend">
+                <div class="skill-legend-title">Thang đánh giá:</div>
+                <div class="skill-legend-items">
+                    <div class="skill-legend-item">
+                        <div class="skill-level-badge level-excellent">Xuất sắc</div>
+                        <span>90-100%</span>
+                    </div>
+                    <div class="skill-legend-item">
+                        <div class="skill-level-badge level-good">Giỏi</div>
+                        <span>80-89%</span>
+                    </div>
+                    <div class="skill-legend-item">
+                        <div class="skill-level-badge level-fair">Khá</div>
+                        <span>70-79%</span>
+                    </div>
+                    <div class="skill-legend-item">
+                        <div class="skill-level-badge level-average">Trung bình</div>
+                        <span>60-69%</span>
+                    </div>
+                    <div class="skill-legend-item">
+                        <div class="skill-level-badge level-poor">Yếu</div>
+                        <span>50-59%</span>
+                    </div>
+                    <div class="skill-legend-item">
+                        <div class="skill-level-badge level-bad">Kém</div>
+                        <span>
+                            < 50%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal thêm/sửa skill assessment chi tiết -->
+    <div class="modal" id="skill-assessment-modal">
+        <div class="modal-content">
+            <span class="close-modal" id="close-skill-assessment-modal">&times;</span>
+            <h2><i class="fas fa-edit"></i> <span id="skill-assessment-modal-title">Thêm test kỹ năng</span></h2>
+
+            <div class="skill-assessment-form">
+                <div class="skill-form-row">
+                    <div class="skill-form-group">
+                        <label>Ngày test:</label>
+                        <input type="date" id="skill-assessment-date" required>
+                    </div>
+                    <div class="skill-form-group">
+                        <label>Loại kỹ năng:</label>
+                        <select id="skill-assessment-type" required>
+                            <option value="kanji">🈴 Test Kanji</option>
+                            <option value="vocabulary">📚 Test Từ vựng</option>
+                            <option value="grammar">⚙️ Test Ngữ pháp</option>
+                            <option value="reading">📖 Test Đọc hiểu</option>
+                            <option value="listening">🎧 Test Nghe hiểu</option>
+                            <option value="speaking">🎤 Test Nói</option>
+                            <option value="writing">✍️ Test Viết</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="skill-form-group full-width">
+                    <label>Tiêu đề bài test:</label>
+                    <input type="text" id="skill-assessment-title" placeholder="Ví dụ: Test Kanji N2 - Chapter 5"
+                        required>
+                </div>
+
+                <div class="skill-form-group full-width">
+                    <label>Link bài test (tùy chọn):</label>
+                    <input type="url" id="skill-assessment-link" placeholder="https://...">
+                </div>
+
+                <div class="skill-form-row">
+                    <div class="skill-form-group">
+                        <label>Điểm số đạt được:</label>
+                        <div class="score-input-container">
+                            <input type="number" id="skill-assessment-score" min="0" max="100" required>
+                            <div class="score-max-display">
+                                / <span id="skill-score-max">100</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="skill-form-group">
+                        <label>Mức độ đánh giá:</label>
+                        <div id="skill-level-preview" class="skill-level-badge level-average">
+                            Trung bình
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="skill-assessment-actions">
+                <button class="btn btn-secondary" id="cancel-skill-assessment">Hủy</button>
+                <button class="btn btn-primary" id="save-skill-assessment">Lưu đánh giá</button>
             </div>
         </div>
     </div>
@@ -685,6 +849,50 @@
             </div>
         </div>
     </div>
+
+    <script>
+        // Thêm script để update skill level preview khi thay đổi điểm
+        document.addEventListener('DOMContentLoaded', function () {
+            const scoreInput = document.getElementById('skill-assessment-score');
+            const skillTypeSelect = document.getElementById('skill-assessment-type');
+            const levelPreview = document.getElementById('skill-level-preview');
+
+            function updateSkillLevelPreview() {
+                const score = parseInt(scoreInput?.value) || 0;
+                const skillType = skillTypeSelect?.value || 'kanji';
+                const maxScore = skillTypes[skillType]?.maxScore || 100;
+                const percentage = (score / maxScore) * 100;
+
+                let level = 'Kém';
+                let className = 'level-bad';
+
+                if (percentage >= 90) {
+                    level = 'Xuất sắc';
+                    className = 'level-excellent';
+                } else if (percentage >= 80) {
+                    level = 'Giỏi';
+                    className = 'level-good';
+                } else if (percentage >= 70) {
+                    level = 'Khá';
+                    className = 'level-fair';
+                } else if (percentage >= 60) {
+                    level = 'Trung bình';
+                    className = 'level-average';
+                } else if (percentage >= 50) {
+                    level = 'Yếu';
+                    className = 'level-poor';
+                }
+
+                if (levelPreview) {
+                    levelPreview.textContent = level;
+                    levelPreview.className = `skill-level-badge ${className}`;
+                }
+            }
+
+            scoreInput?.addEventListener('input', updateSkillLevelPreview);
+            skillTypeSelect?.addEventListener('change', updateSkillLevelPreview);
+        });
+    </script>
 
     <script src="js/script.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>

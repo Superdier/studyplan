@@ -2812,3 +2812,376 @@ footer {
   50% { opacity: 0.5; }
   100% { opacity: 1; }
 }
+
+/* THÊM VÀO style.css - CSS cho Skill Assessments */
+
+/* Skill Assessment Tables */
+.skill-assessments-table-container {
+  max-height: 500px;
+  overflow-y: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  margin-top: 20px;
+}
+
+.skill-assessments-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+.skill-assessments-table th {
+  background: #1a2a6c;
+  color: white;
+  padding: 12px 15px;
+  text-align: left;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  font-size: 0.9em;
+}
+
+.skill-assessments-table td {
+  padding: 12px 15px;
+  border-bottom: 1px solid #eee;
+  font-size: 0.9em;
+}
+
+.skill-assessments-table tr:hover {
+  background: #f8f9fa;
+}
+
+.skill-assessments-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Skill Level Badges */
+.skill-level-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8em;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.level-excellent {
+  background: #e8f5e9;
+  color: #2e7d2e;
+  border: 1px solid #4caf50;
+}
+
+.level-good {
+  background: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #2196f3;
+}
+
+.level-fair {
+  background: #fff3e0;
+  color: #ef6c00;
+  border: 1px solid #ff9800;
+}
+
+.level-average {
+  background: #fff9c4;
+  color: #f57f17;
+  border: 1px solid #fbc02d;
+}
+
+.level-poor {
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #f44336;
+}
+
+.level-bad {
+  background: #f3e5f5;
+  color: #7b1fa2;
+  border: 1px solid #9c27b0;
+}
+
+/* Skill Chart Filter */
+.skill-chart-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.skill-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.skill-filter-group label {
+  font-weight: 600;
+  color: #1a2a6c;
+  font-size: 0.9em;
+}
+
+.skill-filter-group select {
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  background: white;
+  color: #333;
+  font-size: 0.9em;
+  min-width: 150px;
+}
+
+/* Skill Assessment Form */
+.skill-assessment-form {
+  display: grid;
+  gap: 20px;
+  margin: 20px 0;
+}
+
+.skill-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.skill-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.skill-form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.skill-form-group label {
+  font-weight: 600;
+  color: #1a2a6c;
+  font-size: 0.9em;
+}
+
+.skill-form-group input,
+.skill-form-group select,
+.skill-form-group textarea {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.9em;
+  transition: border-color 0.2s ease;
+}
+
+.skill-form-group input:focus,
+.skill-form-group select:focus,
+.skill-form-group textarea:focus {
+  outline: none;
+  border-color: #1a2a6c;
+  box-shadow: 0 0 0 2px rgba(26, 42, 108, 0.1);
+}
+
+/* Score Input với Max Display */
+.score-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.score-input-container input {
+  flex: 1;
+  text-align: center;
+  font-weight: 600;
+  font-size: 1.1em;
+}
+
+.score-max-display {
+  margin-left: 10px;
+  font-weight: 600;
+  color: #666;
+  font-size: 0.9em;
+}
+
+/* Skill Type Select với Icons */
+.skill-type-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+}
+
+/* Enhanced Modal cho Skill Assessments */
+#skill-assessments-modal .modal-content {
+  max-width: 1000px;
+}
+
+#skill-assessment-modal .modal-content {
+  max-width: 600px;
+}
+
+/* Skill Assessment Summary */
+.skill-assessment-summary {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+  font-size: 0.9em;
+}
+
+.skill-summary-item {
+  text-align: center;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  min-width: 100px;
+  border-left: 4px solid #1a2a6c;
+}
+
+.skill-summary-value {
+  font-size: 1.6em;
+  font-weight: bold;
+  color: #1a2a6c;
+  margin-bottom: 4px;
+}
+
+.skill-summary-label {
+  font-size: 0.85em;
+  color: #666;
+  font-weight: 500;
+}
+
+/* Progress Indicators */
+.skill-progress-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+}
+
+.progress-arrow {
+  color: #4caf50;
+  font-weight: bold;
+}
+
+.progress-arrow.negative {
+  color: #f44336;
+}
+
+.progress-arrow.neutral {
+  color: #666;
+}
+
+/* Skill Chart Legend */
+.skill-chart-legend {
+  margin-top: 15px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  font-size: 0.85em;
+}
+
+.skill-legend-title {
+  font-weight: bold;
+  margin-bottom: 10px;
+  color: #1a2a6c;
+}
+
+.skill-legend-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.skill-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.skill-legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Skill Type Icons */
+.skill-type-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: white;
+  font-size: 0.8em;
+}
+
+/* Skill Assessment Action Buttons */
+.skill-assessment-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  justify-content: flex-end;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .skill-assessments-table-container {
+    font-size: 0.8em;
+  }
+  
+  .skill-assessments-table th,
+  .skill-assessments-table td {
+    padding: 8px 6px;
+  }
+  
+  .skill-form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .skill-assessment-summary {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .skill-summary-item {
+    min-width: unset;
+  }
+  
+  .skill-chart-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .skill-filter-group {
+    width: 100%;
+  }
+  
+  .skill-filter-group select {
+    min-width: unset;
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .skill-level-badge {
+    font-size: 0.7em;
+    padding: 2px 6px;
+  }
+  
+  .btn-score-action {
+    padding: 4px 6px;
+    font-size: 0.7em;
+  }
+  
+  #skill-assessments-modal .modal-content,
+  #skill-assessment-modal .modal-content {
+    padding: 15px;
+    margin: 10px;
+  }
+}
