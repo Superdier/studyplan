@@ -332,7 +332,26 @@ function isKanji(char) {
     return code >= 0x4E00 && code <= 0x9FAF;
 }
 
-// Export Kanji PDF (similar updates with better spacing)
+// Hàm tách từ với dấu phân cách tùy chỉnh
+function splitIntoWords(text, customDelimiters = ' 　\n、,;:') {
+    if (!text) return [];
+    
+    let words = [];
+    
+    if (customDelimiters && customDelimiters.trim().length > 0) {
+        // Escape các ký tự đặc biệt trong regex
+        const escapedDelimiters = customDelimiters.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Tạo regex pattern với các dấu phân cách
+        const delimiterPattern = new RegExp(`[${escapedDelimiters}]+`);
+        words = text.split(delimiterPattern).filter(word => word.trim().length > 0);
+    } else {
+        // Mặc định tách theo ký tự nếu không có dấu phân cách
+        words = Array.from(text).filter(char => char.trim().length > 0);
+    }
+    
+    return words;
+}
+
 async function exportKanjiPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
@@ -343,9 +362,9 @@ async function exportKanjiPDF() {
         return;
     }
 
-    function isKanji(char) {
-        return /[\u4e00-\u9faf]/.test(char);
-    }
+    // Lấy dấu phân cách tùy chỉnh từ input
+    const customDelimiters = document.getElementById('custom-delimiters')?.value || ' 　\n、,;:';
+    
     function arrayBufferToBase64(buffer) {
         let binary = '';
         const bytes = new Uint8Array(buffer);
@@ -356,16 +375,29 @@ async function exportKanjiPDF() {
         return btoa(binary);
     }
 
-    const uniqueKanjiChars = [...new Set(Array.from(text).filter(isKanji))];
-    const kanjiWords = [...new Set(text.match(/[\u4e00-\u9faf]{2,}/g) || [])];
+    // Tách từ theo dấu phân cách tùy chỉnh
+    const words = splitIntoWords(text, customDelimiters);
+    
+    // Kanji đơn: các ký tự Kanji riêng lẻ
+    const uniqueKanjiChars = [...new Set(
+        Array.from(text).filter(char => isKanji(char))
+    )];
+    
+    // Kanji từ: các từ có chứa ít nhất 1 ký tự Kanji và độ dài >= 2
+    const kanjiWords = [...new Set(
+        words.filter(word => {
+            return word.length >= 2 && Array.from(word).some(char => isKanji(char));
+        })
+    )];
 
     if (uniqueKanjiChars.length === 0 && kanjiWords.length === 0) {
         showCustomAlert('Không tìm thấy chữ hoặc từ Kanji trong văn bản.');
         return;
     }
 
+    // Phần còn lại của hàm giữ nguyên...
     try {
-        const fontUrl = '/public/assets/fonts/NotoSansJP-VariableFont_wght.ttf';
+        const fontUrl = '/assets/fonts/NotoSansJP-VariableFont_wght.ttf';
         console.log("Font fetch URL:", fontUrl);
         const fontResp = await fetch(fontUrl);
         if (!fontResp.ok) throw new Error('Không thể tải font từ ' + fontUrl);
@@ -504,15 +536,15 @@ async function exportKanjiPDF() {
 
         doc.save('luyen-viet-kanji.pdf');
         return;
-
     } catch (err) {
         console.error('Lỗi khi tạo PDF với font nhúng:', err);
         showCustomAlert('Không thể tạo PDF bằng font nhúng. Chuyển sang phương án dự phòng.');
-        fallbackCanvasExportKanjiWithWords(text);
+        fallbackCanvasExportKanjiWithWords(text, customDelimiters);
     }
 }
 
-function fallbackCanvasExportKanjiWithWords(text) {
+// Cập nhật hàm fallbackCanvasExportKanjiWithWords để nhận tham số customDelimiters
+function fallbackCanvasExportKanjiWithWords(text, customDelimiters = ' 　\n、,;:') {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const pageW = doc.internal.pageSize.getWidth();
@@ -520,14 +552,24 @@ function fallbackCanvasExportKanjiWithWords(text) {
     const margin = 15;
     const cellSize = 14; // mm
     const gap = 4;
-    const scale = 4; // tăng độ nét ảnh
+    const scale = 4;
 
     let x = margin;
     let y = margin + 10;
 
+    // Tách từ theo dấu phân cách tùy chỉnh
+    const words = splitIntoWords(text, customDelimiters);
+    
     // Tách Kanji đơn và từ Kanji
-    const uniqueKanjiChars = [...new Set(Array.from(text).filter(isKanji))];
-    const kanjiWords = [...new Set(text.match(/[\u4e00-\u9faf]{2,}/g) || [])];
+    const uniqueKanjiChars = [...new Set(
+        Array.from(text).filter(isKanji)
+    )];
+    
+    const kanjiWords = [...new Set(
+        words.filter(word => {
+            return word.length >= 2 && Array.from(word).some(char => isKanji(char));
+        })
+    )];
 
     // Kanji đơn
     uniqueKanjiChars.forEach(char => {
@@ -628,6 +670,35 @@ function fallbackCanvasExportKanjiWithWords(text) {
 
         const imgData = canvas.toDataURL("image/png");
         doc.addImage(imgData, "PNG", posX, posY, width, cellSize);
+    }
+}
+
+// Thêm hàm hiển thị preview tách từ
+function showWordSplitPreview() {
+    const text = writingText.value.trim();
+    const customDelimiters = document.getElementById('custom-delimiters')?.value || ' 　\n、,;:';
+    
+    if (!text) {
+        return;
+    }
+    
+    const words = splitIntoWords(text, customDelimiters);
+    const kanjiWords = words.filter(word => word.length >= 2 && Array.from(word).some(char => isKanji(char)));
+    const uniqueKanjiChars = [...new Set(Array.from(text).filter(isKanji))];
+    
+    console.log('Dấu phân cách:', customDelimiters);
+    console.log('Tất cả từ:', words);
+    console.log('Kanji từ:', kanjiWords);
+    console.log('Kanji đơn:', uniqueKanjiChars);
+    
+    // Có thể hiển thị preview trong UI nếu muốn
+    const previewElement = document.getElementById('word-split-preview');
+    if (previewElement) {
+        previewElement.innerHTML = `
+            <div><strong>Tất cả từ:</strong> ${words.join(', ')}</div>
+            <div><strong>Kanji từ:</strong> ${kanjiWords.join(', ')}</div>
+            <div><strong>Kanji đơn:</strong> ${uniqueKanjiChars.join(', ')}</div>
+        `;
     }
 }
 
@@ -856,6 +927,25 @@ function stopTTS() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    const customDelimitersInput = document.getElementById('custom-delimiters');
+    const previewSplitBtn = document.getElementById('preview-split-btn');
+    
+    if (previewSplitBtn) {
+        previewSplitBtn.addEventListener('click', showWordSplitPreview);
+    }
+    
+    if (customDelimitersInput) {
+        customDelimitersInput.addEventListener('input', function() {
+            // Tự động ẩn preview khi thay đổi dấu phân cách
+            const previewElement = document.getElementById('word-split-preview');
+            if (previewElement) {
+                previewElement.style.display = 'none';
+            }
+        });
+        
+        // Hiển thị tooltip giải thích
+        customDelimitersInput.title = "Các dấu phân cách mặc định: khoảng trắng, khoảng trắng Nhật, xuống dòng, dấu phẩy Nhật, dấu phẩy thường, dấu chấm phẩy, dấu hai chấm";
+    }
     if (!('speechSynthesis' in window)) {
         showCustomAlert('Trình duyệt của bạn không hỗ trợ chức năng Text-to-Speech. Vui lòng sử dụng Chrome, Edge hoặc Safari.');
         if (playTtsBtn) playTtsBtn.disabled = true;

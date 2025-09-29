@@ -35,6 +35,8 @@ let sessionStartTime = null;
 let sessionTimers = {};
 let timerStartTime = null;
 let timerDuration = 0;
+let skillAssessments = [];
+let currentEditingAssessmentId = null;
 let currentSkillFilter = 'all';
 let currentTimeFilter = 'all';
 let resourcesData = {
@@ -52,6 +54,13 @@ let floatingTimerInterval = null;
 let jlptScores = [];
 let currentEditingScoreId = null;
 let progressHeatmapChart = null;
+let audioManager = {
+  audioInstances: new Map(),
+  isEnabled: true,
+  volume: 0.7,
+  isInitialized: false,
+  currentPlayingAudio: null
+};
 
 // Subject và Task Type mapping
 const subjectTaskTypes = {
@@ -66,6 +75,52 @@ const subjectTaskTypes = {
   ],
   'it': [],
   'other': []
+};
+
+// Skill Assessment data structure
+const skillTypes = {
+  kanji: { 
+    name: 'Test Kanji', 
+    maxScore: 100, 
+    icon: 'fas fa-language',
+    color: '#e91e63'
+  },
+  vocabulary: { 
+    name: 'Test Từ vựng', 
+    maxScore: 100, 
+    icon: 'fas fa-book',
+    color: '#2196f3'
+  },
+  grammar: { 
+    name: 'Test Ngữ pháp', 
+    maxScore: 100, 
+    icon: 'fas fa-code-branch',
+    color: '#ff9800'
+  },
+  reading: { 
+    name: 'Test Đọc hiểu', 
+    maxScore: 100, 
+    icon: 'fas fa-book-open',
+    color: '#4caf50'
+  },
+  listening: { 
+    name: 'Test Nghe hiểu', 
+    maxScore: 100, 
+    icon: 'fas fa-headphones',
+    color: '#9c27b0'
+  },
+  speaking: { 
+    name: 'Test Nói', 
+    maxScore: 100, 
+    icon: 'fas fa-microphone',
+    color: '#f44336'
+  },
+  writing: { 
+    name: 'Test Viết', 
+    maxScore: 100, 
+    icon: 'fas fa-pen',
+    color: '#795548'
+  }
 };
 
 // DOM Elements
@@ -105,6 +160,278 @@ timerFloatingContainer.innerHTML = `
   </div>
 `;
 document.body.appendChild(timerFloatingContainer);
+
+//////// Init Notification Sound ////////
+// Initialize audio system
+function initializeAudioSystem() {
+  console.log('Initializing audio system...');
+  
+  // Tạo các audio instances với fallback
+  const audioSources = {
+    notification: [
+      'data:audio/wav;base64,UklGRnADAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YUwDAAA=',
+      'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav'
+    ],
+    countdown: [
+      'data:audio/wav;base64,UklGRnADAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YUwDAAA='
+    ]
+  };
+
+  Object.entries(audioSources).forEach(([name, sources]) => {
+    createAudioInstance(name, sources);
+  });
+
+  audioManager.isInitialized = true;
+  console.log('Audio system initialized successfully');
+}
+
+// Tạo audio instance với fallback
+function createAudioInstance(name, sources) {
+  let audio = null;
+
+  // Thử tạo từ nguồn đầu tiên
+  for (let source of sources) {
+    try {
+      audio = new Audio(source);
+      audio.volume = audioManager.volume;
+      audio.preload = 'auto';
+      break;
+    } catch (error) {
+      console.warn(`Failed to create audio from ${source}:`, error);
+      continue;
+    }
+  }
+
+  // Nếu không tạo được, dùng Web Audio API
+  if (!audio) {
+    audio = createSyntheticAudio(name);
+  }
+
+  audioManager.audioInstances.set(name, {
+    audio: audio,
+    isPlaying: false,
+    playPromise: null
+  });
+}
+
+// Tạo âm thanh synthetic bằng Web Audio API
+function createSyntheticAudio(type) {
+  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  
+  return {
+    play: function() {
+      return new Promise((resolve) => {
+        try {
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+
+          if (type === 'notification') {
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+            oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.1);
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.2);
+          } else {
+            oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+          }
+
+          oscillator.type = 'sine';
+          gainNode.gain.setValueAtTime(audioManager.volume, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+          oscillator.start();
+          oscillator.stop(audioContext.currentTime + 0.5);
+
+          setTimeout(resolve, 500);
+        } catch (error) {
+          console.error('Synthetic audio failed:', error);
+          resolve();
+        }
+      });
+    },
+    pause: () => {},
+    currentTime: 0,
+    volume: audioManager.volume
+  };
+}
+
+// Tạo audio instance với fallback
+function createAudioInstance(name, sources) {
+  let audio = null;
+
+  // Thử tạo từ nguồn đầu tiên
+  for (let source of sources) {
+    try {
+      audio = new Audio(source);
+      audio.volume = audioManager.volume;
+      audio.preload = 'auto';
+      break;
+    } catch (error) {
+      console.warn(`Failed to create audio from ${source}:`, error);
+      continue;
+    }
+  }
+
+  // Nếu không tạo được, dùng Web Audio API
+  if (!audio) {
+    audio = createSyntheticAudio(name);
+  }
+
+  audioManager.audioInstances.set(name, {
+    audio: audio,
+    isPlaying: false,
+    playPromise: null
+  });
+}
+
+// Tạo âm thanh synthetic bằng Web Audio API
+function createSyntheticAudio(type) {
+  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  
+  return {
+    play: function() {
+      return new Promise((resolve) => {
+        try {
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+
+          if (type === 'notification') {
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+            oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.1);
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.2);
+          } else {
+            oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+          }
+
+          oscillator.type = 'sine';
+          gainNode.gain.setValueAtTime(audioManager.volume, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+          oscillator.start();
+          oscillator.stop(audioContext.currentTime + 0.5);
+
+          setTimeout(resolve, 500);
+        } catch (error) {
+          console.error('Synthetic audio failed:', error);
+          resolve();
+        }
+      });
+    },
+    pause: () => {},
+    currentTime: 0,
+    volume: audioManager.volume
+  };
+}
+
+// Phát âm thanh với kiểm soát tốt hơn
+async function playNotificationSound(options = {}) {
+  if (!audioManager.isEnabled || !audioManager.isInitialized) {
+    console.log('Audio disabled or not initialized');
+    return;
+  }
+
+  const { 
+    type = 'notification', 
+    repeat = false, 
+    repeatCount = 3, 
+    repeatInterval = 1000 
+  } = options;
+
+  const instance = audioManager.audioInstances.get(type);
+  if (!instance) {
+    console.warn(`Audio type ${type} not found`);
+    return;
+  }
+
+  // Dừng âm thanh hiện tại nếu có
+  stopNotificationSound();
+
+  try {
+    instance.isPlaying = true;
+    audioManager.currentPlayingAudio = instance;
+
+    if (repeat) {
+      await playAudioWithRepeat(instance, repeatCount, repeatInterval);
+    } else {
+      await playAudioOnce(instance);
+    }
+  } catch (error) {
+    console.error('Error playing audio:', error);
+    instance.isPlaying = false;
+  }
+}
+
+// Phát âm thanh một lần
+async function playAudioOnce(instance) {
+  try {
+    if (instance.audio.currentTime > 0) {
+      instance.audio.currentTime = 0;
+    }
+
+    const playPromise = instance.audio.play();
+    instance.playPromise = playPromise;
+
+    if (playPromise !== undefined) {
+      await playPromise;
+      console.log('Audio played successfully');
+    }
+  } catch (error) {
+    if (error.name !== 'AbortError') {
+      console.error('Play audio error:', error);
+    }
+  } finally {
+    instance.isPlaying = false;
+    instance.playPromise = null;
+  }
+}
+
+// Phát âm thanh lặp lại
+async function playAudioWithRepeat(instance, count, interval) {
+  for (let i = 0; i < count && instance.isPlaying; i++) {
+    await playAudioOnce(instance);
+    
+    if (i < count - 1 && instance.isPlaying) {
+      await new Promise(resolve => setTimeout(resolve, interval));
+    }
+  }
+}
+
+// Dừng tất cả âm thanh
+function stopNotificationSound() {
+  console.log('Stopping all notification sounds');
+  
+  audioManager.audioInstances.forEach((instance, name) => {
+    try {
+      if (instance.isPlaying) {
+        instance.isPlaying = false;
+        
+        if (instance.playPromise) {
+          instance.playPromise.then(() => {
+            if (instance.audio.pause) {
+              instance.audio.pause();
+              instance.audio.currentTime = 0;
+            }
+          }).catch(() => {
+            // Ignore promise rejection
+          });
+          instance.playPromise = null;
+        } else if (instance.audio.pause) {
+          instance.audio.pause();
+          instance.audio.currentTime = 0;
+        }
+      }
+    } catch (error) {
+      console.warn(`Error stopping audio ${name}:`, error);
+    }
+  });
+
+  audioManager.currentPlayingAudio = null;
+}
+//////// End Audio System ////////
 
 // Custom alert function
 function showCustomAlert(message) {
@@ -150,10 +477,13 @@ function showModal(modalElement) {
 function hideModal(modalElement) {
   if (modalElement) {
     modalElement.style.display = 'none';
-    // Dừng âm thanh nếu là modal countdown hoặc break
+    
+    // Dừng âm thanh khi đóng modal timer
     if (modalElement === countdownModal || modalElement === breakModal) {
+      console.log('Timer modal closed - stopping audio');
       stopNotificationSound();
     }
+    
     if (modalElement === breakModal) {
       isManualClose = true;
     }
@@ -161,11 +491,83 @@ function hideModal(modalElement) {
 }
 
 function hideBreakModal() {
+  console.log('Break modal manually closed');
+  stopNotificationSound();
+  
   if (breakModal) {
     breakModal.style.display = 'none';
   }
+  isManualClose = true;
 }
 
+// Thêm audio controls vào timer modal
+function addAudioControlsToModal() {
+  const countdownModalContent = document.querySelector('#countdown-modal .modal-content');
+  if (countdownModalContent && !document.getElementById('audio-controls')) {
+    const audioControlsHTML = `
+      <div id="audio-controls" class="audio-controls">
+        <div class="audio-controls-row">
+          <label class="audio-toggle">
+            <input type="checkbox" id="audio-enabled" ${audioManager.isEnabled ? 'checked' : ''}>
+            <span>Bật âm thanh</span>
+          </label>
+          <label class="volume-control">
+            <span>Âm lượng:</span>
+            <input type="range" id="audio-volume" min="0" max="100" value="${audioManager.volume * 100}">
+            <span id="volume-display">${Math.round(audioManager.volume * 100)}%</span>
+          </label>
+          <button id="test-audio-btn" class="btn btn-secondary btn-small" type="button">
+            Test âm thanh
+          </button>
+        </div>
+      </div>
+    `;
+
+    countdownModalContent.insertAdjacentHTML('beforeend', audioControlsHTML);
+    setupAudioControlsEvents();
+  }
+}
+
+// Thiết lập events cho audio controls
+function setupAudioControlsEvents() {
+  const audioEnabledCheckbox = document.getElementById('audio-enabled');
+  const volumeSlider = document.getElementById('audio-volume');
+  const volumeDisplay = document.getElementById('volume-display');
+  const testAudioBtn = document.getElementById('test-audio-btn');
+
+  if (audioEnabledCheckbox) {
+    audioEnabledCheckbox.addEventListener('change', (e) => {
+      audioManager.isEnabled = e.target.checked;
+      console.log(`Audio ${audioManager.isEnabled ? 'enabled' : 'disabled'}`);
+      
+      if (!audioManager.isEnabled) {
+        stopNotificationSound();
+      }
+    });
+  }
+
+  if (volumeSlider && volumeDisplay) {
+    volumeSlider.addEventListener('input', (e) => {
+      const volume = e.target.value / 100;
+      audioManager.volume = volume;
+      volumeDisplay.textContent = e.target.value + '%';
+      
+      // Cập nhật volume cho tất cả audio instances
+      audioManager.audioInstances.forEach(instance => {
+        if (instance.audio && typeof instance.audio.volume !== 'undefined') {
+          instance.audio.volume = volume;
+        }
+      });
+    });
+  }
+
+  if (testAudioBtn) {
+    testAudioBtn.addEventListener('click', () => {
+      playNotificationSound({ type: 'notification' });
+    });
+  }
+}
+// End custom alert function
 // Weekly schedule functions
 async function loadCustomTaskTypes() {
   try {
@@ -966,6 +1368,497 @@ async function getStudyStatistics() {
       maxStreak: 0,
     };
   }
+}
+
+//Skill
+// Load skill assessments from Firebase
+async function loadSkillAssessments() {
+  try {
+    const snapshot = await db.ref('skillAssessments').once('value');
+    const data = snapshot.val();
+
+    if (data) {
+      skillAssessments = Object.keys(data).map(key => ({
+        id: key,
+        ...data[key]
+      }));
+    } else {
+      skillAssessments = [];
+    }
+
+    // Sort by date (newest first)
+    skillAssessments.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    renderSkillAssessmentsTable();
+    updateSkillAssessmentsSummary();
+    updateSkillRadarChartWithFilter();
+
+  } catch (error) {
+    console.error('Lỗi khi tải skill assessments:', error);
+    skillAssessments = [];
+  }
+}
+
+// Render skill assessments table
+function renderSkillAssessmentsTable() {
+  const tbody = document.getElementById('skill-assessments-list');
+  if (!tbody) return;
+
+  if (skillAssessments.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="8" style="text-align: center; padding: 40px; color: #666;">
+          <i class="fas fa-chart-line" style="font-size: 3rem; margin-bottom: 15px; display: block;"></i>
+          <p>Chưa có đánh giá kỹ năng nào. Hãy thêm để theo dõi tiến bộ!</p>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = skillAssessments.map((assessment, index) => {
+    const date = new Date(assessment.date);
+    const formattedDate = date.toLocaleDateString('vi-VN');
+    const skillInfo = skillTypes[assessment.skillType];
+    
+    return `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${formattedDate}</td>
+        <td>
+          <div style="display: flex; align-items: center;">
+            <i class="${skillInfo.icon}" style="color: ${skillInfo.color}; margin-right: 8px;"></i>
+            ${skillInfo.name}
+          </div>
+        </td>
+        <td>${assessment.title}</td>
+        <td>
+          ${assessment.link ? 
+            `<a href="${assessment.link}" target="_blank" title="Xem bài test">
+              <i class="fas fa-external-link-alt"></i>
+            </a>` : '-'
+          }
+        </td>
+        <td class="score-cell ${getSkillScoreClass(assessment.score, skillInfo.maxScore)}">
+          <strong>${assessment.score}</strong>/${skillInfo.maxScore}
+        </td>
+        <td>
+          <div class="skill-level-badge ${getSkillLevelClass(assessment.score, skillInfo.maxScore)}">
+            ${getSkillLevel(assessment.score, skillInfo.maxScore)}
+          </div>
+        </td>
+        <td>
+          <button class="btn-score-action btn-edit-assessment" data-id="${assessment.id}">
+            <i class="fas fa-edit"></i>
+          </button>
+          <button class="btn-score-action btn-delete-assessment" data-id="${assessment.id}">
+            <i class="fas fa-trash"></i>
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  // Add event listeners
+  tbody.querySelectorAll('.btn-edit-assessment').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const assessmentId = e.currentTarget.dataset.id;
+      openEditSkillAssessmentModal(assessmentId);
+    });
+  });
+
+  tbody.querySelectorAll('.btn-delete-assessment').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const assessmentId = e.currentTarget.dataset.id;
+      deleteSkillAssessment(assessmentId);
+    });
+  });
+}
+
+// Get skill level based on score percentage
+function getSkillLevel(score, maxScore) {
+  const percentage = (score / maxScore) * 100;
+  if (percentage >= 90) return 'Xuất sắc';
+  if (percentage >= 80) return 'Giỏi';
+  if (percentage >= 70) return 'Khá';
+  if (percentage >= 60) return 'Trung bình';
+  if (percentage >= 50) return 'Yếu';
+  return 'Kém';
+}
+
+function getSkillLevelClass(score, maxScore) {
+  const percentage = (score / maxScore) * 100;
+  if (percentage >= 90) return 'level-excellent';
+  if (percentage >= 80) return 'level-good';
+  if (percentage >= 70) return 'level-fair';
+  if (percentage >= 60) return 'level-average';
+  if (percentage >= 50) return 'level-poor';
+  return 'level-bad';
+}
+
+function getSkillScoreClass(score, maxScore) {
+  const percentage = (score / maxScore) * 100;
+  if (percentage >= 80) return 'score-high';
+  if (percentage >= 60) return 'score-medium';
+  return 'score-low';
+}
+
+// Update skill assessments summary
+function updateSkillAssessmentsSummary() {
+  const summaryEl = document.getElementById('skill-assessments-summary');
+  if (!summaryEl) return;
+
+  if (skillAssessments.length === 0) {
+    summaryEl.innerHTML = '<div class="stat-summary-item">Chưa có dữ liệu</div>';
+    return;
+  }
+
+  // Calculate summary statistics
+  const totalTests = skillAssessments.length;
+  const avgScore = Math.round(
+    skillAssessments.reduce((sum, assessment) => {
+      const percentage = (assessment.score / skillTypes[assessment.skillType].maxScore) * 100;
+      return sum + percentage;
+    }, 0) / totalTests
+  );
+
+  const excellentTests = skillAssessments.filter(assessment => {
+    const percentage = (assessment.score / skillTypes[assessment.skillType].maxScore) * 100;
+    return percentage >= 90;
+  }).length;
+
+  // Find most improved skill
+  const skillProgress = calculateSkillProgress();
+  const mostImprovedSkill = findMostImprovedSkill(skillProgress);
+
+  summaryEl.innerHTML = `
+    <div class="stat-summary-item">
+      <div class="stat-summary-value">${totalTests}</div>
+      <div class="stat-summary-label">Bài test</div>
+    </div>
+    <div class="stat-summary-item">
+      <div class="stat-summary-value">${excellentTests}</div>
+      <div class="stat-summary-label">Xuất sắc</div>
+    </div>
+    <div class="stat-summary-item">
+      <div class="stat-summary-value">${avgScore}%</div>
+      <div class="stat-summary-label">Điểm TB</div>
+    </div>
+    <div class="stat-summary-item">
+      <div class="stat-summary-value" style="font-size: 0.8em;">${mostImprovedSkill}</div>
+      <div class="stat-summary-label">Tiến bộ nhất</div>
+    </div>
+  `;
+}
+
+// Calculate skill progress over time
+function calculateSkillProgress() {
+  const progress = {};
+  
+  Object.keys(skillTypes).forEach(skillType => {
+    const skillAssessmentsForType = skillAssessments
+      .filter(a => a.skillType === skillType)
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    if (skillAssessmentsForType.length >= 2) {
+      const first = skillAssessmentsForType[0];
+      const last = skillAssessmentsForType[skillAssessmentsForType.length - 1];
+      const firstPercentage = (first.score / skillTypes[first.skillType].maxScore) * 100;
+      const lastPercentage = (last.score / skillTypes[last.skillType].maxScore) * 100;
+      
+      progress[skillType] = lastPercentage - firstPercentage;
+    }
+  });
+  
+  return progress;
+}
+
+function findMostImprovedSkill(progress) {
+  let maxImprovement = -Infinity;
+  let mostImproved = 'Chưa có dữ liệu';
+  
+  Object.entries(progress).forEach(([skillType, improvement]) => {
+    if (improvement > maxImprovement) {
+      maxImprovement = improvement;
+      mostImproved = skillTypes[skillType].name;
+    }
+  });
+  
+  return mostImproved;
+}
+
+// Open add skill assessment modal
+function openAddSkillAssessmentModal() {
+  currentEditingAssessmentId = null;
+  document.getElementById('skill-assessment-modal-title').textContent = 'Thêm đánh giá kỹ năng';
+
+  // Reset form
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('skill-assessment-date').value = today;
+  document.getElementById('skill-assessment-type').value = 'kanji';
+  document.getElementById('skill-assessment-title').value = '';
+  document.getElementById('skill-assessment-link').value = '';
+  document.getElementById('skill-assessment-score').value = '';
+  
+  updateSkillScoreMax();
+  showModal(document.getElementById('skill-assessment-modal'));
+}
+
+// Open edit skill assessment modal
+function openEditSkillAssessmentModal(assessmentId) {
+  const assessment = skillAssessments.find(a => a.id === assessmentId);
+  if (!assessment) return;
+
+  currentEditingAssessmentId = assessmentId;
+  document.getElementById('skill-assessment-modal-title').textContent = 'Chỉnh sửa đánh giá kỹ năng';
+
+  document.getElementById('skill-assessment-date').value = assessment.date;
+  document.getElementById('skill-assessment-type').value = assessment.skillType;
+  document.getElementById('skill-assessment-title').value = assessment.title;
+  document.getElementById('skill-assessment-link').value = assessment.link || '';
+  document.getElementById('skill-assessment-score').value = assessment.score;
+
+  updateSkillScoreMax();
+  showModal(document.getElementById('skill-assessment-modal'));
+}
+
+// Update max score display when skill type changes
+function updateSkillScoreMax() {
+  const skillType = document.getElementById('skill-assessment-type').value;
+  const maxScore = skillTypes[skillType].maxScore;
+  document.getElementById('skill-score-max').textContent = maxScore;
+  document.getElementById('skill-assessment-score').max = maxScore;
+}
+
+// Save skill assessment
+async function saveSkillAssessment() {
+  const date = document.getElementById('skill-assessment-date').value;
+  const skillType = document.getElementById('skill-assessment-type').value;
+  const title = document.getElementById('skill-assessment-title').value.trim();
+  const link = document.getElementById('skill-assessment-link').value.trim();
+  const score = parseInt(document.getElementById('skill-assessment-score').value) || 0;
+
+  if (!date || !title || score < 0) {
+    showCustomAlert('Vui lòng điền đầy đủ thông tin và điểm số hợp lệ!');
+    return;
+  }
+
+  const maxScore = skillTypes[skillType].maxScore;
+  if (score > maxScore) {
+    showCustomAlert(`Điểm số không được vượt quá ${maxScore}!`);
+    return;
+  }
+
+  const assessmentData = {
+    date,
+    skillType,
+    title,
+    link: link || '',
+    score,
+    updatedAt: new Date().toISOString()
+  };
+
+  try {
+    if (currentEditingAssessmentId) {
+      await db.ref(`skillAssessments/${currentEditingAssessmentId}`).update(assessmentData);
+    } else {
+      const newAssessmentId = `skill_${Date.now()}`;
+      assessmentData.createdAt = new Date().toISOString();
+      await db.ref(`skillAssessments/${newAssessmentId}`).set(assessmentData);
+    }
+
+    hideModal(document.getElementById('skill-assessment-modal'));
+    await loadSkillAssessments();
+    refreshSkillCharts();
+    showCustomAlert('Đã lưu đánh giá kỹ năng thành công!');
+
+  } catch (error) {
+    console.error('Lỗi khi lưu đánh giá kỹ năng:', error);
+    showCustomAlert('Có lỗi xảy ra khi lưu đánh giá kỹ năng!');
+  }
+}
+
+// Delete skill assessment
+async function deleteSkillAssessment(assessmentId) {
+  if (!confirm('Bạn có chắc muốn xóa đánh giá kỹ năng này?')) return;
+
+  try {
+    await db.ref(`skillAssessments/${assessmentId}`).remove();
+    await loadSkillAssessments();
+    refreshSkillCharts();
+    showCustomAlert('Đã xóa đánh giá kỹ năng thành công!');
+  } catch (error) {
+    console.error('Lỗi khi xóa đánh giá kỹ năng:', error);
+    showCustomAlert('Có lỗi xảy ra khi xóa đánh giá kỹ năng!');
+  }
+}
+
+// Update skill radar chart with filter
+function updateSkillRadarChartWithFilter() {
+  const filterValue = document.getElementById('skill-chart-filter')?.value || 'all';
+  
+  if (filterValue === 'jlpt') {
+    updateScoresRadarChart(); // Show JLPT scores
+  } else if (filterValue === 'individual') {
+    updateIndividualSkillsRadarChart(); // Show individual skill assessments
+  } else {
+    updateCombinedSkillsRadarChart(); // Show both combined
+  }
+}
+
+// Update individual skills radar chart
+function updateIndividualSkillsRadarChart() {
+  const ctx = document.getElementById('skillRadarChart')?.getContext('2d');
+  if (!ctx) return;
+
+  if (skillRadarChart) {
+    skillRadarChart.destroy();
+    skillRadarChart = null;
+  }
+
+  if (skillAssessments.length === 0) {
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.fillStyle = '#666';
+    ctx.font = '16px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Chưa có dữ liệu đánh giá kỹ năng riêng', ctx.canvas.width / 2, ctx.canvas.height / 2);
+    return;
+  }
+
+  // Calculate average scores for each skill type
+  const skillAverages = {};
+  Object.keys(skillTypes).forEach(skillType => {
+    const assessments = skillAssessments.filter(a => a.skillType === skillType);
+    if (assessments.length > 0) {
+      const avgScore = assessments.reduce((sum, a) => sum + a.score, 0) / assessments.length;
+      const avgPercentage = (avgScore / skillTypes[skillType].maxScore) * 100;
+      skillAverages[skillType] = Math.round(avgPercentage);
+    } else {
+      skillAverages[skillType] = 0;
+    }
+  });
+
+  const labels = Object.keys(skillTypes).map(key => skillTypes[key].name);
+  const data = Object.keys(skillTypes).map(key => skillAverages[key]);
+  const colors = Object.keys(skillTypes).map(key => skillTypes[key].color);
+
+  try {
+    skillRadarChart = new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Điểm trung bình (%)',
+          data: data,
+          backgroundColor: 'rgba(26, 42, 108, 0.2)',
+          borderColor: 'rgba(26, 42, 108, 1)',
+          pointBackgroundColor: colors,
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointRadius: 6,
+          pointHoverBackgroundColor: '#fff',
+          pointHoverBorderColor: 'rgba(26, 42, 108, 1)',
+          borderWidth: 3
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          r: {
+            beginAtZero: true,
+            max: 100,
+            ticks: {
+              stepSize: 20,
+              callback: value => `${value}%`,
+              font: { size: 11 }
+            },
+            grid: { color: 'rgba(0,0,0,0.1)' },
+            angleLines: { color: 'rgba(0,0,0,0.1)' },
+            pointLabels: {
+              font: { size: 10, weight: 'bold' },
+              color: '#333'
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: { font: { size: 12, weight: 'bold' } }
+          },
+          tooltip: {
+            callbacks: {
+              label: context => {
+                const skillType = Object.keys(skillTypes)[context.dataIndex];
+                const count = skillAssessments.filter(a => a.skillType === skillType).length;
+                return `${context.label}: ${context.raw}% (${count} bài test)`;
+              }
+            }
+          }
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Lỗi khi tạo individual skills radar chart:', error);
+  }
+}
+
+// Update combined skills radar chart
+function updateCombinedSkillsRadarChart() {
+  // Implementation for showing both JLPT and individual skills
+  // This would be more complex, showing multiple datasets
+  updateIndividualSkillsRadarChart(); // For now, show individual skills
+}
+
+// Refresh all skill-related charts
+function refreshSkillCharts() {
+  updateSkillRadarChartWithFilter();
+  
+  // Update progress heatmap if it includes skill assessments
+  if (typeof createProgressHeatmap === 'function') {
+    // Combine JLPT scores and skill assessments for heatmap
+    const combinedData = [...jlptScores];
+    createProgressHeatmap(combinedData);
+  }
+}
+
+// Setup skill assessment event listeners
+function setupSkillAssessmentEventListeners() {
+  // Manage skill assessments button
+  document.getElementById('manage-skill-assessments-btn')?.addEventListener('click', () => {
+    loadSkillAssessments();
+    showModal(document.getElementById('skill-assessments-modal'));
+  });
+
+  // Close skill assessments modal
+  document.getElementById('close-skill-assessments-modal')?.addEventListener('click', () => {
+    hideModal(document.getElementById('skill-assessments-modal'));
+  });
+
+  // Add new skill assessment
+  document.getElementById('add-skill-assessment-btn')?.addEventListener('click', openAddSkillAssessmentModal);
+
+  // Close skill assessment detail modal
+  document.getElementById('close-skill-assessment-modal')?.addEventListener('click', () => {
+    hideModal(document.getElementById('skill-assessment-modal'));
+  });
+
+  // Cancel skill assessment
+  document.getElementById('cancel-skill-assessment')?.addEventListener('click', () => {
+    hideModal(document.getElementById('skill-assessment-modal'));
+  });
+
+  // Save skill assessment
+  document.getElementById('save-skill-assessment')?.addEventListener('click', saveSkillAssessment);
+
+  // Skill type change handler
+  document.getElementById('skill-assessment-type')?.addEventListener('change', updateSkillScoreMax);
+
+  // Skill chart filter change
+  document.getElementById('skill-chart-filter')?.addEventListener('change', (e) => {
+    currentSkillFilter = e.target.value;
+    updateSkillRadarChartWithFilter();
+  });
 }
 
 async function updateStatsCards(stats) {
@@ -1993,7 +2886,7 @@ async function saveJLptScore() {
     hideModal(document.getElementById('jlpt-score-detail-modal'));
     // Sau khi lưu thành công
     await loadJLptScores();
-    refreshJLptCharts(); // ← THÊM DÒNG NÀY
+    refreshJLptCharts(); 
     showCustomAlert('Đã lưu điểm số thành công!');
 
   } catch (error) {
@@ -2201,8 +3094,15 @@ function loadJLptScoresChart() {
 
 // Hàm refresh biểu đồ khi có thay đổi điểm số
 function refreshJLptCharts() {
-  loadJLptScores();
-  updateScoresRadarChart();
+  loadJLptScores().then(() => {
+    updateScoresRadarChart();
+    createProgressHeatmap(jlptScores);
+  });
+  
+  // Also refresh skill assessments
+  loadSkillAssessments().then(() => {
+    updateSkillRadarChartWithFilter();
+  });
 }
 
 // Hàm thiết lập event listeners cho phần điểm số
@@ -2916,6 +3816,63 @@ function pauseTimer() {
   console.log('Tạm dừng đếm ngược');
 }
 
+// Cập nhật handleTimerCompletion với âm thanh được cải thiện
+function handleTimerCompletion() {
+  clearInterval(countdownInterval);
+
+  if (isStudyPhase) {
+    console.log('Study phase completed');
+    
+    // Phát âm thanh thông báo hết giờ học
+    playNotificationSound({
+      type: 'notification',
+      repeat: true,
+      repeatCount: 3,
+      repeatInterval: 1500
+    });
+
+    // Vibration cho mobile
+    if ('vibrate' in navigator) {
+      navigator.vibrate([300, 100, 300, 100, 300]);
+    }
+
+    isStudyPhase = false;
+    timerDuration = parseInt(breakMinutesInput.value) * 60;
+    timerStartTime = new Date().getTime();
+
+    isManualClose = false;
+    showModal(breakModal);
+    updateBreakMessage(studyMinutesInput.value, breakMinutesInput.value);
+
+    if (document.hidden) {
+      showNotification("Hết giờ học!", `Đã hoàn thành ${studyMinutesInput.value} phút học tập!`);
+    }
+  } else {
+    console.log('Break phase completed');
+    
+    // Phát âm thanh thông báo hết giờ nghỉ
+    playNotificationSound({
+      type: 'notification',
+      repeat: true,
+      repeatCount: 5,
+      repeatInterval: 800
+    });
+
+    // Vibration cho mobile
+    if ('vibrate' in navigator) {
+      navigator.vibrate([200, 50, 200, 50, 200, 50, 200]);
+    }
+
+    stopTimer();
+    
+    if (document.hidden) {
+      showNotification("Hết giờ nghỉ!", `Đã nghỉ ${breakMinutesInput.value} phút. Sẵn sàng học tiếp!`);
+    }
+  }
+}
+  ///// ----------------------------
+ // BONG BÓNG ĐỒNG HỒ NỔI
+///// ----------------------------
 // Hàm thu nhỏ bộ đếm giờ thành bong bóng
 function minimizeToBubble() {
   isTimerMinimized = true;
@@ -2989,7 +3946,13 @@ function updateBubbleTimerDisplay() {
   }
 }
 
+// Cập nhật stopTimer để dừng âm thanh
 function stopTimer() {
+  console.log('Stopping timer - cleaning up audio');
+  
+  // Dừng âm thanh trước tiên
+  stopNotificationSound();
+  
   endStudySession();
   clearInterval(countdownInterval);
   countdownInterval = null;
@@ -2997,12 +3960,14 @@ function stopTimer() {
   isStudyPhase = true;
   timeLeft = parseInt(studyMinutesInput.value) * 60;
   updateTimerDisplay();
+  
   if (timerStatus) timerStatus.textContent = 'Sẵn sàng bắt đầu học...';
+  
   startTimerBtn.style.display = 'inline-block';
   pauseTimerBtn.style.display = 'none';
   stopTimerBtn.style.display = 'none';
 
-  // Ẩn bong bóng nếu đang hiển thị
+  // Ẩn floating timer
   if (isTimerMinimized) {
     const bubble = document.getElementById('floating-timer-bubble');
     if (bubble) {
@@ -3011,15 +3976,15 @@ function stopTimer() {
     isTimerMinimized = false;
   }
 
-  // Dừng cập nhật bong bóng
   if (floatingTimerInterval) {
     clearInterval(floatingTimerInterval);
     floatingTimerInterval = null;
   }
 
-  console.log('Dừng đếm ngược');
-  stopNotificationSound();
-  console.log('Dừng âm thanh');
+  if (minimizedTimerInterval) {
+    clearInterval(minimizedTimerInterval);
+    minimizedTimerInterval = null;
+  }
 }
 
 // Thêm sự kiện cho nút thu nhỏ và khôi phục
@@ -3096,104 +4061,6 @@ function updateBreakMessage(studyMinutes, breakMinutes) {
   }
 }
 
-// Cập nhật hàm handleTimerCompletion để có âm thanh báo
-function handleTimerCompletion() {
-  clearInterval(countdownInterval);
-
-  if (isStudyPhase) {
-    isStudyPhase = false;
-    timerDuration = parseInt(breakMinutesInput.value) * 60;
-    timerStartTime = new Date().getTime();
-
-    isManualClose = false;
-    showModal(breakModal);
-
-    if (document.hidden) {
-      showNotification("⏰ Hết giờ học!", `Đã hoàn thành ${studyMinutesInput.value} phút học tập!`);
-    }
-  } else {
-    stopTimer();
-    if (document.hidden) {
-      showNotification("🔄 Hết giờ nghỉ!", `Đã nghỉ ${breakMinutesInput.value} phút. Sẵn sàng học tiếp!`);
-    }
-  }
-
-  // Phát âm thanh báo với nhiều âm thanh dự phòng
-  if (Notification.permission === 'granted') {
-    playNotificationSound();
-  }
-
-  // Thêm rung cho thiết bị di động nếu hỗ trợ
-  if ('vibrate' in navigator) {
-    navigator.vibrate([200, 100, 200, 100, 200]);
-  }
-}
-
-// Cập nhật hàm playNotificationSound với nhiều âm thanh dự phòng
-function playNotificationSound() {
-  try {
-    if (notificationAudio) {
-      notificationAudio.pause();
-      notificationAudio.currentTime = 0;
-    }
-
-    // Danh sách âm thanh dự phòng
-    const soundUrls = [
-      'https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3',
-      'https://assets.mixkit.co/sfx/preview/mixkit-bell-notification-933.mp3',
-      'https://assets.mixkit.co/sfx/preview/mixkit-achievement-bell-600.mp3',
-      'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+zuwGQyCP....'
-    ];
-
-    // Thử phát âm thanh từ danh sách
-    const playSound = (index = 0) => {
-      if (index >= soundUrls.length) {
-        console.log('Không thể phát âm thanh thông báo');
-        return;
-      }
-
-      notificationAudio = new Audio(soundUrls[index]);
-      notificationAudio.volume = 0.7;
-
-      const playPromise = notificationAudio.play();
-
-      if (playPromise !== undefined) {
-        playPromise.then(() => {
-          console.log('Phát âm thanh thành công!');
-        }).catch(error => {
-          console.log(`Thử âm thanh tiếp theo (${index + 1})`);
-          playSound(index + 1);
-        });
-      }
-    };
-
-    playSound();
-
-  } catch (error) {
-    console.error("Lỗi khi phát âm thanh:", error);
-
-    // Fallback: tạo âm thanh bằng Web Audio API
-    try {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-
-      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1);
-
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 1);
-
-      console.log('Phát âm thanh dự phòng bằng Web Audio API');
-    } catch (webAudioError) {
-      console.error("Không thể phát âm thanh:", webAudioError);
-    }
-  }
-}
 
 function showNotification(title, message) {
   if (!("Notification" in window)) {
@@ -3210,14 +4077,6 @@ function showNotification(title, message) {
         new Notification(title, { body: message });
       }
     });
-  }
-}
-
-function stopNotificationSound() {
-  if (notificationAudio) {
-    notificationAudio.pause();
-    console.log('Dừng âm thanh thông báo.');
-    notificationAudio.currentTime = 0;
   }
 }
 
@@ -3465,11 +4324,27 @@ function initTools() {
 
 // Initialize the app
 document.addEventListener("DOMContentLoaded", async () => {
+  // Khởi tạo audio sau user interaction đầu tiên
+  const enableAudioOnInteraction = () => {
+    initializeAudioSystem();
+    addAudioControlsToModal();
+    
+    // Remove listeners sau khi đã khởi tạo
+    document.removeEventListener('click', enableAudioOnInteraction);
+    document.removeEventListener('touchstart', enableAudioOnInteraction);
+    document.removeEventListener('keydown', enableAudioOnInteraction);
+  };
+
+  document.addEventListener('click', enableAudioOnInteraction);
+  document.addEventListener('touchstart', enableAudioOnInteraction);
+  document.addEventListener('keydown', enableAudioOnInteraction);
   currentWeekStart = getStartOfWeek();
   updateRemainingDays();
   await loadCustomTaskTypes();
 
   loadCurrentWeek();
+  setupSkillAssessmentEventListeners();
+  await loadSkillAssessments();
   setupEventListeners();
   setupTabNavigation();
   setupRealTimeListeners();
