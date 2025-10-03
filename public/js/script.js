@@ -650,37 +650,6 @@ async function loadSchedule(dates) {
   updateProgress();
 }
 
-function generateDayCardHTML(date, data) {
-  const d = new Date(date);
-  const dayName = d.toLocaleDateString("vi-VN", { weekday: "long" });
-  const displayDate = `${d.getDate()}/${d.getMonth() + 1}`;
-  const isWeekend = [0, 6].includes(d.getDay());
-
-  const tasks = (data.tasks || []).map((task, i) => `
-        <li class="study-item ${task.done ? "done" : ""}" data-task-index="${i}">
-            <span>${task.title}</span>
-            <div>
-                <button class="edit-task-btn"><i class="fas fa-edit"></i></button>
-                <button class="check-btn ${task.done ? "done" : ""}">
-                    <i class="${task.done ? "fas fa-check-circle" : "far fa-circle"}"></i>
-                </button>
-            </div>
-        </li>
-    `).join("");
-
-  return `
-        <div class="day-card ${isWeekend ? "weekend" : ""}" data-date="${date}">
-            <div class="day-header">
-                <div class="day-name">${dayName.charAt(0).toUpperCase() + dayName.slice(1)}</div>
-                <div class="day-date">${displayDate}</div>
-            </div>
-            <div class="study-time">${data.time || "Thời gian: 0 phút"}</div>
-            <ul class="study-items">${tasks}</ul>
-            <button class="add-task-btn"><i class="fas fa-plus"></i> Thêm nhiệm vụ</button>
-        </div>
-    `;
-}
-
 function setupTabNavigation() {
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
@@ -1038,13 +1007,8 @@ async function saveDayData() {
 
   if (!currentEditingDay || !studyDurationInput || !tasksContainer) return;
 
-  const minutes = parseInt(studyDurationInput.value) || 0;
-  const hours = Math.floor(minutes / 60);
-  const remainingMins = minutes % 60;
-  const timeStr = hours > 0
-    ? `Thời gian: ${hours} giờ ${remainingMins} phút`
-    : `Thời gian: ${minutes} phút`;
-
+  // TÍNH TỔNG THỜI GIAN CÁC TASK ĐÃ HOÀN THÀNH
+  let totalCompletedMinutes = 0;
   const tasks = [];
   const taskInputs = tasksContainer.querySelectorAll(".task-input");
   const newTaskTypes = []; // Lưu các task-type mới để thêm vào danh sách
@@ -1061,6 +1025,8 @@ async function saveDayData() {
       if (subjectSelect && durationInput) {
         const subject = subjectSelect.value;
         let taskType = '';
+        const duration = parseInt(durationInput.value) || 0;
+        const isDone = doneStatus ? doneStatus.value === 'true' : false;
 
         if (subject === 'language' && typeSelect) {
           taskType = typeSelect.value;
@@ -1074,15 +1040,27 @@ async function saveDayData() {
 
         tasks.push({
           title: input.value.trim(),
-          done: doneStatus ? doneStatus.value === 'true' : false,
+          done: isDone,
           subject: subject,
           type: taskType,
-          duration: parseInt(durationInput.value) || 0,
+          duration: duration,
           note: noteInput ? noteInput.value.trim() : ""
         });
+
+        // CỘNG THỜI GIAN NẾU TASK ĐÃ HOÀN THÀNH
+        if (isDone) {
+          totalCompletedMinutes += duration;
+        }
       }
     }
   });
+
+  // TẠO CHUỖI THỜI GIAN TỪ TỔNG ĐÃ HOÀN THÀNH
+  const hours = Math.floor(totalCompletedMinutes / 60);
+  const remainingMins = totalCompletedMinutes % 60;
+  const timeStr = hours > 0
+    ? `Thời gian: ${hours} giờ ${remainingMins} phút`
+    : `Thời gian: ${totalCompletedMinutes} phút`;
 
   try {
     const weekNumber = Math.floor((new Date(currentEditingDay) - new Date("2025-07-07")) / (7 * 86400000)) + 1;
@@ -1114,6 +1092,54 @@ async function saveDayData() {
     console.error("Lỗi khi lưu dữ liệu:", error);
     showCustomAlert("Có lỗi xảy ra khi lưu dữ liệu. Vui lòng thử lại!");
   }
+}
+
+function generateDayCardHTML(date, data) {
+  const d = new Date(date);
+  const dayName = d.toLocaleDateString("vi-VN", { weekday: "long" });
+  const displayDate = `${d.getDate()}/${d.getMonth() + 1}`;
+  const isWeekend = [0, 6].includes(d.getDay());
+
+  // TÍNH TỔNG THỜI GIAN CÁC TASK ĐÃ HOÀN THÀNH
+  let totalCompletedMinutes = 0;
+  const tasks = data.tasks || [];
+  
+  tasks.forEach(task => {
+    if (task.done) {
+      totalCompletedMinutes += task.duration || 0;
+    }
+  });
+
+  // TẠO CHUỖI HIỂN THỊ THỜI GIAN
+  const hours = Math.floor(totalCompletedMinutes / 60);
+  const remainingMins = totalCompletedMinutes % 60;
+  const displayTime = hours > 0
+    ? `Thời gian: ${hours} giờ ${remainingMins} phút`
+    : `Thời gian: ${totalCompletedMinutes} phút`;
+
+  const tasksHTML = tasks.map((task, i) => `
+        <li class="study-item ${task.done ? "done" : ""}" data-task-index="${i}">
+            <span>${task.title}</span>
+            <div>
+                <button class="edit-task-btn"><i class="fas fa-edit"></i></button>
+                <button class="check-btn ${task.done ? "done" : ""}">
+                    <i class="${task.done ? "fas fa-check-circle" : "far fa-circle"}"></i>
+                </button>
+            </div>
+        </li>
+    `).join("");
+
+  return `
+        <div class="day-card ${isWeekend ? "weekend" : ""}" data-date="${date}">
+            <div class="day-header">
+                <div class="day-name">${dayName.charAt(0).toUpperCase() + dayName.slice(1)}</div>
+                <div class="day-date">${displayDate}</div>
+            </div>
+            <div class="study-time">${displayTime}</div>
+            <ul class="study-items">${tasksHTML}</ul>
+            <button class="add-task-btn"><i class="fas fa-plus"></i> Thêm nhiệm vụ</button>
+        </div>
+    `;
 }
 
 function detectTaskType(title) {
