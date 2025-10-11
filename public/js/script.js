@@ -79,45 +79,45 @@ const subjectTaskTypes = {
 
 // Skill Assessment data structure
 const skillTypes = {
-  kanji: { 
-    name: 'Test Kanji', 
-    maxScore: 100, 
+  kanji: {
+    name: 'Test Kanji',
+    maxScore: 100,
     icon: 'fas fa-language',
     color: '#e91e63'
   },
-  vocabulary: { 
-    name: 'Test Từ vựng', 
-    maxScore: 100, 
+  vocabulary: {
+    name: 'Test Từ vựng',
+    maxScore: 100,
     icon: 'fas fa-book',
     color: '#2196f3'
   },
-  grammar: { 
-    name: 'Test Ngữ pháp', 
-    maxScore: 100, 
+  grammar: {
+    name: 'Test Ngữ pháp',
+    maxScore: 100,
     icon: 'fas fa-code-branch',
     color: '#ff9800'
   },
-  reading: { 
-    name: 'Test Đọc hiểu', 
-    maxScore: 100, 
+  reading: {
+    name: 'Test Đọc hiểu',
+    maxScore: 100,
     icon: 'fas fa-book-open',
     color: '#4caf50'
   },
-  listening: { 
-    name: 'Test Nghe hiểu', 
-    maxScore: 100, 
+  listening: {
+    name: 'Test Nghe hiểu',
+    maxScore: 100,
     icon: 'fas fa-headphones',
     color: '#9c27b0'
   },
-  speaking: { 
-    name: 'Test Nói', 
-    maxScore: 100, 
+  speaking: {
+    name: 'Test Nói',
+    maxScore: 100,
     icon: 'fas fa-microphone',
     color: '#f44336'
   },
-  writing: { 
-    name: 'Test Viết', 
-    maxScore: 100, 
+  writing: {
+    name: 'Test Viết',
+    maxScore: 100,
     icon: 'fas fa-pen',
     color: '#795548'
   }
@@ -165,7 +165,7 @@ document.body.appendChild(timerFloatingContainer);
 // Initialize audio system
 function initializeAudioSystem() {
   console.log('Initializing audio system...');
-  
+
   // Tạo các audio instances với fallback
   const audioSources = {
     notification: [
@@ -217,9 +217,9 @@ function createAudioInstance(name, sources) {
 // Tạo âm thanh synthetic bằng Web Audio API
 function createSyntheticAudio(type) {
   const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  
+
   return {
-    play: function() {
+    play: function () {
       return new Promise((resolve) => {
         try {
           const oscillator = audioContext.createOscillator();
@@ -250,7 +250,7 @@ function createSyntheticAudio(type) {
         }
       });
     },
-    pause: () => {},
+    pause: () => { },
     currentTime: 0,
     volume: audioManager.volume
   };
@@ -288,9 +288,9 @@ function createAudioInstance(name, sources) {
 // Tạo âm thanh synthetic bằng Web Audio API
 function createSyntheticAudio(type) {
   const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  
+
   return {
-    play: function() {
+    play: function () {
       return new Promise((resolve) => {
         try {
           const oscillator = audioContext.createOscillator();
@@ -321,7 +321,7 @@ function createSyntheticAudio(type) {
         }
       });
     },
-    pause: () => {},
+    pause: () => { },
     currentTime: 0,
     volume: audioManager.volume
   };
@@ -334,11 +334,11 @@ async function playNotificationSound(options = {}) {
     return;
   }
 
-  const { 
-    type = 'notification', 
-    repeat = false, 
-    repeatCount = 3, 
-    repeatInterval = 1000 
+  const {
+    type = 'notification',
+    repeat = false,
+    repeatCount = 3,
+    repeatInterval = 1000
   } = options;
 
   const instance = audioManager.audioInstances.get(type);
@@ -393,7 +393,7 @@ async function playAudioOnce(instance) {
 async function playAudioWithRepeat(instance, count, interval) {
   for (let i = 0; i < count && instance.isPlaying; i++) {
     await playAudioOnce(instance);
-    
+
     if (i < count - 1 && instance.isPlaying) {
       await new Promise(resolve => setTimeout(resolve, interval));
     }
@@ -403,12 +403,12 @@ async function playAudioWithRepeat(instance, count, interval) {
 // Dừng tất cả âm thanh
 function stopNotificationSound() {
   console.log('Stopping all notification sounds');
-  
+
   audioManager.audioInstances.forEach((instance, name) => {
     try {
       if (instance.isPlaying) {
         instance.isPlaying = false;
-        
+
         if (instance.playPromise) {
           instance.playPromise.then(() => {
             if (instance.audio.pause) {
@@ -477,13 +477,13 @@ function showModal(modalElement) {
 function hideModal(modalElement) {
   if (modalElement) {
     modalElement.style.display = 'none';
-    
+
     // Dừng âm thanh khi đóng modal timer
     if (modalElement === countdownModal || modalElement === breakModal) {
       console.log('Timer modal closed - stopping audio');
       stopNotificationSound();
     }
-    
+
     if (modalElement === breakModal) {
       isManualClose = true;
     }
@@ -493,7 +493,7 @@ function hideModal(modalElement) {
 function hideBreakModal() {
   console.log('Break modal manually closed');
   stopNotificationSound();
-  
+
   if (breakModal) {
     breakModal.style.display = 'none';
   }
@@ -539,7 +539,7 @@ function setupAudioControlsEvents() {
     audioEnabledCheckbox.addEventListener('change', (e) => {
       audioManager.isEnabled = e.target.checked;
       console.log(`Audio ${audioManager.isEnabled ? 'enabled' : 'disabled'}`);
-      
+
       if (!audioManager.isEnabled) {
         stopNotificationSound();
       }
@@ -551,7 +551,7 @@ function setupAudioControlsEvents() {
       const volume = e.target.value / 100;
       audioManager.volume = volume;
       volumeDisplay.textContent = e.target.value + '%';
-      
+
       // Cập nhật volume cho tất cả audio instances
       audioManager.audioInstances.forEach(instance => {
         if (instance.audio && typeof instance.audio.volume !== 'undefined') {
@@ -1094,35 +1094,208 @@ async function saveDayData() {
   }
 }
 
+// Drag and Drop Variables
+let draggedTask = null;
+let dragSourceDate = null;
+
+// Initialize Drag and Drop
+function initializeDragAndDrop() {
+  const scheduleGrid = document.getElementById('weekly-schedule');
+  if (!scheduleGrid) return;
+
+  // Add event listeners for drag and drop
+  scheduleGrid.addEventListener('dragstart', handleDragStart);
+  scheduleGrid.addEventListener('dragover', handleDragOver);
+  scheduleGrid.addEventListener('dragenter', handleDragEnter);
+  scheduleGrid.addEventListener('dragleave', handleDragLeave);
+  scheduleGrid.addEventListener('drop', handleDrop);
+  scheduleGrid.addEventListener('dragend', handleDragEnd);
+}
+
+// Drag Start Handler
+function handleDragStart(e) {
+  const taskItem = e.target.closest('.study-item');
+  if (!taskItem) return;
+
+  draggedTask = taskItem;
+  dragSourceDate = taskItem.closest('.day-card').dataset.date;
+
+  // Add dragging class
+  taskItem.classList.add('dragging');
+
+  // Set drag image
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', taskItem.dataset.taskIndex);
+
+  // Store source date in dataTransfer for cross-day dragging
+  e.dataTransfer.setData('source-date', dragSourceDate);
+}
+
+// Drag Over Handler
+function handleDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+
+// Drag Enter Handler
+function handleDragEnter(e) {
+  const dayCard = e.target.closest('.day-card');
+  const taskItem = e.target.closest('.study-item');
+
+  if (dayCard) {
+    dayCard.classList.add('drop-zone');
+  }
+
+  if (taskItem && !taskItem.classList.contains('dragging')) {
+    taskItem.classList.add('drag-over');
+  }
+}
+
+// Drag Leave Handler
+function handleDragLeave(e) {
+  const dayCard = e.target.closest('.day-card');
+  const taskItem = e.target.closest('.study-item');
+
+  // Only remove classes if not entering a child element
+  if (dayCard && !dayCard.contains(e.relatedTarget)) {
+    dayCard.classList.remove('drop-zone');
+  }
+
+  if (taskItem && !taskItem.contains(e.relatedTarget)) {
+    taskItem.classList.remove('drag-over');
+  }
+}
+
+// Drop Handler
+function handleDrop(e) {
+  e.preventDefault();
+
+  const targetDayCard = e.target.closest('.day-card');
+  const targetTaskItem = e.target.closest('.study-item');
+  const targetDate = targetDayCard ? targetDayCard.dataset.date : null;
+  const sourceDate = e.dataTransfer.getData('source-date');
+  const taskIndex = e.dataTransfer.getData('text/plain');
+
+  if (!targetDate || !sourceDate || !draggedTask) return;
+
+  // Remove visual feedback
+  document.querySelectorAll('.day-card').forEach(card => {
+    card.classList.remove('drop-zone');
+  });
+  document.querySelectorAll('.study-item').forEach(item => {
+    item.classList.remove('drag-over');
+  });
+
+  // Move task between days
+  if (sourceDate !== targetDate) {
+    moveTaskBetweenDays(sourceDate, parseInt(taskIndex), targetDate);
+  }
+}
+
+// Drag End Handler
+function handleDragEnd(e) {
+  // Clean up
+  document.querySelectorAll('.day-card').forEach(card => {
+    card.classList.remove('drop-zone');
+  });
+  document.querySelectorAll('.study-item').forEach(item => {
+    item.classList.remove('drag-over');
+    item.classList.remove('dragging');
+  });
+
+  draggedTask = null;
+  dragSourceDate = null;
+}
+
+// Move task between different days
+async function moveTaskBetweenDays(sourceDate, taskIndex, targetDate) {
+  try {
+    // Get source day data
+    const sourceSnapshot = await db.ref(`schedule/${sourceDate}`).once('value');
+    const sourceData = sourceSnapshot.val() || { time: "0 phút", tasks: [] };
+
+    // Check if task exists
+    if (!sourceData.tasks || !sourceData.tasks[taskIndex]) {
+      showCustomAlert('Không tìm thấy nhiệm vụ để di chuyển!');
+      return;
+    }
+
+    // Get target day data
+    const targetSnapshot = await db.ref(`schedule/${targetDate}`).once('value');
+    const targetData = targetSnapshot.val() || { time: "0 phút", tasks: [] };
+
+    // Remove task from source
+    const movedTask = sourceData.tasks.splice(taskIndex, 1)[0];
+
+    // Add task to target
+    if (!targetData.tasks) {
+      targetData.tasks = [];
+    }
+    targetData.tasks.push(movedTask);
+
+    // Update both days in Firebase
+    await db.ref(`schedule/${sourceDate}`).update({
+      tasks: sourceData.tasks
+    });
+
+    await db.ref(`schedule/${targetDate}`).update({
+      tasks: targetData.tasks
+    });
+
+    // Reload the weekly schedule to reflect changes
+    loadCurrentWeek();
+
+    showCustomAlert(`Đã di chuyển nhiệm vụ từ ${formatDisplayDate(sourceDate)} sang ${formatDisplayDate(targetDate)}`);
+
+  } catch (error) {
+    console.error('Lỗi khi di chuyển nhiệm vụ:', error);
+    showCustomAlert('Có lỗi xảy ra khi di chuyển nhiệm vụ!');
+  }
+}
+
+// Helper function to format date for display
+function formatDisplayDate(dateString) {
+  const date = new Date(dateString);
+  return `${date.getDate()}/${date.getMonth() + 1}`;
+}
+
 function generateDayCardHTML(date, data) {
   const d = new Date(date);
   const dayName = d.toLocaleDateString("vi-VN", { weekday: "long" });
   const displayDate = `${d.getDate()}/${d.getMonth() + 1}`;
   const isWeekend = [0, 6].includes(d.getDay());
 
-  // TÍNH TỔNG THỜI GIAN CÁC TASK ĐÃ HOÀN THÀNH
+  // Calculate total completed minutes
   let totalCompletedMinutes = 0;
   const tasks = data.tasks || [];
-  
+
   tasks.forEach(task => {
     if (task.done) {
       totalCompletedMinutes += task.duration || 0;
     }
   });
 
-  // TẠO CHUỖI HIỂN THỊ THỜI GIAN
+  // Create display time string
   const hours = Math.floor(totalCompletedMinutes / 60);
   const remainingMins = totalCompletedMinutes % 60;
   const displayTime = hours > 0
     ? `Thời gian: ${hours} giờ ${remainingMins} phút`
     : `Thời gian: ${totalCompletedMinutes} phút`;
 
+  // Update tasks HTML to include drag handles
   const tasksHTML = tasks.map((task, i) => `
-        <li class="study-item ${task.done ? "done" : ""}" data-task-index="${i}">
-            <span>${task.title}</span>
-            <div>
-                <button class="edit-task-btn"><i class="fas fa-edit"></i></button>
-                <button class="check-btn ${task.done ? "done" : ""}">
+        <li class="study-item ${task.done ? "done" : ""}" 
+            data-task-index="${i}" 
+            draggable="true">
+            <div class="drag-handle" title="Kéo để di chuyển">
+                <i class="fas fa-grip-vertical"></i>
+            </div>
+            <span class="task-content">${task.title}</span>
+            <div class="task-actions">
+                <button class="edit-task-btn" title="Chỉnh sửa">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="check-btn ${task.done ? "done" : ""}" title="${task.done ? 'Đánh dấu chưa hoàn thành' : 'Đánh dấu đã hoàn thành'}">
                     <i class="${task.done ? "fas fa-check-circle" : "far fa-circle"}"></i>
                 </button>
             </div>
@@ -1446,7 +1619,7 @@ function renderSkillAssessmentsTable() {
     const date = new Date(assessment.date);
     const formattedDate = date.toLocaleDateString('vi-VN');
     const skillInfo = skillTypes[assessment.skillType];
-    
+
     return `
       <tr>
         <td>${index + 1}</td>
@@ -1459,11 +1632,11 @@ function renderSkillAssessmentsTable() {
         </td>
         <td>${assessment.title}</td>
         <td>
-          ${assessment.link ? 
-            `<a href="${assessment.link}" target="_blank" title="Xem bài test">
+          ${assessment.link ?
+        `<a href="${assessment.link}" target="_blank" title="Xem bài test">
               <i class="fas fa-external-link-alt"></i>
             </a>` : '-'
-          }
+      }
         </td>
         <td class="score-cell ${getSkillScoreClass(assessment.score, skillInfo.maxScore)}">
           <strong>${assessment.score}</strong>/${skillInfo.maxScore}
@@ -1580,36 +1753,36 @@ function updateSkillAssessmentsSummary() {
 // Calculate skill progress over time
 function calculateSkillProgress() {
   const progress = {};
-  
+
   Object.keys(skillTypes).forEach(skillType => {
     const skillAssessmentsForType = skillAssessments
       .filter(a => a.skillType === skillType)
       .sort((a, b) => new Date(a.date) - new Date(b.date));
-    
+
     if (skillAssessmentsForType.length >= 2) {
       const first = skillAssessmentsForType[0];
       const last = skillAssessmentsForType[skillAssessmentsForType.length - 1];
       const firstPercentage = (first.score / skillTypes[first.skillType].maxScore) * 100;
       const lastPercentage = (last.score / skillTypes[last.skillType].maxScore) * 100;
-      
+
       progress[skillType] = lastPercentage - firstPercentage;
     }
   });
-  
+
   return progress;
 }
 
 function findMostImprovedSkill(progress) {
   let maxImprovement = -Infinity;
   let mostImproved = 'Chưa có dữ liệu';
-  
+
   Object.entries(progress).forEach(([skillType, improvement]) => {
     if (improvement > maxImprovement) {
       maxImprovement = improvement;
       mostImproved = skillTypes[skillType].name;
     }
   });
-  
+
   return mostImproved;
 }
 
@@ -1625,7 +1798,7 @@ function openAddSkillAssessmentModal() {
   document.getElementById('skill-assessment-title').value = '';
   document.getElementById('skill-assessment-link').value = '';
   document.getElementById('skill-assessment-score').value = '';
-  
+
   updateSkillScoreMax();
   showModal(document.getElementById('skill-assessment-modal'));
 }
@@ -1722,7 +1895,7 @@ async function deleteSkillAssessment(assessmentId) {
 // Update skill radar chart with filter
 function updateSkillRadarChartWithFilter() {
   const filterValue = document.getElementById('skill-chart-filter')?.value || 'all';
-  
+
   if (filterValue === 'jlpt') {
     updateScoresRadarChart(); // Show JLPT scores
   } else if (filterValue === 'individual') {
@@ -1839,7 +2012,7 @@ function updateCombinedSkillsRadarChart() {
 // Refresh all skill-related charts
 function refreshSkillCharts() {
   updateSkillRadarChartWithFilter();
-  
+
   // Update progress heatmap if it includes skill assessments
   if (typeof createProgressHeatmap === 'function') {
     // Combine JLPT scores and skill assessments for heatmap
@@ -1964,150 +2137,150 @@ async function calculateStreak() {
 }
 
 function initProgressChart(weeklyData) {
-    const ctx = document.getElementById('progressChart');
-    
-    // Debug: Kiểm tra phần tử canvas
-    if (!ctx) {
-        console.error('Không tìm thấy phần tử progressChart canvas');
-        return;
-    }
-    
-    const canvasCtx = ctx.getContext('2d');
-    if (!canvasCtx) {
-        console.error('Không thể lấy context của progressChart canvas');
-        return;
-    }
+  const ctx = document.getElementById('progressChart');
 
-    console.log('Đang khởi tạo progressChart với dữ liệu:', weeklyData);
+  // Debug: Kiểm tra phần tử canvas
+  if (!ctx) {
+    console.error('Không tìm thấy phần tử progressChart canvas');
+    return;
+  }
 
-    // Hủy biểu đồ cũ nếu tồn tại
-    if (progressChart) {
-        progressChart.destroy();
-        progressChart = null;
-    }
+  const canvasCtx = ctx.getContext('2d');
+  if (!canvasCtx) {
+    console.error('Không thể lấy context của progressChart canvas');
+    return;
+  }
 
-    // Kiểm tra dữ liệu
-    if (!weeklyData || weeklyData.length === 0) {
-        console.warn('Không có dữ liệu weeklyData để hiển thị biểu đồ');
-        
-        // Hiển thị thông báo "Không có dữ liệu"
-        canvasCtx.fillStyle = '#666';
-        canvasCtx.font = '16px Arial';
-        canvasCtx.textAlign = 'center';
-        canvasCtx.fillText('Chưa có dữ liệu tiến độ tuần', ctx.width / 2, ctx.height / 2);
-        return;
-    }
+  console.log('Đang khởi tạo progressChart với dữ liệu:', weeklyData);
 
-    try {
-        progressChart = new Chart(canvasCtx, {
-            type: 'bar',
-            data: {
-                labels: weeklyData.map(item => `Tuần ${item.week}`),
-                datasets: [
-                    {
-                        label: 'Thời gian học (giờ)',
-                        data: weeklyData.map(item => Math.round(item.studyTime / 60)),
-                        type: 'line',
-                        borderColor: 'rgba(253, 187, 45, 1)',
-                        backgroundColor: 'rgba(253, 187, 45, 0.2)',
-                        borderWidth: 3,
-                        pointBackgroundColor: 'rgba(253, 187, 45, 1)',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        pointRadius: 5,
-                        yAxisID: 'y1'
-                    },
-                    {
-                        label: 'Tỷ lệ hoàn thành (%)',
-                        data: weeklyData.map(item => item.progress),
-                        backgroundColor: 'rgba(26, 42, 108, 0.8)',
-                        borderColor: 'rgba(26, 42, 108, 1)',
-                        borderWidth: 1,
-                        yAxisID: 'y'
-                    }
-                ]
+  // Hủy biểu đồ cũ nếu tồn tại
+  if (progressChart) {
+    progressChart.destroy();
+    progressChart = null;
+  }
+
+  // Kiểm tra dữ liệu
+  if (!weeklyData || weeklyData.length === 0) {
+    console.warn('Không có dữ liệu weeklyData để hiển thị biểu đồ');
+
+    // Hiển thị thông báo "Không có dữ liệu"
+    canvasCtx.fillStyle = '#666';
+    canvasCtx.font = '16px Arial';
+    canvasCtx.textAlign = 'center';
+    canvasCtx.fillText('Chưa có dữ liệu tiến độ tuần', ctx.width / 2, ctx.height / 2);
+    return;
+  }
+
+  try {
+    progressChart = new Chart(canvasCtx, {
+      type: 'bar',
+      data: {
+        labels: weeklyData.map(item => `Tuần ${item.week}`),
+        datasets: [
+          {
+            label: 'Thời gian học (giờ)',
+            data: weeklyData.map(item => Math.round(item.studyTime / 60)),
+            type: 'line',
+            borderColor: 'rgba(253, 187, 45, 1)',
+            backgroundColor: 'rgba(253, 187, 45, 0.2)',
+            borderWidth: 3,
+            pointBackgroundColor: 'rgba(253, 187, 45, 1)',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointRadius: 5,
+            yAxisID: 'y1'
+          },
+          {
+            label: 'Tỷ lệ hoàn thành (%)',
+            data: weeklyData.map(item => item.progress),
+            backgroundColor: 'rgba(26, 42, 108, 0.8)',
+            borderColor: 'rgba(26, 42, 108, 1)',
+            borderWidth: 1,
+            yAxisID: 'y'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 100,
+            title: {
+              display: true,
+              text: 'Tỷ lệ hoàn thành (%)',
+              font: { weight: 'bold' }
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        title: { 
-                            display: true, 
-                            text: 'Tỷ lệ hoàn thành (%)',
-                            font: { weight: 'bold' }
-                        },
-                        position: 'left',
-                        grid: { color: 'rgba(0,0,0,0.1)' },
-                        ticks: {
-                            callback: function(value) {
-                                return value + '%';
-                            }
-                        }
-                    },
-                    y1: {
-                        beginAtZero: true,
-                        title: { 
-                            display: true, 
-                            text: 'Giờ học',
-                            font: { weight: 'bold' }
-                        },
-                        position: 'right',
-                        grid: { drawOnChartArea: false },
-                        ticks: { 
-                            color: 'rgba(253, 187, 45, 1)',
-                            callback: function(value) {
-                                return value + 'h';
-                            }
-                        }
-                    },
-                    x: {
-                        grid: { color: 'rgba(0,0,0,0.1)' },
-                        ticks: {
-                            maxRotation: 45,
-                            minRotation: 45
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        position: 'top',
-                        labels: { 
-                            usePointStyle: true,
-                            font: { weight: 'bold' }
-                        }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function (context) {
-                                const label = context.dataset.label || '';
-                                const value = context.parsed.y;
-
-                                if (context.datasetIndex === 0) {
-                                    return `${label}: ${value}%`;
-                                } else {
-                                    return `${label}: ${value} giờ`;
-                                }
-                            }
-                        }
-                    }
-                }
+            position: 'left',
+            grid: { color: 'rgba(0,0,0,0.1)' },
+            ticks: {
+              callback: function (value) {
+                return value + '%';
+              }
             }
-        });
+          },
+          y1: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: 'Giờ học',
+              font: { weight: 'bold' }
+            },
+            position: 'right',
+            grid: { drawOnChartArea: false },
+            ticks: {
+              color: 'rgba(253, 187, 45, 1)',
+              callback: function (value) {
+                return value + 'h';
+              }
+            }
+          },
+          x: {
+            grid: { color: 'rgba(0,0,0,0.1)' },
+            ticks: {
+              maxRotation: 45,
+              minRotation: 45
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              usePointStyle: true,
+              font: { weight: 'bold' }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function (context) {
+                const label = context.dataset.label || '';
+                const value = context.parsed.y;
 
-        console.log('progressChart đã được khởi tạo thành công');
+                if (context.datasetIndex === 0) {
+                  return `${label}: ${value}%`;
+                } else {
+                  return `${label}: ${value} giờ`;
+                }
+              }
+            }
+          }
+        }
+      }
+    });
 
-    } catch (error) {
-        console.error('Lỗi khi khởi tạo progressChart:', error);
-        
-        // Hiển thị thông báo lỗi
-        canvasCtx.fillStyle = '#f44336';
-        canvasCtx.font = '14px Arial';
-        canvasCtx.textAlign = 'center';
-        canvasCtx.fillText('Lỗi khi tải biểu đồ tiến độ', ctx.width / 2, ctx.height / 2);
-    }
+    console.log('progressChart đã được khởi tạo thành công');
+
+  } catch (error) {
+    console.error('Lỗi khi khởi tạo progressChart:', error);
+
+    // Hiển thị thông báo lỗi
+    canvasCtx.fillStyle = '#f44336';
+    canvasCtx.font = '14px Arial';
+    canvasCtx.textAlign = 'center';
+    canvasCtx.fillText('Lỗi khi tải biểu đồ tiến độ', ctx.width / 2, ctx.height / 2);
+  }
 }
 
 function initSubjectDistributionChart(distributionData) {
@@ -2514,109 +2687,109 @@ document.getElementById('time-chart-filter')?.addEventListener('change', functio
 
 // Hàm debug để kiểm tra trạng thái biểu đồ
 function debugCharts() {
-    console.log('=== DEBUG CHARTS ===');
-    
-    // Kiểm tra phần tử canvas
-    const progressCanvas = document.getElementById('progressChart');
-    const skillCanvas = document.getElementById('skillRadarChart');
-    const timeCanvas = document.getElementById('timeDistributionChart');
-    
-    console.log('progressChart canvas:', progressCanvas);
-    console.log('skillRadarChart canvas:', skillCanvas);
-    console.log('timeDistributionChart canvas:', timeCanvas);
-    
-    // Kiểm tra kích thước canvas
-    if (progressCanvas) {
-        console.log('progressChart size:', progressCanvas.offsetWidth, 'x', progressCanvas.offsetHeight);
-    }
-    if (skillCanvas) {
-        console.log('skillRadarChart size:', skillCanvas.offsetWidth, 'x', skillCanvas.offsetHeight);
-    }
-    
-    // Kiểm tra instance biểu đồ
-    console.log('progressChart instance:', progressChart);
-    console.log('skillRadarChart instance:', skillRadarChart);
-    console.log('timeDistributionChart instance:', timeDistributionChart);
-    
-    // Kiểm tra dữ liệu
-    getStudyStatistics().then(stats => {
-        console.log('Weekly data for progressChart:', stats.weeklyProgress);
-        console.log('JLPT scores for skillRadarChart:', jlptScores);
-    });
+  console.log('=== DEBUG CHARTS ===');
+
+  // Kiểm tra phần tử canvas
+  const progressCanvas = document.getElementById('progressChart');
+  const skillCanvas = document.getElementById('skillRadarChart');
+  const timeCanvas = document.getElementById('timeDistributionChart');
+
+  console.log('progressChart canvas:', progressCanvas);
+  console.log('skillRadarChart canvas:', skillCanvas);
+  console.log('timeDistributionChart canvas:', timeCanvas);
+
+  // Kiểm tra kích thước canvas
+  if (progressCanvas) {
+    console.log('progressChart size:', progressCanvas.offsetWidth, 'x', progressCanvas.offsetHeight);
+  }
+  if (skillCanvas) {
+    console.log('skillRadarChart size:', skillCanvas.offsetWidth, 'x', skillCanvas.offsetHeight);
+  }
+
+  // Kiểm tra instance biểu đồ
+  console.log('progressChart instance:', progressChart);
+  console.log('skillRadarChart instance:', skillRadarChart);
+  console.log('timeDistributionChart instance:', timeDistributionChart);
+
+  // Kiểm tra dữ liệu
+  getStudyStatistics().then(stats => {
+    console.log('Weekly data for progressChart:', stats.weeklyProgress);
+    console.log('JLPT scores for skillRadarChart:', jlptScores);
+  });
 }
 
 // Gọi hàm debug khi cần (có thể gọi từ console browser)
 window.debugCharts = debugCharts;
 
 async function initCharts() {
-    console.log('=== INIT CHARTS START ===');
-    
-    // Debug: Kiểm tra phần tử
-    const progressCanvas = document.getElementById('progressChart');
-    if (!progressCanvas) {
-        console.error('Không tìm thấy progressChart canvas element');
-    }
+  console.log('=== INIT CHARTS START ===');
 
-    // Hủy biểu đồ cũ
-    if (progressChart) {
-        progressChart.destroy();
-        progressChart = null;
-    }
-    if (timeDistributionChart) {
-        timeDistributionChart.destroy();
-        timeDistributionChart = null;
-    }
-    if (skillRadarChart) {
-        skillRadarChart.destroy();
-        skillRadarChart = null;
-    }
+  // Debug: Kiểm tra phần tử
+  const progressCanvas = document.getElementById('progressChart');
+  if (!progressCanvas) {
+    console.error('Không tìm thấy progressChart canvas element');
+  }
 
-    try {
-        const stats = await getStudyStatistics();
-        console.log('Statistics data loaded:', stats);
-        
-        updateStatsCards(stats);
+  // Hủy biểu đồ cũ
+  if (progressChart) {
+    progressChart.destroy();
+    progressChart = null;
+  }
+  if (timeDistributionChart) {
+    timeDistributionChart.destroy();
+    timeDistributionChart = null;
+  }
+  if (skillRadarChart) {
+    skillRadarChart.destroy();
+    skillRadarChart = null;
+  }
 
-        // 1. Khởi tạo progressChart đầu tiên
-        console.log('Initializing progressChart...');
-        initProgressChart(stats.weeklyProgress);
-        
-        // 2. Khởi tạo skillRadarChart (JLPT scores)
-        console.log('Initializing skillRadarChart...');
-        updateScoresRadarChart();
-        
-        // 3. Khởi tạo timeDistributionChart
-        console.log('Initializing timeDistributionChart...');
-        const filteredStats = filterStatsBySubject(stats, 'all', currentTimeFilter);
-        const timeChartData = currentTimeFilter === 'all' ? 
-            filteredStats.subjectDistribution : filteredStats.subjectDistribution;
-        
-        initSubjectDistributionChart(timeChartData);
-        displayTaskCategories(filteredStats.taskCategories);
-        await displayEffectiveStudyTime();
-        
-        console.log('=== INIT CHARTS COMPLETED ===');
-        
-    } catch (error) {
-        console.error('Lỗi khi khởi tạo biểu đồ:', error);
-        
-        // Hiển thị thông báo lỗi trên các canvas
-        const canvases = [
-            document.getElementById('progressChart'),
-            document.getElementById('skillRadarChart'),
-            document.getElementById('timeDistributionChart')
-        ];
-        
-        canvases.forEach(canvas => {
-            if (canvas) {
-                const ctx = canvas.getContext('2d');
-                ctx.fillStyle = '#f44336';
-                ctx.font = '14px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('Lỗi tải biểu đồ', canvas.width / 2, canvas.height / 2);
-            }
-        });
-    }
+  try {
+    const stats = await getStudyStatistics();
+    console.log('Statistics data loaded:', stats);
+
+    updateStatsCards(stats);
+
+    // 1. Khởi tạo progressChart đầu tiên
+    console.log('Initializing progressChart...');
+    initProgressChart(stats.weeklyProgress);
+
+    // 2. Khởi tạo skillRadarChart (JLPT scores)
+    console.log('Initializing skillRadarChart...');
+    updateScoresRadarChart();
+
+    // 3. Khởi tạo timeDistributionChart
+    console.log('Initializing timeDistributionChart...');
+    const filteredStats = filterStatsBySubject(stats, 'all', currentTimeFilter);
+    const timeChartData = currentTimeFilter === 'all' ?
+      filteredStats.subjectDistribution : filteredStats.subjectDistribution;
+
+    initSubjectDistributionChart(timeChartData);
+    displayTaskCategories(filteredStats.taskCategories);
+    await displayEffectiveStudyTime();
+
+    console.log('=== INIT CHARTS COMPLETED ===');
+
+  } catch (error) {
+    console.error('Lỗi khi khởi tạo biểu đồ:', error);
+
+    // Hiển thị thông báo lỗi trên các canvas
+    const canvases = [
+      document.getElementById('progressChart'),
+      document.getElementById('skillRadarChart'),
+      document.getElementById('timeDistributionChart')
+    ];
+
+    canvases.forEach(canvas => {
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#f44336';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Lỗi tải biểu đồ', canvas.width / 2, canvas.height / 2);
+      }
+    });
+  }
 }
 
 function filterStatsBySubject(stats, skillFilter, timeFilter) {
@@ -2912,7 +3085,7 @@ async function saveJLptScore() {
     hideModal(document.getElementById('jlpt-score-detail-modal'));
     // Sau khi lưu thành công
     await loadJLptScores();
-    refreshJLptCharts(); 
+    refreshJLptCharts();
     showCustomAlert('Đã lưu điểm số thành công!');
 
   } catch (error) {
@@ -2939,178 +3112,178 @@ async function deleteJLptScore(scoreId) {
 
 // Hàm cập nhật biểu đồ radar với điểm số JLPT
 function updateScoresRadarChart() {
-    const ctx = document.getElementById('skillRadarChart')?.getContext('2d');
-    
-    if (!ctx) {
-        console.error('Không tìm thấy skillRadarChart canvas');
-        return;
-    }
+  const ctx = document.getElementById('skillRadarChart')?.getContext('2d');
 
-    // Hủy biểu đồ cũ nếu có
-    if (skillRadarChart) {
-        skillRadarChart.destroy();
-        skillRadarChart = null;
-    }
+  if (!ctx) {
+    console.error('Không tìm thấy skillRadarChart canvas');
+    return;
+  }
 
-    // Nếu không có điểm số, hiển thị thông báo
-    if (jlptScores.length === 0) {
-        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-        
-        // Vẽ thông báo "Chưa có dữ liệu"
-        ctx.fillStyle = '#666';
-        ctx.font = '16px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('Chưa có dữ liệu điểm số JLPT', ctx.canvas.width / 2, ctx.canvas.height / 2 - 15);
-        
-        ctx.font = '14px Arial';
-        ctx.fillText('Hãy thêm điểm số để xem biểu đồ', ctx.canvas.width / 2, ctx.canvas.height / 2 + 15);
-        return;
-    }
+  // Hủy biểu đồ cũ nếu có
+  if (skillRadarChart) {
+    skillRadarChart.destroy();
+    skillRadarChart = null;
+  }
 
-    // Tính điểm trung bình và cao nhất
-    const averages = {
-        language: 0,
-        reading: 0,
-        listening: 0
-    };
-    
-    const maxScores = {
-        language: 0,
-        reading: 0,
-        listening: 0
-    };
+  // Nếu không có điểm số, hiển thị thông báo
+  if (jlptScores.length === 0) {
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-    jlptScores.forEach(score => {
-        averages.language += score.language;
-        averages.reading += score.reading;
-        averages.listening += score.listening;
-        
-        maxScores.language = Math.max(maxScores.language, score.language);
-        maxScores.reading = Math.max(maxScores.reading, score.reading);
-        maxScores.listening = Math.max(maxScores.listening, score.listening);
+    // Vẽ thông báo "Chưa có dữ liệu"
+    ctx.fillStyle = '#666';
+    ctx.font = '16px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Chưa có dữ liệu điểm số JLPT', ctx.canvas.width / 2, ctx.canvas.height / 2 - 15);
+
+    ctx.font = '14px Arial';
+    ctx.fillText('Hãy thêm điểm số để xem biểu đồ', ctx.canvas.width / 2, ctx.canvas.height / 2 + 15);
+    return;
+  }
+
+  // Tính điểm trung bình và cao nhất
+  const averages = {
+    language: 0,
+    reading: 0,
+    listening: 0
+  };
+
+  const maxScores = {
+    language: 0,
+    reading: 0,
+    listening: 0
+  };
+
+  jlptScores.forEach(score => {
+    averages.language += score.language;
+    averages.reading += score.reading;
+    averages.listening += score.listening;
+
+    maxScores.language = Math.max(maxScores.language, score.language);
+    maxScores.reading = Math.max(maxScores.reading, score.reading);
+    maxScores.listening = Math.max(maxScores.listening, score.listening);
+  });
+
+  averages.language = Math.round(averages.language / jlptScores.length);
+  averages.reading = Math.round(averages.reading / jlptScores.length);
+  averages.listening = Math.round(averages.listening / jlptScores.length);
+
+  try {
+    skillRadarChart = new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels: [
+          `Kiến thức ngôn ngữ`,
+          `Đọc hiểu`,
+          `Nghe hiểu`
+        ],
+        datasets: [
+          {
+            label: `Điểm trung bình (${jlptScores.length} bài)`,
+            data: [averages.language, averages.reading, averages.listening],
+            backgroundColor: 'rgba(26, 42, 108, 0.2)',
+            borderColor: 'rgba(26, 42, 108, 1)',
+            pointBackgroundColor: 'rgba(26, 42, 108, 1)',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointRadius: 5,
+            borderWidth: 2
+          },
+          {
+            label: 'Điểm cao nhất',
+            data: [maxScores.language, maxScores.reading, maxScores.listening],
+            backgroundColor: 'rgba(253, 187, 45, 0.2)',
+            borderColor: 'rgba(253, 187, 45, 1)',
+            pointBackgroundColor: 'rgba(253, 187, 45, 1)',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointRadius: 5,
+            borderWidth: 2,
+            borderDash: [5, 5]
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          r: {
+            beginAtZero: true,
+            max: 60,
+            ticks: {
+              stepSize: 15,
+              callback: function (value) {
+                return value + ' điểm';
+              },
+              font: {
+                size: 11
+              }
+            },
+            grid: {
+              color: 'rgba(0,0,0,0.1)'
+            },
+            angleLines: {
+              color: 'rgba(0,0,0,0.1)'
+            },
+            pointLabels: {
+              font: {
+                size: 12,
+                weight: 'bold'
+              },
+              color: '#333'
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              font: {
+                size: 12,
+                weight: 'bold'
+              },
+              padding: 20,
+              usePointStyle: true
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function (context) {
+                const label = context.dataset.label || '';
+                const skill = context.label;
+                const value = context.raw;
+                const avgText = context.datasetIndex === 0 ?
+                  ` (TB: ${averages[getSkillKey(skill)]} điểm)` :
+                  ` (Cao nhất: ${maxScores[getSkillKey(skill)]} điểm)`;
+
+                return `${label} - ${skill}: ${value} điểm${avgText}`;
+              }
+            }
+          }
+        }
+      }
     });
 
-    averages.language = Math.round(averages.language / jlptScores.length);
-    averages.reading = Math.round(averages.reading / jlptScores.length);
-    averages.listening = Math.round(averages.listening / jlptScores.length);
+    console.log('skillRadarChart đã được khởi tạo thành công');
 
-    try {
-        skillRadarChart = new Chart(ctx, {
-            type: 'radar',
-            data: {
-                labels: [
-                    `Kiến thức ngôn ngữ`,
-                    `Đọc hiểu`, 
-                    `Nghe hiểu`
-                ],
-                datasets: [
-                    {
-                        label: `Điểm trung bình (${jlptScores.length} bài)`,
-                        data: [averages.language, averages.reading, averages.listening],
-                        backgroundColor: 'rgba(26, 42, 108, 0.2)',
-                        borderColor: 'rgba(26, 42, 108, 1)',
-                        pointBackgroundColor: 'rgba(26, 42, 108, 1)',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        pointRadius: 5,
-                        borderWidth: 2
-                    },
-                    {
-                        label: 'Điểm cao nhất',
-                        data: [maxScores.language, maxScores.reading, maxScores.listening],
-                        backgroundColor: 'rgba(253, 187, 45, 0.2)',
-                        borderColor: 'rgba(253, 187, 45, 1)',
-                        pointBackgroundColor: 'rgba(253, 187, 45, 1)',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        pointRadius: 5,
-                        borderWidth: 2,
-                        borderDash: [5, 5]
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    r: {
-                        beginAtZero: true,
-                        max: 60,
-                        ticks: {
-                            stepSize: 15,
-                            callback: function(value) {
-                                return value + ' điểm';
-                            },
-                            font: {
-                                size: 11
-                            }
-                        },
-                        grid: {
-                            color: 'rgba(0,0,0,0.1)'
-                        },
-                        angleLines: {
-                            color: 'rgba(0,0,0,0.1)'
-                        },
-                        pointLabels: {
-                            font: {
-                                size: 12,
-                                weight: 'bold'
-                            },
-                            color: '#333'
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        position: 'top',
-                        labels: {
-                            font: {
-                                size: 12,
-                                weight: 'bold'
-                            },
-                            padding: 20,
-                            usePointStyle: true
-                        }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const label = context.dataset.label || '';
-                                const skill = context.label;
-                                const value = context.raw;
-                                const avgText = context.datasetIndex === 0 ? 
-                                    ` (TB: ${averages[getSkillKey(skill)]} điểm)` : 
-                                    ` (Cao nhất: ${maxScores[getSkillKey(skill)]} điểm)`;
-                                
-                                return `${label} - ${skill}: ${value} điểm${avgText}`;
-                            }
-                        }
-                    }
-                }
-            }
-        });
+  } catch (error) {
+    console.error('Lỗi khi khởi tạo skillRadarChart:', error);
 
-        console.log('skillRadarChart đã được khởi tạo thành công');
-
-    } catch (error) {
-        console.error('Lỗi khi khởi tạo skillRadarChart:', error);
-        
-        // Hiển thị thông báo lỗi
-        ctx.fillStyle = '#f44336';
-        ctx.font = '14px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('Lỗi khi tải biểu đồ kỹ năng', ctx.canvas.width / 2, ctx.canvas.height / 2);
-    }
+    // Hiển thị thông báo lỗi
+    ctx.fillStyle = '#f44336';
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Lỗi khi tải biểu đồ kỹ năng', ctx.canvas.width / 2, ctx.canvas.height / 2);
+  }
 }
 
 // Hàm helper để lấy key từ tên kỹ năng
 function getSkillKey(skillName) {
-    const skillMap = {
-        'Kiến thức ngôn ngữ': 'language',
-        'Đọc hiểu': 'reading',
-        'Nghe hiểu': 'listening'
-    };
-    return skillMap[skillName] || 'language';
+  const skillMap = {
+    'Kiến thức ngôn ngữ': 'language',
+    'Đọc hiểu': 'reading',
+    'Nghe hiểu': 'listening'
+  };
+  return skillMap[skillName] || 'language';
 }
 
 // Hàm tải biểu đồ điểm số độc lập
@@ -3124,7 +3297,7 @@ function refreshJLptCharts() {
     updateScoresRadarChart();
     createProgressHeatmap(jlptScores);
   });
-  
+
   // Also refresh skill assessments
   loadSkillAssessments().then(() => {
     updateSkillRadarChartWithFilter();
@@ -3183,7 +3356,7 @@ function setupJLptScoresEventListeners() {
 // Hàm tạo Progress Heatmap
 function createProgressHeatmap(jlptScores) {
   console.log('Creating Progress Heatmap with scores:', jlptScores);
-  
+
   if (!jlptScores || jlptScores.length < 2) {
     displayNoHeatmapData();
     return;
@@ -3191,7 +3364,7 @@ function createProgressHeatmap(jlptScores) {
 
   // Tính toán dữ liệu tiến bộ
   const progressData = calculateProgressData(jlptScores);
-  
+
   // Render heatmap
   renderProgressHeatmap(progressData);
 }
@@ -3200,10 +3373,10 @@ function createProgressHeatmap(jlptScores) {
 function calculateProgressData(scores) {
   const skills = ['Kiến thức ngôn ngữ', 'Đọc hiểu', 'Nghe hiểu'];
   const skillKeys = ['language', 'reading', 'listening'];
-  
+
   // Sắp xếp theo ngày
   const sortedScores = scores.sort((a, b) => new Date(a.date) - new Date(b.date));
-  
+
   const weeks = [];
   const progressData = [];
 
@@ -3212,13 +3385,13 @@ function calculateProgressData(scores) {
     const currentScore = sortedScores[i];
     const previousScore = sortedScores[i - 1];
     const weekLabel = `Lần ${i + 1}`;
-    
+
     weeks.push(weekLabel);
 
     // Tính cho từng kỹ năng
     skillKeys.forEach((skillKey, skillIndex) => {
       const deltaScore = currentScore[skillKey] - previousScore[skillKey];
-      
+
       progressData.push({
         skillIndex,
         weekIndex: i - 1,
@@ -3258,7 +3431,7 @@ function renderProgressHeatmap(progressData) {
   const getCellClass = (deltaScore) => {
     if (deltaScore === null || deltaScore === undefined) return 'cell-no-data';
     if (deltaScore === 0) return 'cell-neutral';
-    
+
     if (deltaScore > 0) {
       if (deltaScore >= 10) return 'cell-positive-5';
       if (deltaScore >= 7) return 'cell-positive-4';
@@ -3288,16 +3461,16 @@ function renderProgressHeatmap(progressData) {
   skills.forEach((skill, skillIndex) => {
     heatmapHTML += `<div class="heatmap-row">`;
     heatmapHTML += `<div class="heatmap-skill-label">${skill}</div>`;
-    
+
     weeks.forEach((week, weekIndex) => {
       const key = `${skillIndex}-${weekIndex}`;
       const cellData = gridData.get(key);
-      
+
       if (cellData) {
         const deltaScore = cellData.deltaScore;
         const cellClass = getCellClass(deltaScore);
         const displayValue = deltaScore > 0 ? `+${deltaScore}` : deltaScore.toString();
-        
+
         heatmapHTML += `
           <div class="heatmap-cell ${cellClass}" 
                data-skill="${skill}" 
@@ -3316,7 +3489,7 @@ function renderProgressHeatmap(progressData) {
         `;
       }
     });
-    
+
     heatmapHTML += `</div>`;
   });
 
@@ -3336,12 +3509,12 @@ function renderProgressHeatmap(progressData) {
 // Render thống kê tóm tắt cho heatmap
 function renderHeatmapSummary(data) {
   if (!data || data.length === 0) return '';
-  
+
   const totalChanges = data.length;
   const positiveChanges = data.filter(d => d.deltaScore > 0).length;
   const negativeChanges = data.filter(d => d.deltaScore < 0).length;
   const neutralChanges = data.filter(d => d.deltaScore === 0).length;
-  
+
   const avgImprovement = data.reduce((sum, d) => sum + d.deltaScore, 0) / totalChanges;
   const maxImprovement = Math.max(...data.map(d => d.deltaScore));
   const maxDecline = Math.min(...data.map(d => d.deltaScore));
@@ -3404,7 +3577,7 @@ function renderHeatmapSummary(data) {
 function displayNoHeatmapData() {
   const container = document.getElementById('progress-heatmap-container');
   if (!container) return;
-  
+
   container.innerHTML = `
     <div class="no-data-message">
       <i class="fas fa-chart-bar"></i>
@@ -3426,37 +3599,37 @@ function refreshJLptCharts() {
 // Cập nhật hàm initCharts để bao gồm heatmap
 async function initCharts() {
   console.log('=== INIT CHARTS START ===');
-  
+
   try {
     const stats = await getStudyStatistics();
     console.log('Statistics data loaded:', stats);
-    
+
     updateStatsCards(stats);
 
     // 1. Khởi tạo progressChart
     console.log('Initializing progressChart...');
     initProgressChart(stats.weeklyProgress);
-    
+
     // 2. Khởi tạo skillRadarChart (JLPT scores)
     console.log('Initializing skillRadarChart...');
     updateScoresRadarChart();
-    
+
     // 3. Khởi tạo timeDistributionChart
     console.log('Initializing timeDistributionChart...');
     const filteredStats = filterStatsBySubject(stats, 'all', currentTimeFilter);
-    const timeChartData = currentTimeFilter === 'all' ? 
-        filteredStats.subjectDistribution : filteredStats.subjectDistribution;
-    
+    const timeChartData = currentTimeFilter === 'all' ?
+      filteredStats.subjectDistribution : filteredStats.subjectDistribution;
+
     initSubjectDistributionChart(timeChartData);
     displayTaskCategories(filteredStats.taskCategories);
     await displayEffectiveStudyTime();
-    
+
     // 4. Khởi tạo Progress Heatmap - THÊM MỚI
     console.log('Initializing Progress Heatmap...');
     createProgressHeatmap(jlptScores);
-    
+
     console.log('=== INIT CHARTS COMPLETED ===');
-    
+
   } catch (error) {
     console.error('Lỗi khi khởi tạo biểu đồ:', error);
   }
@@ -3683,6 +3856,7 @@ function setupEventListeners() {
 }
 
 document.addEventListener('click', (e) => {
+  // Handle check button clicks
   const checkBtn = e.target.closest('.check-btn');
   if (checkBtn) {
     e.preventDefault();
@@ -3693,6 +3867,25 @@ document.addEventListener('click', (e) => {
       const date = dayCard.getAttribute('data-date');
       toggleTaskDone(date, taskIndex);
     }
+    return;
+  }
+
+  // Handle edit button clicks
+  const editBtn = e.target.closest('.edit-task-btn');
+  if (editBtn) {
+    e.preventDefault();
+    const card = editBtn.closest('.day-card');
+    if (card) {
+      const date = card.getAttribute('data-date');
+      if (date) openEditDayModal(date);
+    }
+    return;
+  }
+
+  // Prevent drag handle from triggering other actions
+  if (e.target.closest('.drag-handle')) {
+    e.preventDefault();
+    return;
   }
 });
 
@@ -3848,7 +4041,7 @@ function handleTimerCompletion() {
 
   if (isStudyPhase) {
     console.log('Study phase completed');
-    
+
     // Phát âm thanh thông báo hết giờ học
     playNotificationSound({
       type: 'notification',
@@ -3875,7 +4068,7 @@ function handleTimerCompletion() {
     }
   } else {
     console.log('Break phase completed');
-    
+
     // Phát âm thanh thông báo hết giờ nghỉ
     playNotificationSound({
       type: 'notification',
@@ -3890,14 +4083,14 @@ function handleTimerCompletion() {
     }
 
     stopTimer();
-    
+
     if (document.hidden) {
       showNotification("Hết giờ nghỉ!", `Đã nghỉ ${breakMinutesInput.value} phút. Sẵn sàng học tiếp!`);
     }
   }
 }
-  ///// ----------------------------
- // BONG BÓNG ĐỒNG HỒ NỔI
+///// ----------------------------
+// BONG BÓNG ĐỒNG HỒ NỔI
 ///// ----------------------------
 // Hàm thu nhỏ bộ đếm giờ thành bong bóng
 function minimizeToBubble() {
@@ -3975,10 +4168,10 @@ function updateBubbleTimerDisplay() {
 // Cập nhật stopTimer để dừng âm thanh
 function stopTimer() {
   console.log('Stopping timer - cleaning up audio');
-  
+
   // Dừng âm thanh trước tiên
   stopNotificationSound();
-  
+
   endStudySession();
   clearInterval(countdownInterval);
   countdownInterval = null;
@@ -3986,9 +4179,9 @@ function stopTimer() {
   isStudyPhase = true;
   timeLeft = parseInt(studyMinutesInput.value) * 60;
   updateTimerDisplay();
-  
+
   if (timerStatus) timerStatus.textContent = 'Sẵn sàng bắt đầu học...';
-  
+
   startTimerBtn.style.display = 'inline-block';
   pauseTimerBtn.style.display = 'none';
   stopTimerBtn.style.display = 'none';
@@ -4354,7 +4547,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const enableAudioOnInteraction = () => {
     initializeAudioSystem();
     addAudioControlsToModal();
-    
+
     // Remove listeners sau khi đã khởi tạo
     document.removeEventListener('click', enableAudioOnInteraction);
     document.removeEventListener('touchstart', enableAudioOnInteraction);
@@ -4394,6 +4587,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       console.log("Người dùng cần tương tác trước khi phát âm thanh");
     });
   }, { once: true });
+
+  // Initialize drag and drop
+  initializeDragAndDrop();
 
   // Khởi tạo biểu đồ
   initCharts();

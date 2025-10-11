@@ -295,25 +295,40 @@ h1 {
 }
 
 .study-item {
-  padding: 8px 12px;
-  background: #f9f9f9;
-  border-left: 4px solid #1a2a6c;
-  margin-bottom: 8px;
-  border-radius: 4px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
+  padding: 8px 12px;
+  margin: 5px 0;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  cursor: grab;
 }
 
 .study-item:hover {
-  background: #f0f0f0;
+  background-color: #e9ecef;
+  transform: translateY(-1px);
 }
 
 .study-item.done {
   transform: translateX(5px);
   background-color: #e8f5e9 !important;
+}
+
+.study-item .task-content {
+  flex: 1;
+  margin: 0 8px;
+}
+
+.study-item .task-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.study-item .drag-handle {
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
 }
 
 /* Button Styles */
@@ -983,9 +998,9 @@ footer {
 }
 
 .chart-wrapper canvas {
-    display: block;
-    width: 100% !important;
-    height: 100% !important;
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .chart-wrapper.medium-chart {
@@ -1004,12 +1019,12 @@ footer {
 
 /* Đặc biệt cho progressChart */
 .full-width .chart-wrapper.large-chart {
-    min-height: 450px;
+  min-height: 450px;
 }
 
 /* Debug border để kiểm tra */
 .debug-border {
-    border: 2px solid red !important;
+  border: 2px solid red !important;
 }
 
 /* Danh sách loại nhiệm vụ */
@@ -2217,64 +2232,64 @@ footer {
 }
 
 /* Color scales cho heatmap cells */
-.cell-positive-1 { 
-  background: #e8f5e8; 
-  color: #2e7d2e; 
+.cell-positive-1 {
+  background: #e8f5e8;
+  color: #2e7d2e;
 }
 
-.cell-positive-2 { 
-  background: #c8e6c8; 
-  color: #2e7d2e; 
+.cell-positive-2 {
+  background: #c8e6c8;
+  color: #2e7d2e;
 }
 
-.cell-positive-3 { 
-  background: #a8d8a8; 
-  color: #1e5d1e; 
+.cell-positive-3 {
+  background: #a8d8a8;
+  color: #1e5d1e;
 }
 
-.cell-positive-4 { 
-  background: #88c988; 
-  color: #1e5d1e; 
+.cell-positive-4 {
+  background: #88c988;
+  color: #1e5d1e;
 }
 
-.cell-positive-5 { 
-  background: #4caf50; 
-  color: white; 
+.cell-positive-5 {
+  background: #4caf50;
+  color: white;
 }
 
-.cell-negative-1 { 
-  background: #ffebee; 
-  color: #c62828; 
+.cell-negative-1 {
+  background: #ffebee;
+  color: #c62828;
 }
 
-.cell-negative-2 { 
-  background: #ffcdd2; 
-  color: #c62828; 
+.cell-negative-2 {
+  background: #ffcdd2;
+  color: #c62828;
 }
 
-.cell-negative-3 { 
-  background: #ef9a9a; 
-  color: #b71c1c; 
+.cell-negative-3 {
+  background: #ef9a9a;
+  color: #b71c1c;
 }
 
-.cell-negative-4 { 
-  background: #e57373; 
-  color: #b71c1c; 
+.cell-negative-4 {
+  background: #e57373;
+  color: #b71c1c;
 }
 
-.cell-negative-5 { 
-  background: #f44336; 
-  color: white; 
+.cell-negative-5 {
+  background: #f44336;
+  color: white;
 }
 
-.cell-neutral { 
-  background: #f5f5f5; 
-  color: #666; 
+.cell-neutral {
+  background: #f5f5f5;
+  color: #666;
 }
 
-.cell-no-data { 
-  background: #fafafa; 
-  color: #ccc; 
+.cell-no-data {
+  background: #fafafa;
+  color: #ccc;
 }
 
 /* Legend cho heatmap */
@@ -2419,35 +2434,35 @@ footer {
   .heatmap-grid {
     min-width: 500px;
   }
-  
+
   .heatmap-header-skill,
   .heatmap-skill-label {
     width: 120px;
     font-size: 0.8em;
     padding: 12px 8px;
   }
-  
+
   .heatmap-header-week {
     width: 60px;
     font-size: 0.75em;
     padding: 12px 6px;
   }
-  
+
   .heatmap-cell {
     width: 60px;
     height: 60px;
     font-size: 0.8em;
   }
-  
+
   .heatmap-stats-grid {
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 10px;
   }
-  
+
   .legend-scale {
     gap: 10px;
   }
-  
+
   .legend-item {
     font-size: 0.8em;
     padding: 4px 6px;
@@ -2458,36 +2473,36 @@ footer {
   .heatmap-grid {
     min-width: 420px;
   }
-  
+
   .heatmap-header-skill,
   .heatmap-skill-label {
     width: 100px;
     font-size: 0.75em;
     padding: 10px 6px;
   }
-  
+
   .heatmap-header-week {
     width: 50px;
     font-size: 0.7em;
     padding: 10px 4px;
   }
-  
+
   .heatmap-cell {
     width: 50px;
     height: 50px;
     font-size: 0.75em;
   }
-  
+
   .heatmap-stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .legend-scale {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
   }
-  
+
   .legend-item {
     width: 100%;
     justify-content: flex-start;
@@ -2498,11 +2513,11 @@ footer {
   .heatmap-chart {
     margin: 15px -10px;
   }
-  
+
   .heatmap-grid {
     min-width: 350px;
   }
-  
+
   .heatmap-stats-grid {
     grid-template-columns: 1fr;
   }
@@ -2643,10 +2658,13 @@ footer {
 }
 
 @keyframes audioPlayingPulse {
-  0%, 100% {
+
+  0%,
+  100% {
     background: #fdbb2d;
     box-shadow: 0 0 0 0 rgba(253, 187, 45, 0.7);
   }
+
   50% {
     background: #ffaa00;
     box-shadow: 0 0 0 6px rgba(253, 187, 45, 0);
@@ -2663,35 +2681,35 @@ footer {
   .audio-controls {
     padding: 12px;
   }
-  
+
   .audio-controls-row {
     flex-direction: column;
     gap: 15px;
     align-items: stretch;
   }
-  
+
   .volume-control {
     min-width: unset;
     width: 100%;
   }
-  
+
   .volume-control input[type="range"] {
     max-width: none;
     height: 8px;
   }
-  
+
   .volume-control input[type="range"]::-webkit-slider-thumb {
     width: 22px;
     height: 22px;
   }
-  
+
   #test-audio-btn {
     width: 100%;
     justify-content: center;
     padding: 12px;
     font-size: 1em;
   }
-  
+
   .audio-toggle {
     justify-content: center;
     width: 100%;
@@ -2717,8 +2735,17 @@ footer {
 }
 
 @keyframes audioStatusPulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.3); opacity: 0.7; }
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.3);
+    opacity: 0.7;
+  }
 }
 
 /* Enhanced floating timer với audio feedback */
@@ -2728,10 +2755,13 @@ footer {
 }
 
 @keyframes floatingAudioPulse {
-  0%, 100% { 
+
+  0%,
+  100% {
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
   }
-  50% { 
+
+  50% {
     box-shadow: 0 4px 15px rgba(253, 187, 45, 0.6);
   }
 }
@@ -2742,10 +2772,13 @@ footer {
 }
 
 @keyframes timerWarningPulse {
-  0%, 100% { 
+
+  0%,
+  100% {
     color: #1a2a6c;
   }
-  50% { 
+
+  50% {
     color: #ff6b6b;
   }
 }
@@ -2760,9 +2793,19 @@ footer {
 }
 
 @keyframes modalNotificationShake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-5px); }
-  75% { transform: translateX(5px); }
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-5px);
+  }
+
+  75% {
+    transform: translateX(5px);
+  }
 }
 
 /* Responsive enhancements */
@@ -2773,7 +2816,7 @@ footer {
     border-left: none;
     border-right: none;
   }
-  
+
   .audio-toggle input[type="checkbox"] {
     width: 20px;
     height: 20px;
@@ -2808,9 +2851,17 @@ footer {
 }
 
 @keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.5; }
-  100% { opacity: 1; }
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+
+  100% {
+    opacity: 1;
+  }
 }
 
 /* THÊM VÀO style.css - CSS cho Skill Assessments */
@@ -3134,34 +3185,34 @@ footer {
   .skill-assessments-table-container {
     font-size: 0.8em;
   }
-  
+
   .skill-assessments-table th,
   .skill-assessments-table td {
     padding: 8px 6px;
   }
-  
+
   .skill-form-row {
     grid-template-columns: 1fr;
   }
-  
+
   .skill-assessment-summary {
     flex-direction: column;
     gap: 10px;
   }
-  
+
   .skill-summary-item {
     min-width: unset;
   }
-  
+
   .skill-chart-controls {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .skill-filter-group {
     width: 100%;
   }
-  
+
   .skill-filter-group select {
     min-width: unset;
     width: 100%;
@@ -3173,15 +3224,61 @@ footer {
     font-size: 0.7em;
     padding: 2px 6px;
   }
-  
+
   .btn-score-action {
     padding: 4px 6px;
     font-size: 0.7em;
   }
-  
+
   #skill-assessments-modal .modal-content,
   #skill-assessment-modal .modal-content {
     padding: 15px;
     margin: 10px;
   }
+}
+
+/* Drag and Drop Styles */
+.study-item.dragging {
+  opacity: 0.5;
+  transform: scale(0.95);
+  background-color: rgba(253, 187, 45, 0.2) !important;
+}
+
+.day-card.drop-zone {
+  border: 2px dashed #1a2a6c;
+  background-color: rgba(26, 42, 108, 0.05);
+}
+
+.day-card.drop-zone .day-header {
+  background-color: rgba(26, 42, 108, 0.1);
+}
+
+.study-item.drag-over {
+  border: 2px dashed #fdbb2d;
+  background-color: rgba(253, 187, 45, 0.1);
+}
+
+.drag-ghost {
+  opacity: 0.8;
+  transform: rotate(5deg);
+  background-color: #f8f9fa;
+  border: 2px solid #1a2a6c;
+}
+
+/* Drag handle */
+.drag-handle {
+  cursor: grab;
+  color: #666;
+  margin-right: 8px;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.drag-handle:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+  color: #1a2a6c;
+}
+
+.study-item:active .drag-handle {
+  cursor: grabbing;
 }
