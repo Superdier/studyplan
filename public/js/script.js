@@ -633,21 +633,26 @@ function updateWeekHeader(dates) {
 }
 
 async function loadSchedule(dates) {
-  const grid = document.getElementById("weekly-schedule");
-  if (!grid) return;
+    const grid = document.getElementById("weekly-schedule");
+    if (!grid) return;
 
-  grid.innerHTML = "";
+    grid.innerHTML = "";
 
-  const promises = dates.map(date =>
-    db.ref(`schedule/${date}`).once("value").then(snapshot => {
-      const data = snapshot.val() || { time: "0 phút", tasks: [] };
-      return generateDayCardHTML(date, data);
-    })
-  );
+    const promises = dates.map(date =>
+        db.ref(`schedule/${date}`).once("value").then(snapshot => {
+            const data = snapshot.val() || { time: "0 phút", tasks: [] };
+            return generateDayCardHTML(date, data);
+        })
+    );
 
-  const cards = await Promise.all(promises);
-  grid.innerHTML = cards.join("");
-  updateProgress();
+    const cards = await Promise.all(promises);
+    grid.innerHTML = cards.join("");
+    
+    // Reset drag listeners
+    grid.hasDragListeners = false;
+    setupDragListeners(grid);
+    
+    updateProgress();
 }
 
 function setupTabNavigation() {
@@ -1100,55 +1105,130 @@ let dragSourceDate = null;
 
 // Initialize Drag and Drop
 function initializeDragAndDrop() {
-  const scheduleGrid = document.getElementById('weekly-schedule');
-  if (!scheduleGrid) return;
+    // Sử dụng MutationObserver để theo dõi thay đổi DOM
+    const observer = new MutationObserver(() => {
+        const scheduleGrid = document.getElementById('weekly-schedule');
+        if (scheduleGrid && !scheduleGrid.hasDragListeners) {
+            setupDragListeners(scheduleGrid);
+            scheduleGrid.hasDragListeners = true;
+        }
+    });
 
-  // Add event listeners for drag and drop
-  scheduleGrid.addEventListener('dragstart', handleDragStart);
-  scheduleGrid.addEventListener('dragover', handleDragOver);
-  scheduleGrid.addEventListener('dragenter', handleDragEnter);
-  scheduleGrid.addEventListener('dragleave', handleDragLeave);
-  scheduleGrid.addEventListener('drop', handleDrop);
-  scheduleGrid.addEventListener('dragend', handleDragEnd);
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+
+    // Khởi tạo ngay lập tức nếu có sẵn
+    const scheduleGrid = document.getElementById('weekly-schedule');
+    if (scheduleGrid) {
+        setupDragListeners(scheduleGrid);
+        scheduleGrid.hasDragListeners = true;
+    }
+}
+
+function setupDragListeners(scheduleGrid) {
+    // Xóa listeners cũ nếu có
+    scheduleGrid.removeEventListener('dragstart', handleDragStart);
+    scheduleGrid.removeEventListener('dragover', handleDragOver);
+    scheduleGrid.removeEventListener('dragenter', handleDragEnter);
+    scheduleGrid.removeEventListener('dragleave', handleDragLeave);
+    scheduleGrid.removeEventListener('drop', handleDrop);
+    scheduleGrid.removeEventListener('dragend', handleDragEnd);
+
+    // Thêm listeners mới
+    scheduleGrid.addEventListener('dragstart', handleDragStart);
+    scheduleGrid.addEventListener('dragover', handleDragOver);
+    scheduleGrid.addEventListener('dragenter', handleDragEnter);
+    scheduleGrid.addEventListener('dragleave', handleDragLeave);
+    scheduleGrid.addEventListener('drop', handleDrop);
+    scheduleGrid.addEventListener('dragend', handleDragEnd);
+}
+
+// Thêm touch event listeners
+function setupTouchDragAndDrop(scheduleGrid) {
+    let touchStartX, touchStartY;
+    let touchedTask = null;
+
+    scheduleGrid.addEventListener('touchstart', (e) => {
+        const taskItem = e.target.closest('.study-item');
+        if (!taskItem) return;
+
+        touchedTask = taskItem;
+        const touch = e.touches[0];
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+        
+        e.preventDefault();
+    });
+
+    scheduleGrid.addEventListener('touchend', (e) => {
+        if (!touchedTask) return;
+
+        const touch = e.changedTouches[0];
+        const endX = touch.clientX;
+        const endY = touch.clientY;
+        
+        // Simple touch-based drag (có thể mở rộng thành drag thực sự)
+        if (Math.abs(endX - touchStartX) > 10 || Math.abs(endY - touchStartY) > 10) {
+            // Xử lý touch-based drag
+            console.log('Touch drag detected');
+        }
+        
+        touchedTask = null;
+        e.preventDefault();
+    });
 }
 
 // Drag Start Handler
 function handleDragStart(e) {
-  const taskItem = e.target.closest('.study-item');
-  if (!taskItem) return;
+    console.log('Drag started');
+    const taskItem = e.target.closest('.study-item');
+    if (!taskItem) {
+        console.log('No task item found');
+        return;
+    }
 
-  draggedTask = taskItem;
-  dragSourceDate = taskItem.closest('.day-card').dataset.date;
+    console.log('Dragging task:', taskItem.dataset.taskIndex, 'from date:', taskItem.closest('.day-card').dataset.date);
 
-  // Add dragging class
-  taskItem.classList.add('dragging');
-
-  // Set drag image
-  e.dataTransfer.effectAllowed = 'move';
-  e.dataTransfer.setData('text/plain', taskItem.dataset.taskIndex);
-
-  // Store source date in dataTransfer for cross-day dragging
-  e.dataTransfer.setData('source-date', dragSourceDate);
+    draggedTask = taskItem;
+    dragSourceDate = taskItem.closest('.day-card').dataset.date;
+    
+    taskItem.classList.add('dragging');
+    
+    // Sửa DataTransfer để tương thích tốt hơn
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', taskItem.dataset.taskIndex);
+    e.dataTransfer.setData('application/source-date', dragSourceDate);
+    
+    // Thêm fallback cho mobile/tablet
+    if (e.dataTransfer.setDragImage) {
+        e.dataTransfer.setDragImage(taskItem, 20, 20);
+    }
 }
 
 // Drag Over Handler
 function handleDragOver(e) {
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
 }
 
 // Drag Enter Handler
 function handleDragEnter(e) {
-  const dayCard = e.target.closest('.day-card');
-  const taskItem = e.target.closest('.study-item');
-
-  if (dayCard) {
-    dayCard.classList.add('drop-zone');
-  }
-
-  if (taskItem && !taskItem.classList.contains('dragging')) {
-    taskItem.classList.add('drag-over');
-  }
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const dayCard = e.target.closest('.day-card');
+    const taskItem = e.target.closest('.study-item');
+    
+    if (dayCard) {
+        dayCard.classList.add('drop-zone');
+    }
+    
+    if (taskItem && !taskItem.classList.contains('dragging')) {
+        taskItem.classList.add('drag-over');
+    }
 }
 
 // Drag Leave Handler
@@ -1168,28 +1248,26 @@ function handleDragLeave(e) {
 
 // Drop Handler
 function handleDrop(e) {
-  e.preventDefault();
-
-  const targetDayCard = e.target.closest('.day-card');
-  const targetTaskItem = e.target.closest('.study-item');
-  const targetDate = targetDayCard ? targetDayCard.dataset.date : null;
-  const sourceDate = e.dataTransfer.getData('source-date');
-  const taskIndex = e.dataTransfer.getData('text/plain');
-
-  if (!targetDate || !sourceDate || !draggedTask) return;
-
-  // Remove visual feedback
-  document.querySelectorAll('.day-card').forEach(card => {
-    card.classList.remove('drop-zone');
-  });
-  document.querySelectorAll('.study-item').forEach(item => {
-    item.classList.remove('drag-over');
-  });
-
-  // Move task between days
-  if (sourceDate !== targetDate) {
-    moveTaskBetweenDays(sourceDate, parseInt(taskIndex), targetDate);
-  }
+  console.log('Drop event triggered');
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const targetDayCard = e.target.closest('.day-card');
+    console.log('Target day card:', targetDayCard);
+    const targetDate = targetDayCard ? targetDayCard.dataset.date : null;
+    
+    if (!targetDate || !draggedTask) return;
+    
+    // Lấy data với fallback
+    const taskIndex = e.dataTransfer.getData('text/plain');
+    const sourceDate = e.dataTransfer.getData('application/source-date') || dragSourceDate;
+    
+    // Clean up visual feedback
+    cleanupDragFeedback();
+    
+    if (sourceDate !== targetDate) {
+        moveTaskBetweenDays(sourceDate, parseInt(taskIndex), targetDate);
+    }
 }
 
 // Drag End Handler
@@ -1205,6 +1283,16 @@ function handleDragEnd(e) {
 
   draggedTask = null;
   dragSourceDate = null;
+}
+
+function cleanupDragFeedback() {
+    document.querySelectorAll('.day-card').forEach(card => {
+        card.classList.remove('drop-zone');
+    });
+    document.querySelectorAll('.study-item').forEach(item => {
+        item.classList.remove('drag-over');
+        item.classList.remove('dragging');
+    });
 }
 
 // Move task between different days

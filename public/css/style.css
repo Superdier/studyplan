@@ -281,12 +281,18 @@ h1 {
 }
 
 .study-time {
-  background: #e3f2fd;
-  padding: 8px;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  margin-bottom: 12px;
-  color: #0d47a1;
+  display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    margin: 5px 0;
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    cursor: grab;
+    user-select: none; /* Ngăn chọn text khi kéo */
+    -webkit-user-select: none;
+    pointer-events: all;
 }
 
 .study-items {
