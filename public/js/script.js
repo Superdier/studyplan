@@ -727,63 +727,104 @@ function parseStudyTime(timeStr) {
 
 // Cập nhật hàm renderTasksInModal để hỗ trợ subject dropdown và giữ trạng thái done
 function renderTasksInModal(tasks) {
-  if (!tasksContainer) return;
+    if (!tasksContainer) return;
 
-  tasksContainer.innerHTML = "";
-  let totalMinutes = 0;
+    tasksContainer.innerHTML = "";
+    let totalMinutes = 0;
 
-  tasks.forEach((task, index) => {
-    const duration = task.duration || 0;
-    const note = task.note || "";
-    const subject = task.subject || 'language';
-    const isDone = task.done || false; // Giữ trạng thái done
-    totalMinutes += duration;
+    tasks.forEach((task, index) => {
+        const duration = task.duration || 0;
+        const note = task.note || "";
+        const subject = task.subject || 'language';
+        const isDone = task.done || false;
+        totalMinutes += duration;
 
-    const taskEl = document.createElement("div");
-    taskEl.className = "task-item";
-    taskEl.innerHTML = `
-            <div class="task-row-extended">
-                <select class="task-subject" data-index="${index}">
-                    <option value="language" ${subject === 'language' ? 'selected' : ''}>Ngôn ngữ</option>
-                    <option value="it" ${subject === 'it' ? 'selected' : ''}>IT</option>
-                    <option value="other" ${subject === 'other' ? 'selected' : ''}>Khác</option>
-                </select>
-                ${renderTaskTypeField(index, subject, task.type)}
-                <input type="text" class="task-input" value="${task.title}" data-index="${index}">
-                <input type="number" min="0" class="task-duration" value="${duration}" data-index="${index}" placeholder="Phút">
-            </div>
-            <div class="task-row">
-                  <button class="btn-delete delete-task" data-index="${index}">
-                      <i class="fas fa-trash"></i>
-                  </button>
-                  <textarea class="task-note" data-index="${index}" placeholder="Thêm ghi chú cho nhiệm vụ...">${note}</textarea>
-            </div>
-            <input type="hidden" class="task-done-status" data-index="${index}" value="${isDone}">
+        const taskEl = document.createElement("div");
+        taskEl.className = "task-item";
+
+        // Row 1
+        const row1 = document.createElement('div');
+        row1.className = 'task-row-extended';
+
+        const subjectSelect = document.createElement('select');
+        subjectSelect.className = 'task-subject';
+        subjectSelect.dataset.index = index;
+        subjectSelect.innerHTML = `
+            <option value="language" ${subject === 'language' ? 'selected' : ''}>Ngôn ngữ</option>
+            <option value="it" ${subject === 'it' ? 'selected' : ''}>IT</option>
+            <option value="other" ${subject === 'other' ? 'selected' : ''}>Khác</option>
         `;
-    tasksContainer.appendChild(taskEl);
-  });
+        row1.appendChild(subjectSelect);
 
-  // Thêm event listeners cho subject dropdowns
-  document.querySelectorAll('.task-subject').forEach(select => {
-    select.addEventListener('change', function () {
-      const index = this.getAttribute('data-index');
-      const subject = this.value;
-      const taskTypeContainer = this.parentNode;
-      const oldTaskType = taskTypeContainer.querySelector('.task-type, .task-type-input');
+        const taskTypeField = createTaskTypeElement(index, subject, task.type);
+        row1.appendChild(taskTypeField);
 
-      // Tạo field mới cho task type
-      const newTaskTypeField = createTaskTypeElement(index, subject, '');
+        const titleInput = document.createElement('input');
+        titleInput.type = 'text';
+        titleInput.className = 'task-input';
+        titleInput.value = task.title;
+        titleInput.dataset.index = index;
+        row1.appendChild(titleInput);
 
-      // Thay thế field cũ
-      taskTypeContainer.replaceChild(newTaskTypeField, oldTaskType);
+        const durationInput = document.createElement('input');
+        durationInput.type = 'number';
+        durationInput.min = 0;
+        durationInput.className = 'task-duration';
+        durationInput.value = duration;
+        durationInput.placeholder = 'Phút';
+        durationInput.dataset.index = index;
+        row1.appendChild(durationInput);
+
+        // Row 2
+        const row2 = document.createElement('div');
+        row2.className = 'task-row';
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn-delete delete-task';
+        deleteBtn.dataset.index = index;
+        deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+        row2.appendChild(deleteBtn);
+
+        const noteTextarea = document.createElement('textarea');
+        noteTextarea.className = 'task-note';
+        noteTextarea.dataset.index = index;
+        noteTextarea.placeholder = 'Thêm ghi chú cho nhiệm vụ...';
+        noteTextarea.value = note; // Sử dụng .value thay vì innerHTML
+        row2.appendChild(noteTextarea);
+
+        // Hidden input for done status
+        const doneInput = document.createElement('input');
+        doneInput.type = 'hidden';
+        doneInput.className = 'task-done-status';
+        doneInput.dataset.index = index;
+        doneInput.value = isDone;
+
+        taskEl.appendChild(row1);
+        taskEl.appendChild(row2);
+        taskEl.appendChild(doneInput);
+        tasksContainer.appendChild(taskEl);
     });
-  });
 
-  // Thêm tổng thời gian
-  const totalElement = document.createElement("div");
-  totalElement.className = "total-duration";
-  totalElement.innerHTML = `<strong>Tổng thời gian: ${totalMinutes} phút</strong>`;
-  tasksContainer.appendChild(totalElement);
+    // Thêm event listeners cho subject dropdowns
+    document.querySelectorAll('.task-subject').forEach(select => {
+        select.addEventListener('change', function () {
+            const index = this.getAttribute('data-index');
+            const subject = this.value;
+            const taskTypeContainer = this.parentNode;
+            const oldTaskType = taskTypeContainer.querySelector('.task-type-select, .task-type-container');
+
+            if (oldTaskType) {
+                const newTaskTypeField = createTaskTypeElement(index, subject, '');
+                taskTypeContainer.replaceChild(newTaskTypeField, oldTaskType);
+            }
+        });
+    });
+
+    // Thêm tổng thời gian
+    const totalElement = document.createElement("div");
+    totalElement.className = "total-duration";
+    totalElement.innerHTML = `<strong>Tổng thời gian: ${totalMinutes} phút</strong>`;
+    tasksContainer.appendChild(totalElement);
 }
 
 function renderTaskTypeField(index, subject, currentType = '') {
@@ -966,27 +1007,60 @@ function addNewTask() {
   // Tính index mới
   const taskCount = tasksContainer.querySelectorAll('.task-item:not(.total-duration)').length;
 
-  const taskEl = document.createElement("div");
-  taskEl.className = "task-item";
-  taskEl.innerHTML = `
-    <div class="task-row-extended">
-      <select class="task-subject" data-index="${taskCount}">
+    const taskEl = document.createElement("div");
+    taskEl.className = "task-item";
+
+    // Row 1
+    const row1 = document.createElement('div');
+    row1.className = 'task-row-extended';
+
+    const subjectSelect = document.createElement('select');
+    subjectSelect.className = 'task-subject';
+    subjectSelect.dataset.index = taskCount;
+    subjectSelect.innerHTML = `
         <option value="language" selected>Ngôn ngữ</option>
         <option value="it">IT</option>
         <option value="other">Khác</option>
-      </select>
-      ${renderTaskTypeField(taskCount, 'language', '')}
-      <input type="text" class="task-input" placeholder="Nhập nhiệm vụ mới" data-index="${taskCount}">
-      <input type="number" min="0" class="task-duration" value="30" placeholder="Phút" data-index="${taskCount}">
-    </div>
-    <div class="task-row">
-      <button class="btn-delete delete-task" data-index="${taskCount}">
-        <i class="fas fa-trash"></i>
-      </button>
-      <textarea class="task-note" data-index="${taskCount}" placeholder="Ghi chú..."></textarea>
-    </div>
-    <input type="hidden" class="task-done-status" data-index="${taskCount}" value="false">
-  `;
+    `;
+    row1.appendChild(subjectSelect);
+
+    const taskTypeField = createTaskTypeElement(taskCount, 'language', '');
+    row1.appendChild(taskTypeField);
+
+    const titleInput = document.createElement('input');
+    titleInput.type = 'text';
+    titleInput.className = 'task-input';
+    titleInput.placeholder = 'Nhập nhiệm vụ mới';
+    titleInput.dataset.index = taskCount;
+    row1.appendChild(titleInput);
+
+    const durationInput = document.createElement('input');
+    durationInput.type = 'number';
+    durationInput.min = 0;
+    durationInput.className = 'task-duration';
+    durationInput.value = 30;
+    durationInput.placeholder = 'Phút';
+    durationInput.dataset.index = taskCount;
+    row1.appendChild(durationInput);
+
+    // Row 2
+    const row2 = document.createElement('div');
+    row2.className = 'task-row';
+    row2.innerHTML = `
+        <button class="btn-delete delete-task" data-index="${taskCount}"><i class="fas fa-trash"></i></button>
+        <textarea class="task-note" data-index="${taskCount}" placeholder="Ghi chú..."></textarea>
+    `;
+
+    // Hidden input
+    const doneInput = document.createElement('input');
+    doneInput.type = 'hidden';
+    doneInput.className = 'task-done-status';
+    doneInput.dataset.index = taskCount;
+    doneInput.value = 'false';
+
+    taskEl.appendChild(row1);
+    taskEl.appendChild(row2);
+    taskEl.appendChild(doneInput);
   tasksContainer.appendChild(taskEl);
 
   // Thêm event listener cho subject dropdown
