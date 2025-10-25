@@ -684,6 +684,14 @@ function setupTabNavigation() {
   });
 }
 
+// Hàm escape HTML để chống XSS
+function escapeHTML(str) {
+    if (typeof str !== 'string') return str;
+    return str.replace(/[&<>"']/g, function(match) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[match];
+    });
+}
+
 // Task management functions
 function openEditDayModal(date) {
   console.log("Opening modal for date:", date);
@@ -1121,9 +1129,9 @@ async function saveDayData() {
           title: input.value.trim(),
           done: isDone,
           subject: subject,
-          type: taskType,
+          type: escapeHTML(taskType),
           duration: duration,
-          note: noteInput ? noteInput.value.trim() : ""
+          note: noteInput ? escapeHTML(noteInput.value.trim()) : ""
         });
 
         // CỘNG THỜI GIAN NẾU TASK ĐÃ HOÀN THÀNH
