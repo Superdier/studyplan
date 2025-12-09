@@ -10,16 +10,17 @@ const firebaseConfig = {
   measurementId: "G-WSPEP52PRG"
 };
 
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
 // App Variables
 let currentWeekStart = new Date("2025-07-07");
 let currentEditingDay = null;
 let notificationAudio = null;
 let isManualClose = false;
 let currentPhaseId = null; // Track current phase
+
+// --- START: AUTH & DB ABSTRACTION ---
+let db; // This will be our database handler (Firebase or Local)
+let userRole = 'guest'; // 'admin' or 'guest'
+// --- END: AUTH & DB ABSTRACTION ---
 
 // Helper function to get phase-specific database path
 function getPhaseDataPath(dataType) {
@@ -161,14 +162,6 @@ const stopFloatingTimerBtn = document.getElementById('stop-floating-timer');
 
 const minimizeTimerBtn = document.getElementById('minimize-timer');
 const timerFloatingContainer = document.createElement('div');
-timerFloatingContainer.id = 'floating-timer-container';
-timerFloatingContainer.className = 'floating-timer minimized';
-timerFloatingContainer.innerHTML = `
-  <div class="floating-timer-content">
-    <span id="floating-timer-display">00:00</span>
-  </div>
-`;
-document.body.appendChild(timerFloatingContainer);
 
 //////// Init Notification Sound ////////
 // Initialize audio system
@@ -648,11 +641,7 @@ async function loadSchedule(dates) {
     grid.innerHTML = "";
 
     const promises = dates.map(date => {
-        const schedulePath = getPhaseDataPath(`schedule/${date}`);
-        return db.ref(schedulePath).once("value").then(snapshot => {
-            const data = snapshot.val() || { time: "0 phút", tasks: [] };
-            return generateDayCardHTML(date, data);
-        })
+        return loadScheduleDataFromAllPhases(date);
     });
 
     const cards = await Promise.all(promises);
@@ -663,6 +652,79 @@ async function loadSchedule(dates) {
     setupDragListeners(grid);
     
     updateProgress();
+}
+
+// Load schedule data from current phase, all other phases, all archived phases, and global schedule
+async function loadScheduleDataFromAllPhases(date) {
+    try {
+        let allTasks = [];
+        const taskPromises = [];
+
+        // 1. Load from global schedule (fallback)
+        taskPromises.push(db.ref(`schedule/${date}`).once("value"));
+
+        // 2. Load from ALL phases (active and inactive)
+        const phasesSnapshot = await db.ref('phases').once("value");
+        if (phasesSnapshot.exists()) {
+            const allPhases = phasesSnapshot.val();
+            for (const phaseId of Object.keys(allPhases)) {
+                taskPromises.push(db.ref(`phaseData/${phaseId}/schedule/${date}`).once("value"));
+            }
+        }
+
+        // 3. Load from all archived phases
+        const archivesSnapshot = await db.ref('archives').once("value");
+        if (archivesSnapshot.exists()) {
+            const archives = archivesSnapshot.val();
+            Object.values(archives).forEach(archive => {
+                const archiveSchedule = archive.scheduleSnapshot || {};
+                if (archiveSchedule[date] && archiveSchedule[date].tasks) {
+                    allTasks = allTasks.concat(archiveSchedule[date].tasks);
+                }
+            });
+        }
+
+        // Execute all promises in parallel
+        const snapshots = await Promise.all(taskPromises);
+
+        // Process results
+        snapshots.forEach(snapshot => {
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                if (data.tasks) {
+                    allTasks = allTasks.concat(data.tasks);
+                }
+            }
+        });
+
+        // Remove duplicate tasks based on title and note (simple check)
+        const uniqueTasks = allTasks.filter((task, index, self) =>
+            index === self.findIndex((t) => (
+                t.title === task.title && t.note === task.note
+            ))
+        );
+
+        // Recalculate total time from the final list of tasks
+        const mergedData = { time: "0 phút", tasks: uniqueTasks };
+        if (mergedData.tasks.length > 0) {
+            let totalCompletedMinutes = 0;
+            mergedData.tasks.forEach(task => {
+                if (task.done) {
+                    totalCompletedMinutes += task.duration || 0;
+                }
+            });
+            const hours = Math.floor(totalCompletedMinutes / 60);
+            const remainingMins = totalCompletedMinutes % 60;
+            mergedData.time = hours > 0
+                ? `Thời gian: ${hours} giờ ${remainingMins} phút`
+                : `Thời gian: ${totalCompletedMinutes} phút`;
+        }
+
+        return generateDayCardHTML(date, mergedData);
+    } catch (error) {
+        console.error(`Lỗi khi tải lịch cho ${date}:`, error);
+        return generateDayCardHTML(date, { time: "0 phút", tasks: [] });
+    }
 }
 
 function setupTabNavigation() {
@@ -703,18 +765,30 @@ function escapeHTML(str) {
 }
 
 // Task management functions
-function openEditDayModal(date) {
+async function openEditDayModal(date) {
   console.log("Opening modal for date:", date);
   currentEditingDay = date;
   const d = new Date(date);
   const dayName = d.toLocaleDateString("vi-VN", { weekday: "long" });
 
-  if (modalDate) {
-    modalDate.textContent = `${dayName.charAt(0).toUpperCase() + dayName.slice(1)}, ${d.toLocaleDateString("vi-VN")}`;
-  }
+  try {
+    if (modalDate) {
+      modalDate.textContent = `${dayName.charAt(0).toUpperCase() + dayName.slice(1)}, ${d.toLocaleDateString("vi-VN")}`;
+    }
 
-  const schedulePath = getPhaseDataPath(`schedule/${date}`);
-  db.ref(schedulePath).once("value").then(snapshot => {
+    // Tìm đường dẫn dữ liệu chính xác, ưu tiên chặng hiện tại
+    let dataPath = getPhaseDataPath(`schedule/${date}`);
+    let snapshot = await db.ref(dataPath).once("value");
+
+    // Nếu không có dữ liệu ở chặng hiện tại, tìm ở các chặng khác
+    if (!snapshot.exists()) {
+        const foundPath = await findTaskPath(date, null, true); // Tìm đường dẫn của ngày
+        if (foundPath) {
+            dataPath = foundPath;
+            snapshot = await db.ref(dataPath).once("value");
+        }
+    }
+
     const data = snapshot.val() || { time: "0 phút", tasks: [] };
 
     if (studyDurationInput) {
@@ -723,13 +797,12 @@ function openEditDayModal(date) {
 
     renderTasksInModal(data.tasks || []);
 
-    if (editDayModal) {
-      console.log("Displaying modal");
-      showModal(editDayModal);
-    }
-  }).catch(error => {
-    console.error("Error loading day data:", error);
-  });
+    if (editDayModal) showModal(editDayModal);
+
+  } catch (error) {
+    console.error("Lỗi khi tải dữ liệu ngày để chỉnh sửa:", error);
+    showCustomAlert("Không thể tải dữ liệu để chỉnh sửa. Vui lòng thử lại.");
+  }
 }
 
 function parseStudyTime(timeStr) {
@@ -1161,10 +1234,17 @@ async function saveDayData() {
     : `Thời gian: ${totalCompletedMinutes} phút`;
 
   try {
+    // Xác định đúng đường dẫn để lưu, ưu tiên chặng hiện tại nếu có dữ liệu
+    let schedulePath = getPhaseDataPath(`schedule/${currentEditingDay}`);
+    const existingData = await db.ref(schedulePath).once('value');
+    if (!existingData.exists()) {
+        const foundPath = await findTaskPath(currentEditingDay, null, true);
+        if (foundPath) schedulePath = foundPath;
+    }
+
     const weekNumber = Math.floor((new Date(currentEditingDay) - new Date("2025-07-07")) / (7 * 86400000)) + 1;
 
     // Lưu dữ liệu nhiệm vụ trước
-    const schedulePath = getPhaseDataPath(`schedule/${currentEditingDay}`);
     await db.ref(schedulePath).set({
       time: timeStr,
       tasks: tasks,
@@ -4093,15 +4173,33 @@ document.addEventListener('click', (e) => {
 
 async function toggleTaskDone(date, taskIndex) {
   try {
-    const schedulePath = getPhaseDataPath(`schedule/${date}/tasks/${taskIndex}`);
-    const ref = db.ref(schedulePath);
-    const snapshot = await ref.once('value');
-    const currentDone = snapshot.val().done;
-
-    await ref.update({ done: !currentDone });
-
     const taskElement = document.querySelector(`.day-card[data-date="${date}"] .study-item[data-task-index="${taskIndex}"]`);
-    if (taskElement) {
+    if (!taskElement) return;
+
+    const taskTitle = taskElement.querySelector('.task-content').textContent;
+
+    // Find the correct path for the task
+    const schedulePath = await findTaskPath(date, taskTitle);
+
+    if (!schedulePath) {
+      console.error(`Không tìm thấy đường dẫn cho nhiệm vụ: "${taskTitle}" vào ngày ${date}`);
+      showCustomAlert("Không thể cập nhật nhiệm vụ vì không tìm thấy dữ liệu gốc.");
+      return;
+    }
+
+    const taskRef = db.ref(schedulePath);
+    const snapshot = await taskRef.once('value');
+    const taskData = snapshot.val();
+
+    if (!taskData) {
+      console.error(`Dữ liệu không tồn tại tại đường dẫn: ${schedulePath}`);
+      return;
+    }
+
+    const currentDone = taskData.done;
+    await taskRef.update({ done: !currentDone });
+
+    if (taskElement) { // Re-use the existing taskElement variable
       taskElement.classList.toggle('done', !currentDone);
       const icon = taskElement.querySelector('.check-btn i');
       if (icon) {
@@ -4122,6 +4220,58 @@ async function toggleTaskDone(date, taskIndex) {
   } catch (error) {
     console.error("Lỗi khi cập nhật nhiệm vụ:", error);
   }
+}
+
+async function findTaskPath(date, taskTitle, findDayPath = false) {
+    // 1. Check current phase
+    if (currentPhaseId) {
+        const phasePath = `phaseData/${currentPhaseId}/schedule/${date}/tasks`;
+        const dayPath = `phaseData/${currentPhaseId}/schedule/${date}`;
+        const phaseSnapshot = await db.ref(dayPath).once('value');
+        if (phaseSnapshot.exists()) {
+            if (findDayPath) return dayPath;
+            if (!taskTitle) return `${phasePath}/0`; // Fallback
+
+            const tasks = phaseSnapshot.val().tasks || [];
+            const taskIndex = tasks.findIndex(t => t && t.title === taskTitle);
+            if (taskIndex !== -1) return `${phasePath}/${taskIndex}`;
+        }
+    }
+
+    // 2. Check all other phases
+    const phasesSnapshot = await db.ref('phases').once("value");
+    if (phasesSnapshot.exists()) {
+        const allPhases = phasesSnapshot.val();
+        for (const phaseId of Object.keys(allPhases)) {
+            if (phaseId === currentPhaseId) continue;
+            const phasePath = `phaseData/${phaseId}/schedule/${date}/tasks`;
+            const dayPath = `phaseData/${phaseId}/schedule/${date}`;
+            const phaseSnapshot = await db.ref(dayPath).once('value');
+            if (phaseSnapshot.exists()) {
+                if (findDayPath) return dayPath;
+                if (!taskTitle) return `${phasePath}/0`; // Fallback
+
+                const tasks = phaseSnapshot.val().tasks || [];
+                const taskIndex = tasks.findIndex(t => t && t.title === taskTitle);
+                if (taskIndex !== -1) return `${phasePath}/${taskIndex}`;
+            }
+        }
+    }
+
+    // 3. Check global schedule (fallback)
+    const globalPath = `schedule/${date}/tasks`;
+    const dayPath = `schedule/${date}`;
+    const globalSnapshot = await db.ref(dayPath).once('value');
+    if (globalSnapshot.exists()) {
+        if (findDayPath) return dayPath;
+        if (!taskTitle) return `${globalPath}/0`; // Fallback
+
+        const tasks = globalSnapshot.val().tasks || [];
+        const taskIndex = tasks.findIndex(t => t && t.title === taskTitle);
+        if (taskIndex !== -1) return `${globalPath}/${taskIndex}`;
+    }
+
+    return null; // Task not found
 }
 
 function updateStreakDisplay(streakData) {
@@ -4754,16 +4904,68 @@ async function loadAndDisplayPhase() {
     const activePhaseId = snapshot.val();
 
     if (activePhaseId) {
-      currentPhaseId = activePhaseId; // Set global currentPhaseId
+      currentPhaseId = activePhaseId;
       const phaseSnapshot = await db.ref(`phases/${activePhaseId}`).once('value');
       if (phaseSnapshot.exists()) {
         const phase = phaseSnapshot.val();
+        
+        console.log('Phase data loaded:', phase); // Debug log
+        
         document.getElementById('phase-name-display').textContent = phase.name;
+
+        // Sửa cách xử lý ngày để tránh vấn đề timezone
+        const createLocalDate = (dateString) => {
+          const [year, month, day] = dateString.split('-').map(Number);
+          return new Date(year, month - 1, day);
+        };
+
+        const startDate = createLocalDate(phase.startDate);
+        const endDate = createLocalDate(phase.endDate);
+        const today = new Date();
+        
+        // Reset giờ để so sánh chỉ ngày tháng
+        today.setHours(0, 0, 0, 0);
+        startDate.setHours(0, 0, 0, 0);
+        endDate.setHours(0, 0, 0, 0);
+
+        console.log('Dates:', { startDate, endDate, today }); // Debug log
+
+        // Tính tuần chính xác
+        const timeDiff = endDate.getTime() - startDate.getTime();
+        const daysDiff = timeDiff / (1000 * 3600 * 24);
+        const weeks = Math.ceil(daysDiff / 7);
+
+        // Tính ngày còn lại
+        const remainingTime = endDate.getTime() - today.getTime();
+        const remainingDays = Math.ceil(remainingTime / (1000 * 3600 * 24));
+
+        console.log('Calculated:', { weeks, remainingDays }); // Debug log
+
+        // Hiển thị thông tin phase
         document.getElementById('phase-dates-display').textContent = 
           `${formatDateDisplay(phase.startDate)} - ${formatDateDisplay(phase.endDate)}`;
-        
-        const weeks = Math.ceil((new Date(phase.endDate) - new Date(phase.startDate)) / (7 * 24 * 60 * 60 * 1000));
         document.getElementById('phase-weeks-display').textContent = weeks;
+
+        // Cập nhật thẻ thống kê tóm tắt
+        const summaryWeeksEl = document.getElementById('summary-weeks');
+        const summaryGoalEl = document.getElementById('summary-goal');
+        const summaryRemainingDaysEl = document.getElementById('summary-remaining-days');
+        const completedBadge = document.getElementById('phase-completed-badge');
+
+        if (summaryWeeksEl) summaryWeeksEl.textContent = weeks;
+        if (summaryGoalEl) summaryGoalEl.textContent = phase.goal || 'Chưa có';
+        
+        if (summaryRemainingDaysEl) {
+          if (remainingDays < 0) {
+            summaryRemainingDaysEl.textContent = "Đã hoàn thành";
+            if (completedBadge) {
+              completedBadge.style.display = 'inline-block';
+            }
+          } else {
+            summaryRemainingDaysEl.textContent = remainingDays;
+            if (completedBadge) completedBadge.style.display = 'none';
+          }
+        }
       }
     }
   } catch (error) {
@@ -4773,9 +4975,110 @@ async function loadAndDisplayPhase() {
 
 function formatDateDisplay(dateStr) {
   const date = new Date(dateStr);
-  const day = date.getDate();
-  const month = date.getMonth() + 1;
-  return `${day}/${month}/${date.getFullYear()}`;
+  return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+}
+
+// --- START: AUTH & DB ABSTRACTION LAYER ---
+
+class FirebaseHandler {
+    constructor() {
+        try {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            this.db = firebase.database();
+            console.log("Firebase Initialized for Admin.");
+        } catch (e) {
+            console.error("Firebase initialization error:", e);
+        }
+    }
+
+    ref(path) {
+        return this.db.ref(path);
+    }
+}
+
+class LocalStorageHandler {
+    constructor() {
+        this.storageKey = 'studyPlanGuestData';
+        this.data = this._loadData();
+        console.log("LocalStorage DB Initialized for Guest.");
+    }
+
+    _loadData() {
+        try {
+            const storedData = localStorage.getItem(this.storageKey);
+            return storedData ? JSON.parse(storedData) : {};
+        } catch (e) {
+            console.error("Error loading data from localStorage", e);
+            return {};
+        }
+    }
+
+    _saveData() {
+        try {
+            localStorage.setItem(this.storageKey, JSON.stringify(this.data));
+        } catch (e) {
+            console.error("Error saving data to localStorage", e);
+        }
+    }
+
+    _getNested(path) {
+        return path.split('/').reduce((obj, key) => (obj && obj[key] !== 'undefined') ? obj[key] : undefined, this.data);
+    }
+
+    _setNested(path, value) {
+        const keys = path.split('/');
+        const lastKey = keys.pop();
+        let current = this.data;
+        for (const key of keys) {
+            if (!current[key]) {
+                current[key] = {};
+            }
+            current = current[key];
+        }
+        current[lastKey] = value;
+        this._saveData();
+    }
+
+    _removeNested(path) {
+        const keys = path.split('/');
+        const lastKey = keys.pop();
+        let parent = this.data;
+        for (const key of keys) {
+            if (!parent[key]) return;
+            parent = parent[key];
+        }
+        if (parent) {
+            delete parent[lastKey];
+            this._saveData();
+        }
+    }
+
+    ref(path) {
+        const self = this;
+        return {
+            once: (eventType) => {
+                return Promise.resolve({
+                    val: () => self._getNested(path),
+                    exists: () => self._getNested(path) !== undefined
+                });
+            },
+            set: (value) => {
+                self._setNested(path, value);
+                return Promise.resolve();
+            },
+            update: (value) => {
+                const existing = self._getNested(path) || {};
+                self._setNested(path, { ...existing, ...value });
+                return Promise.resolve();
+            },
+            remove: () => {
+                self._removeNested(path);
+                return Promise.resolve();
+            }
+        };
+    }
 }
 
 // Initialize the app
@@ -4795,54 +5098,100 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.addEventListener('touchstart', enableAudioOnInteraction);
   document.addEventListener('keydown', enableAudioOnInteraction);
   
-  // Load current phase
-  await loadAndDisplayPhase();
-  
-  // Setup admin button
-  const adminBtn = document.getElementById('admin-btn');
-  if (adminBtn) {
-    adminBtn.addEventListener('click', () => {
-      window.location.href = 'admin.html';
+  // --- START: LOGIN LOGIC ---
+  const loginModal = document.getElementById('login-modal');
+  const loginForm = document.getElementById('login-form');
+  const pinInput = document.getElementById('pin-input');
+  const guestBtn = document.getElementById('guest-login-btn');
+  const loginError = document.getElementById('login-error');
+
+  // --- START: SESSION & PIN VISIBILITY LOGIC ---
+  const togglePinBtn = document.getElementById('toggle-pin-visibility');
+  if (togglePinBtn) {
+    togglePinBtn.addEventListener('click', () => {
+      const isPassword = pinInput.type === 'password';
+      pinInput.type = isPassword ? 'text' : 'password';
+      togglePinBtn.classList.toggle('fa-eye', !isPassword);
+      togglePinBtn.classList.toggle('fa-eye-slash', isPassword);
     });
   }
-  
-  currentWeekStart = getStartOfWeek();
-  updateRemainingDays();
-  await loadCustomTaskTypes();
 
-  loadCurrentWeek();
-  setupSkillAssessmentEventListeners();
-  await loadSkillAssessments();
-  setupEventListeners();
-  setupTabNavigation();
-  setupRealTimeListeners();
-  setupJLptScoresEventListeners();
-  await loadJLptScores();
+  const checkAdminSession = () => {
+    const session = JSON.parse(localStorage.getItem('adminSession'));
+    return session && (new Date().getTime() - session.timestamp < 30 * 24 * 60 * 60 * 1000);
+  };
+  // --- END: SESSION & PIN VISIBILITY LOGIC ---
 
-  if (studyMinutesInput) {
-    timeLeft = parseInt(studyMinutesInput.value) * 60;
-    updateTimerDisplay();
+  const startApp = async (role) => {
+      userRole = role;
+      if (role === 'admin') {
+          db = new FirebaseHandler();
+      } else {
+          db = new LocalStorageHandler();
+          // Hide admin button for guests
+          const adminBtn = document.getElementById('admin-btn');
+          if(adminBtn) adminBtn.style.display = 'none';
+      }
+
+      hideModal(loginModal);
+
+      // --- Regular App Initialization ---
+      await loadAndDisplayPhase();
+      const adminBtn = document.getElementById('admin-btn');
+      if (adminBtn) {
+          adminBtn.addEventListener('click', () => {
+              window.location.href = 'admin.html';
+          });
+      }
+      currentWeekStart = getStartOfWeek();
+      updateRemainingDays();
+      await loadCustomTaskTypes();
+      loadCurrentWeek();
+      setupSkillAssessmentEventListeners();
+      await loadSkillAssessments();
+      setupEventListeners();
+      setupTabNavigation();
+      if (userRole === 'admin') {
+          setupRealTimeListeners();
+      }
+      setupJLptScoresEventListeners();
+      await loadJLptScores();
+      if (studyMinutesInput) {
+          timeLeft = parseInt(studyMinutesInput.value) * 60;
+          updateTimerDisplay();
+      }
+      if (userRole === 'admin') {
+          migrateOldDataToLanguageCategory();
+      }
+      loadResources();
+      setupResourcesEventListeners();
+      initializeDragAndDrop();
+      initCharts();
+      displayEffectiveStudyTime();
+  };
+
+  loginForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (pinInput.value === '290302') {
+          // Save admin session
+          const session = { timestamp: new Date().getTime() };
+          localStorage.setItem('adminSession', JSON.stringify(session));
+          startApp('admin');
+      } else {
+          loginError.style.display = 'block';
+          localStorage.removeItem('adminSession');
+      }
+  });
+
+  guestBtn.addEventListener('click', () => {
+      // Clear admin session when logging in as guest
+      localStorage.removeItem('adminSession');
+      startApp('guest');
+  });
+
+  // Check for existing session on page load
+  if (checkAdminSession()) {
+    startApp('admin');
   }
-
-  migrateOldDataToLanguageCategory();
-  loadResources();
-  setupResourcesEventListeners();
-
-  document.body.addEventListener('click', () => {
-    const dummyAudio = new Audio();
-    dummyAudio.play().then(() => {
-      console.log("Âm thanh đã được mở khóa");
-    }).catch(e => {
-      console.log("Người dùng cần tương tác trước khi phát âm thanh");
-    });
-  }, { once: true });
-
-  // Initialize drag and drop
-  initializeDragAndDrop();
-
-  // Khởi tạo biểu đồ
-  initCharts();
-
-  // Cập nhật thời gian học hiệu quả
-  displayEffectiveStudyTime();
+  // --- END: LOGIN LOGIC ---
 });

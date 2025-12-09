@@ -26,7 +26,10 @@
                 Kế hoạch phát triển bản thân trong tiếng Nhật
             </div>
             <div class="date-range" id="current-phase-display">
-                <i class="fas fa-calendar-alt"></i> <span id="phase-name-display">Chặng 1</span>: <span id="phase-dates-display">10/07/2025 - 06/12/2025</span> (<span id="phase-weeks-display">21</span> tuần)
+                <i class="fas fa-calendar-alt"></i> 
+                <span id="phase-name-display">Chặng 1</span>
+                <span id="phase-completed-badge" class="phase-badge completed-badge" style="display: none;">Đã hoàn thành</span>: 
+                <span id="phase-dates-display">10/07/2025 - 06/12/2025</span> (<span id="phase-weeks-display">21</span> tuần)
             </div>
             <div style="display: flex; gap: 10px; margin-top: 15px;">
                 <button id="start-study-btn" class="btn btn-primary week-btn">
@@ -102,19 +105,19 @@
                     <div class="stats-grid">
                         <div class="stat-card">
                             <i class="fas fa-book fa-2x"></i>
-                            <div class="stat-value">21</div>
+                            <div class="stat-value" id="summary-weeks">21</div>
                             <div class="stat-label">Tuần học tập</div>
                         </div>
 
                         <div class="stat-card">
                             <i class="fas fa-bullseye fa-2x"></i>
-                            <div class="stat-value">Kaiwa TỐT</div>
+                            <div class="stat-value" id="summary-goal">...</div>
                             <div class="stat-label">Mục tiêu cuối cùng</div>
                         </div>
 
                         <div class="stat-card">
                             <i class="fas fa-hourglass-half fa-2x"></i>
-                            <div class="stat-value">142</div>
+                            <div class="stat-value" id="summary-remaining-days">0</div>
                             <div class="stat-label">Ngày còn lại</div>
                         </div>
                     </div>
@@ -858,6 +861,32 @@
                     <i class="fas fa-save"></i> Lưu thay đổi
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div class="modal" id="login-modal" style="display: flex; z-index: 20000;">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <h2><i class="fas fa-lock"></i> Yêu cầu xác thực</h2>
+            <p>Vui lòng nhập mã PIN để truy cập với tư cách quản trị viên hoặc tiếp tục với tư cách khách.</p>
+            <form id="login-form" style="margin-top: 20px;">
+                <div class="form-group" style="text-align: left; position: relative;">
+                    <label for="pin-input" style="font-weight: bold;">Mã PIN:</label>
+                    <div class="pin-input-wrapper">
+                        <input type="password" id="pin-input" class="pin-input" autocomplete="off" autofocus>
+                        <i class="fas fa-eye" id="toggle-pin-visibility"></i>
+                    </div>
+                </div>
+                <div id="login-error" class="login-error-message" style="display: none;">Mã PIN không chính xác.</div>
+                <div class="login-actions">
+                    <button type="button" id="guest-login-btn" class="btn btn-secondary">
+                        <i class="fas fa-user-secret"></i> Vào với tư cách Khách
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-sign-in-alt"></i> Xác nhận
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
