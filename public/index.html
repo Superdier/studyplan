@@ -25,12 +25,17 @@
             <div class="subtitle">
                 Kế hoạch phát triển bản thân trong tiếng Nhật
             </div>
-            <div class="date-range">
-                <i class="fas fa-calendar-alt"></i> Chặng 1: 10/07/2025 - 06/12/2025 (21 tuần)
+            <div class="date-range" id="current-phase-display">
+                <i class="fas fa-calendar-alt"></i> <span id="phase-name-display">Chặng 1</span>: <span id="phase-dates-display">10/07/2025 - 06/12/2025</span> (<span id="phase-weeks-display">21</span> tuần)
             </div>
-            <button id="start-study-btn" class="btn btn-primary week-btn" style="margin-top: 15px">
-                <i class="fas fa-play-circle"></i> Bắt đầu học
-            </button>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button id="start-study-btn" class="btn btn-primary week-btn">
+                    <i class="fas fa-play-circle"></i> Bắt đầu học
+                </button>
+                <button id="admin-btn" class="btn btn-primary week-btn" style="background: #667eea;">
+                    <i class="fas fa-cogs"></i> Quản lý
+                </button>
+            </div>
             <div>
                 <a href="https://review-question-tcham.vercel.app/" target="_blank"
                     style="color: #007bff; text-decoration: none; font-size: 0.9em;">

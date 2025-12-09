@@ -19,6 +19,15 @@ let currentWeekStart = new Date("2025-07-07");
 let currentEditingDay = null;
 let notificationAudio = null;
 let isManualClose = false;
+let currentPhaseId = null; // Track current phase
+
+// Helper function to get phase-specific database path
+function getPhaseDataPath(dataType) {
+  if (currentPhaseId) {
+    return `phaseData/${currentPhaseId}/${dataType}`;
+  }
+  return dataType; // Fallback to global path if no phase selected
+}
 
 // Chart instances
 let progressChart = null;
@@ -638,12 +647,13 @@ async function loadSchedule(dates) {
 
     grid.innerHTML = "";
 
-    const promises = dates.map(date =>
-        db.ref(`schedule/${date}`).once("value").then(snapshot => {
+    const promises = dates.map(date => {
+        const schedulePath = getPhaseDataPath(`schedule/${date}`);
+        return db.ref(schedulePath).once("value").then(snapshot => {
             const data = snapshot.val() || { time: "0 phút", tasks: [] };
             return generateDayCardHTML(date, data);
         })
-    );
+    });
 
     const cards = await Promise.all(promises);
     grid.innerHTML = cards.join("");
@@ -703,7 +713,8 @@ function openEditDayModal(date) {
     modalDate.textContent = `${dayName.charAt(0).toUpperCase() + dayName.slice(1)}, ${d.toLocaleDateString("vi-VN")}`;
   }
 
-  db.ref(`schedule/${date}`).once("value").then(snapshot => {
+  const schedulePath = getPhaseDataPath(`schedule/${date}`);
+  db.ref(schedulePath).once("value").then(snapshot => {
     const data = snapshot.val() || { time: "0 phút", tasks: [] };
 
     if (studyDurationInput) {
@@ -1153,7 +1164,8 @@ async function saveDayData() {
     const weekNumber = Math.floor((new Date(currentEditingDay) - new Date("2025-07-07")) / (7 * 86400000)) + 1;
 
     // Lưu dữ liệu nhiệm vụ trước
-    await db.ref(`schedule/${currentEditingDay}`).set({
+    const schedulePath = getPhaseDataPath(`schedule/${currentEditingDay}`);
+    await db.ref(schedulePath).set({
       time: timeStr,
       tasks: tasks,
       weekNumber: weekNumber
@@ -1381,7 +1393,8 @@ function cleanupDragFeedback() {
 async function moveTaskBetweenDays(sourceDate, taskIndex, targetDate) {
   try {
     // Get source day data
-    const sourceSnapshot = await db.ref(`schedule/${sourceDate}`).once('value');
+    const sourceSchedulePath = getPhaseDataPath(`schedule/${sourceDate}`);
+    const sourceSnapshot = await db.ref(sourceSchedulePath).once('value');
     const sourceData = sourceSnapshot.val() || { time: "0 phút", tasks: [] };
 
     // Check if task exists
@@ -1391,7 +1404,8 @@ async function moveTaskBetweenDays(sourceDate, taskIndex, targetDate) {
     }
 
     // Get target day data
-    const targetSnapshot = await db.ref(`schedule/${targetDate}`).once('value');
+    const targetSchedulePath = getPhaseDataPath(`schedule/${targetDate}`);
+    const targetSnapshot = await db.ref(targetSchedulePath).once('value');
     const targetData = targetSnapshot.val() || { time: "0 phút", tasks: [] };
 
     // Remove task from source
@@ -1404,11 +1418,11 @@ async function moveTaskBetweenDays(sourceDate, taskIndex, targetDate) {
     targetData.tasks.push(movedTask);
 
     // Update both days in Firebase
-    await db.ref(`schedule/${sourceDate}`).update({
+    await db.ref(sourceSchedulePath).update({
       tasks: sourceData.tasks
     });
 
-    await db.ref(`schedule/${targetDate}`).update({
+    await db.ref(targetSchedulePath).update({
       tasks: targetData.tasks
     });
 
@@ -1523,7 +1537,8 @@ function updateProgress() {
 
 async function migrateOldDataToLanguageCategory() {
   try {
-    const snapshot = await db.ref('schedule').once('value');
+    const schedulePath = getPhaseDataPath('schedule');
+    const snapshot = await db.ref(schedulePath).once('value');
     const scheduleData = snapshot.val() || {};
     let needsUpdate = false;
 
@@ -1550,7 +1565,7 @@ async function migrateOldDataToLanguageCategory() {
         });
 
         if (needsUpdate) {
-          db.ref(`schedule/${date}`).update({ tasks: dayData.tasks });
+          db.ref(`${schedulePath}/${date}`).update({ tasks: dayData.tasks });
         }
       }
     });
@@ -1565,7 +1580,8 @@ async function migrateOldDataToLanguageCategory() {
 
 async function getStudyStatistics() {
   try {
-    const scheduleSnapshot = await db.ref('schedule').once('value');
+    const schedulePath = getPhaseDataPath('schedule');
+    const scheduleSnapshot = await db.ref(schedulePath).once('value');
     const scheduleData = scheduleSnapshot.val() || {};
 
     // Tạo bản đồ tiến độ tuần
@@ -1743,7 +1759,8 @@ async function getStudyStatistics() {
 // Load skill assessments from Firebase
 async function loadSkillAssessments() {
   try {
-    const snapshot = await db.ref('skillAssessments').once('value');
+    const skillPath = getPhaseDataPath('skillAssessments');
+    const snapshot = await db.ref(skillPath).once('value');
     const data = snapshot.val();
 
     if (data) {
@@ -2028,12 +2045,13 @@ async function saveSkillAssessment() {
   };
 
   try {
+    const skillPath = getPhaseDataPath('skillAssessments');
     if (currentEditingAssessmentId) {
-      await db.ref(`skillAssessments/${currentEditingAssessmentId}`).update(assessmentData);
+      await db.ref(`${skillPath}/${currentEditingAssessmentId}`).update(assessmentData);
     } else {
       const newAssessmentId = `skill_${Date.now()}`;
       assessmentData.createdAt = new Date().toISOString();
-      await db.ref(`skillAssessments/${newAssessmentId}`).set(assessmentData);
+      await db.ref(`${skillPath}/${newAssessmentId}`).set(assessmentData);
     }
 
     hideModal(document.getElementById('skill-assessment-modal'));
@@ -2052,7 +2070,8 @@ async function deleteSkillAssessment(assessmentId) {
   if (!confirm('Bạn có chắc muốn xóa đánh giá kỹ năng này?')) return;
 
   try {
-    await db.ref(`skillAssessments/${assessmentId}`).remove();
+    const skillPath = getPhaseDataPath('skillAssessments');
+    await db.ref(`${skillPath}/${assessmentId}`).remove();
     await loadSkillAssessments();
     refreshSkillCharts();
     showCustomAlert('Đã xóa đánh giá kỹ năng thành công!');
@@ -2245,9 +2264,12 @@ async function updateStatsCards(stats) {
 
 async function calculateStreak() {
   try {
+    const schedulePath = getPhaseDataPath('schedule');
+    const sessionsPath = getPhaseDataPath('studySessions');
+    
     const [scheduleSnapshot, sessionsSnapshot] = await Promise.all([
-      db.ref('schedule').once('value'),
-      db.ref('studySessions').once('value')
+      db.ref(schedulePath).once('value'),
+      db.ref(sessionsPath).once('value')
     ]);
 
     const scheduleData = scheduleSnapshot.val() || {};
@@ -2738,9 +2760,11 @@ async function displayEffectiveStudyTime() {
 
 async function analyzeStudyPatterns() {
   try {
+    const schedulePath = getPhaseDataPath('schedule');
+    const sessionsPath = getPhaseDataPath('studySessions');
     const [scheduleSnapshot, sessionsSnapshot] = await Promise.all([
-      db.ref('schedule').once('value'),
-      db.ref('studySessions').once('value')
+      db.ref(schedulePath).once('value'),
+      db.ref(sessionsPath).once('value')
     ]);
 
     const scheduleData = scheduleSnapshot.val() || {};
@@ -3020,7 +3044,8 @@ function filterStatsBySubject(stats, skillFilter, timeFilter) {
 // Hàm tải điểm số từ Firebase
 async function loadJLptScores() {
   try {
-    const snapshot = await db.ref('jlptScores').once('value');
+    const jlptPath = getPhaseDataPath('jlptScores');
+    const snapshot = await db.ref(jlptPath).once('value');
     const data = snapshot.val();
 
     if (data) {
@@ -3242,14 +3267,15 @@ async function saveJLptScore() {
   };
 
   try {
+    const jlptPath = getPhaseDataPath('jlptScores');
     if (currentEditingScoreId) {
       // Cập nhật điểm số hiện có
-      await db.ref(`jlptScores/${currentEditingScoreId}`).update(scoreData);
+      await db.ref(`${jlptPath}/${currentEditingScoreId}`).update(scoreData);
     } else {
       // Thêm điểm số mới
       const newScoreId = `jlpt_${Date.now()}`;
       scoreData.createdAt = new Date().toISOString();
-      await db.ref(`jlptScores/${newScoreId}`).set(scoreData);
+      await db.ref(`${jlptPath}/${newScoreId}`).set(scoreData);
     }
 
     hideModal(document.getElementById('jlpt-score-detail-modal'));
@@ -3269,7 +3295,8 @@ async function deleteJLptScore(scoreId) {
   if (!confirm('Bạn có chắc muốn xóa điểm số này?')) return;
 
   try {
-    await db.ref(`jlptScores/${scoreId}`).remove();
+    const jlptPath = getPhaseDataPath('jlptScores');
+    await db.ref(`${jlptPath}/${scoreId}`).remove();
     // Sau khi xóa thành công
     await loadJLptScores();
     refreshJLptCharts();
@@ -3822,7 +3849,8 @@ function startStudySession() {
     type: "active"
   };
 
-  db.ref(`studySessions/${dateKey}/${sessionKey}`).set({
+  const sessionsPath = getPhaseDataPath(`studySessions/${dateKey}/${sessionKey}`);
+  db.ref(sessionsPath).set({
     start: sessionStartTime.getTime(),
     end: null,
     duration: 0,
@@ -3840,7 +3868,8 @@ async function endStudySession() {
   const sessionKey = `session_${Date.now()}`;
 
   try {
-    await db.ref(`studySessions/${dateKey}/${sessionKey}`).update({
+    const sessionsPath = getPhaseDataPath(`studySessions/${dateKey}/${sessionKey}`);
+    await db.ref(sessionsPath).update({
       end: endTime.getTime(),
       duration: duration,
       type: duration >= parseInt(studyMinutesInput.value) ? "completed" : "interrupted"
@@ -3862,17 +3891,20 @@ async function updateStudyStats(dateKey, duration) {
   const weekKey = `${year}-W${weekNumber.toString().padStart(2, '0')}`;
   const monthKey = `${year}-${month.toString().padStart(2, '0')}`;
 
-  const dailyRef = db.ref(`userStats/daily/${monthKey}/${date.getDate()}`);
+  const dailyPath = getPhaseDataPath(`userStats/daily/${monthKey}/${date.getDate()}`);
+  const dailyRef = db.ref(dailyPath);
   const dailySnapshot = await dailyRef.once('value');
   const currentDaily = dailySnapshot.val() || 0;
   await dailyRef.set(currentDaily + duration);
 
-  const weeklyRef = db.ref(`userStats/weekly/${weekKey}`);
+  const weeklyPath = getPhaseDataPath(`userStats/weekly/${weekKey}`);
+  const weeklyRef = db.ref(weeklyPath);
   const weeklySnapshot = await weeklyRef.once('value');
   const currentWeekly = weeklySnapshot.val() || 0;
   await weeklyRef.set(currentWeekly + duration);
 
-  const monthlyRef = db.ref(`userStats/monthly/${monthKey}`);
+  const monthlyPath = getPhaseDataPath(`userStats/monthly/${monthKey}`);
+  const monthlyRef = db.ref(monthlyPath);
   const monthlySnapshot = await monthlyRef.once('value');
   const currentMonthly = monthlySnapshot.val() || 0;
   await monthlyRef.set(currentMonthly + duration);
@@ -4061,7 +4093,8 @@ document.addEventListener('click', (e) => {
 
 async function toggleTaskDone(date, taskIndex) {
   try {
-    const ref = db.ref(`schedule/${date}/tasks/${taskIndex}`);
+    const schedulePath = getPhaseDataPath(`schedule/${date}/tasks/${taskIndex}`);
+    const ref = db.ref(schedulePath);
     const snapshot = await ref.once('value');
     const currentDone = snapshot.val().done;
 
@@ -4470,12 +4503,15 @@ function showNotification(title, message) {
 }
 
 function setupRealTimeListeners() {
-  db.ref('schedule').on('value', async () => {
+  const schedulePath = getPhaseDataPath('schedule');
+  const sessionsPath = getPhaseDataPath('studySessions');
+  
+  db.ref(schedulePath).on('value', async () => {
     const newStreak = await calculateStreak();
     updateStreakDisplay(newStreak);
   });
 
-  db.ref('studySessions').on('value', async () => {
+  db.ref(sessionsPath).on('value', async () => {
     const newStreak = await calculateStreak();
     updateStreakDisplay(newStreak);
   });
@@ -4711,6 +4747,37 @@ function initTools() {
   console.log('Đã khởi tạo tab công cụ');
 }
 
+// Load and display current phase
+async function loadAndDisplayPhase() {
+  try {
+    const snapshot = await db.ref('activePhase').once('value');
+    const activePhaseId = snapshot.val();
+
+    if (activePhaseId) {
+      currentPhaseId = activePhaseId; // Set global currentPhaseId
+      const phaseSnapshot = await db.ref(`phases/${activePhaseId}`).once('value');
+      if (phaseSnapshot.exists()) {
+        const phase = phaseSnapshot.val();
+        document.getElementById('phase-name-display').textContent = phase.name;
+        document.getElementById('phase-dates-display').textContent = 
+          `${formatDateDisplay(phase.startDate)} - ${formatDateDisplay(phase.endDate)}`;
+        
+        const weeks = Math.ceil((new Date(phase.endDate) - new Date(phase.startDate)) / (7 * 24 * 60 * 60 * 1000));
+        document.getElementById('phase-weeks-display').textContent = weeks;
+      }
+    }
+  } catch (error) {
+    console.error('Error loading phase:', error);
+  }
+}
+
+function formatDateDisplay(dateStr) {
+  const date = new Date(dateStr);
+  const day = date.getDate();
+  const month = date.getMonth() + 1;
+  return `${day}/${month}/${date.getFullYear()}`;
+}
+
 // Initialize the app
 document.addEventListener("DOMContentLoaded", async () => {
   // Khởi tạo audio sau user interaction đầu tiên
@@ -4727,6 +4794,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.addEventListener('click', enableAudioOnInteraction);
   document.addEventListener('touchstart', enableAudioOnInteraction);
   document.addEventListener('keydown', enableAudioOnInteraction);
+  
+  // Load current phase
+  await loadAndDisplayPhase();
+  
+  // Setup admin button
+  const adminBtn = document.getElementById('admin-btn');
+  if (adminBtn) {
+    adminBtn.addEventListener('click', () => {
+      window.location.href = 'admin.html';
+    });
+  }
+  
   currentWeekStart = getStartOfWeek();
   updateRemainingDays();
   await loadCustomTaskTypes();

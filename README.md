@@ -1,40 +1,126 @@
-# Studyplan Website
+# Studyplan - Hệ Thống Quản Lý Chặng Học Tập
 
-## Overview
-Studyplan is a personal study tracker and planner designed for Japanese language learners, especially those preparing for JLPT exams. It helps you organize your weekly study schedule, track progress, manage resources, and use interactive tools for writing practice and text-to-speech.
+**Phiên Bản**: 2.0 (với Phase Management System)  
+**Cập Nhật**: 08/12/2025  
+**Trạng Thái**: ✅ Sẵn dùng
 
-## Features
-- Weekly study schedule with task management
-- Progress tracking and statistics (completion rate, streaks, hours)
-- Resource management (textbooks, listening, websites)
-- Interactive writing grid for Kanji practice
-- Text-to-speech tool for Japanese reading
-- Countdown timer and break reminders
-- Responsive design for desktop and mobile
+## 📌 Tổng Quan
 
-## Getting Started
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/Superdier/studyplan.git
-   cd studyplan
-   ```
-2. **Install dependencies (if any)**
-   This project is static and does not require npm install for basic usage. For development, you may use [live-server](https://www.npmjs.com/package/live-server):
-   ```bash
-   live-server --port=3000
-   ```
-3. **Open in browser**
-   Navigate to `http://localhost:3000` to use the app.
+Studyplan là ứng dụng quản lý kế hoạch học tập cá nhân, được thiết kế đặc biệt cho những người học tiếng Nhật, đặc biệt là những người chuẩn bị thi JLPT.
 
-## Folder Structure
-- `public/` - Main website files
-  - `index.html` - Main HTML file
-  - `css/` - Stylesheets
-  - `js/` - JavaScript files
-  - `assets/` - Fonts and images
-- `firebase-config.json` - Firebase configuration
-- `database.rules.json` - Firebase database rules
-- `README.md` - Project documentation
+**Tính năng chính**:
+- 📅 Lịch học theo tuần với quản lý nhiệm vụ
+- 📊 Theo dõi tiến độ & thống kê (tỷ lệ hoàn thành, chuỗi, giờ học)
+- 🏷️ **[MỚI]** Quản lý "chặng" (phases) học tập - chia học tập thành các giai đoạn
+- 📦 **[MỚI]** Lưu trữ tự động chặng cũ & xem lịch sử
+- 🔀 **[MỚI]** Cách ly dữ liệu hoàn toàn giữa các chặng
+- 📚 Quản lý tài nguyên (sách giáo khoa, website)
+- 🔤 Grid viết chữ Kanji interactiv
+- 🗣️ Công cụ text-to-speech cho tiếng Nhật
+- ⏱️ Bộ đếm thời gian và nhắc nhở nghỉ ngơi
+- 📱 Giao diện responsive cho desktop & mobile
+
+---
+
+## 🎯 Tính Năng Mới - Phase Management v2.0
+
+### **Vấn Đề Được Giải Quyết**
+> Trước đây, khi chuyển sang chặng học tập mới, dữ liệu chặng cũ vẫn hiển thị. Giờ đã được sửa!
+
+### **Giải Pháp**
+✅ Mỗi chặng có dữ liệu **hoàn toàn riêng biệt**  
+✅ Chuyển chặng → Dữ liệu cũ tự động ẩn  
+✅ Lưu trữ chặng → Snapshot tự động được tạo  
+✅ Xem lịch sử → Dữ liệu chặng cũ được lưu trữ
+
+### **Cách Sử Dụng**
+1. **Tạo Chặng**: Nút "Quản Lý" → Tạo chặng mới
+2. **Thêm Dữ Liệu**: Lịch, điểm số, buổi học bình thường
+3. **Tạo Chặng Tiếp Theo**: Quản Lý → Tạo chặng mới
+4. **Chuyển Sang**: Quản Lý → Sử Dụng chặng mới
+5. **Lưu Trữ**: Quản Lý → Lưu Trữ chặng cũ
+
+---
+
+## 📖 Tài Liệu
+
+Hệ thống này có **7 tệp tài liệu** để giúp bạn:
+
+### **Cho Người Dùng** 👥
+1. **[QUICK_START.md](./QUICK_START.md)** - Bắt đầu nhanh (2-5 phút)
+2. **[PHASE_MANAGEMENT_GUIDE.md](./PHASE_MANAGEMENT_GUIDE.md)** - Hướng dẫn chi tiết (15-20 phút)
+
+### **Cho Kỹ Thuật** 🔧
+1. **[SYSTEM_CONFIGURATION_CHECK.md](./SYSTEM_CONFIGURATION_CHECK.md)** - Kiểm tra & xử lý (20-30 phút)
+2. **[DEPLOYMENT_CHECKLIST.md](./DEPLOYMENT_CHECKLIST.md)** - Danh sách triển khai (10-15 phút)
+
+### **Cho Nhà Phát Triển** 👨‍💻
+1. **[TECHNICAL_CHANGES_SUMMARY.md](./TECHNICAL_CHANGES_SUMMARY.md)** - Chi tiết kỹ thuật (20-30 phút)
+
+### **Tóm Tắt & Chỉ Mục**
+1. **[COMPLETION_SUMMARY.md](./COMPLETION_SUMMARY.md)** - Tóm tắt hoàn thành (5-10 phút)
+2. **[INDEX.md](./INDEX.md)** - Chỉ mục tài liệu (5 phút)
+
+👉 **Bạn nên bắt đầu với [QUICK_START.md](./QUICK_START.md)**
+
+---
+
+## 🚀 Bắt Đầu Nhanh
+
+### **1. Cài Đặt**
+```bash
+git clone https://github.com/Superdier/studyplan.git
+cd studyplan
+# Mở index.html hoặc sử dụng live-server
+live-server --port=3000
+```
+
+### **2. Tạo Chặng Đầu Tiên**
+- Mở ứng dụng
+- Nhấp nút **"Quản Lý"** (góc trên cùng)
+- Nhập tên chặng, ngày bắt đầu, ngày kết thúc
+- Nhấp **"Tạo Chặng"**
+
+### **3. Thêm Dữ Liệu**
+- Quay lại trang chính
+- Thêm lịch, điểm số, buổi học bình thường
+
+### **4. Chuyển Sang Chặng Tiếp Theo**
+- Quản Lý → Tạo chặng 2 → Sử Dụng
+- Dữ liệu chặng 1 tự động ẩn ✅
+
+---
+
+## 🏗️ Cấu Trúc Thư Mục
+
+```
+studyplan/
+├── public/
+│   ├── index.html                 # Trang chính
+│   ├── admin.html                 # Trang Quản Lý [MỚI]
+│   ├── archiveHistory.html        # Trang Xem Lưu Trữ [MỚI]
+│   ├── css/
+│   │   ├── style.css
+│   │   └── tools.css
+│   ├── js/
+│   │   ├── script.js              # Chính (cập nhật v2.0)
+│   │   ├── admin.js               # Quản lý chặng [MỚI]
+│   │   ├── archiveHistory.js      # Xem lưu trữ [MỚI]
+│   │   └── tools.js
+│   └── assets/
+│       └── fonts/
+├── firebase.json                  # Cấu hình Firebase
+├── database.rules.json            # Rules Firebase
+├── package.json
+├── README.md                       # TÀI LIỆU NÀY
+├── QUICK_START.md                 # Bắt đầu nhanh [MỚI]
+├── PHASE_MANAGEMENT_GUIDE.md      # Hướng dẫn chi tiết [MỚI]
+├── SYSTEM_CONFIGURATION_CHECK.md  # Kiểm tra & xử lý [MỚI]
+├── TECHNICAL_CHANGES_SUMMARY.md   # Chi tiết kỹ thuật [MỚI]
+├── DEPLOYMENT_CHECKLIST.md        # Danh sách triển khai [MỚI]
+├── COMPLETION_SUMMARY.md          # Tóm tắt [MỚI]
+└── INDEX.md                       # Chỉ mục [MỚI]
+```
 
 ## Technologies Used
 - HTML, CSS, JavaScript

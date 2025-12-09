@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Công Cụ Import Dữ Liệu - Phase Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+        }
+        
+        .section h2 {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .section h2::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 20px;
+            background: #667eea;
+            border-radius: 2px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 8px;
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 150px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .info-box {
+            background: #f0f7ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #333;
+        }
+        
+        .info-box strong {
+            color: #667eea;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #856404;
+        }
+        
+        .success-box {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #155724;
+            display: none;
+        }
+        
+        .success-box.show {
+            display: block;
+        }
+        
+        .error-box {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #721c24;
+            display: none;
+        }
+        
+        .error-box.show {
+            display: block;
+        }
+        
+        .progress {
+            display: none;
+            margin-bottom: 15px;
+        }
+        
+        .progress.show {
+            display: block;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+            text-align: center;
+        }
+        
+        code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        
+        .step {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .step-number {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            flex-shrink: 0;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .step-content {
+            flex: 1;
+        }
+        
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+            font-size: 13px;
+        }
+        
+        .summary-table tr {
+            border-bottom: 1px solid #eee;
+        }
+        
+        .summary-table td {
+            padding: 10px;
+        }
+        
+        .summary-table td:first-child {
+            font-weight: 600;
+            color: #667eea;
+            width: 150px;
+        }
+        
+        .summary-table td:last-child {
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📥 Công Cụ Import Dữ Liệu</h1>
+            <p>Chặng 1: Ôn thi JLPT N2</p>
+        </div>
+        
+        <div class="content">
+            <!-- Thông Báo Thành Công -->
+            <div class="success-box" id="successBox">
+                ✅ <strong>Hoàn Thành!</strong> Dữ liệu đã được import thành công vào Chặng 1
+            </div>
+            
+            <!-- Thông Báo Lỗi -->
+            <div class="error-box" id="errorBox"></div>
+            
+            <!-- Tiến Độ -->
+            <div class="progress" id="progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">Đang chuẩn bị...</div>
+            </div>
+            
+            <!-- Thông Tin Chặng -->
+            <div class="section">
+                <h2>Thông Tin Chặng</h2>
+                <table class="summary-table">
+                    <tr>
+                        <td>Tên Chặng:</td>
+                        <td>Chặng 1: Ôn thi JLPT N2</td>
+                    </tr>
+                    <tr>
+                        <td>ID Chặng:</td>
+                        <td><code>-Og-LkUoqmCx3ArnT1RP</code></td>
+                    </tr>
+                    <tr>
+                        <td>Từ Ngày:</td>
+                        <td>2025-08-01</td>
+                    </tr>
+                    <tr>
+                        <td>Đến Ngày:</td>
+                        <td>2025-12-07</td>
+                    </tr>
+                    <tr>
+                        <td>Mục Tiêu:</td>
+                        <td>Thi JLPT N2</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <!-- Hướng Dẫn Bước 1 -->
+            <div class="section">
+                <h2>Bước 1: Chuẩn Bị Dữ Liệu Cũ</h2>
+                <div class="info-box">
+                    <strong>📌 Lưu ý:</strong> Dữ liệu sẽ được import từ tệp <code>data/old-data.json</code>
+                </div>
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <strong>Mở File Dữ Liệu</strong>
+                        <p>Mở tệp <code>/data/old-data.json</code> trong editor</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <strong>Copy Dữ Liệu</strong>
+                        <p>Chọn tất cả (Ctrl+A) rồi Copy (Ctrl+C)</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <strong>Paste Vào Ô Dưới</strong>
+                        <p>Paste (Ctrl+V) dữ liệu vào ô bên dưới</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Nhập Dữ Liệu -->
+            <div class="section">
+                <h2>Dữ Liệu Cũ (JSON)</h2>
+                <form id="importForm">
+                    <div class="form-group">
+                        <label for="oldData">Paste Dữ Liệu JSON Cũ:</label>
+                        <textarea 
+                            id="oldData" 
+                            placeholder='{"schedule": {...}, "skillAssessments": {...}, ...}'
+                            required></textarea>
+                    </div>
+                    
+                    <div class="warning-box">
+                        ⚠️ <strong>Cảnh báo:</strong> Hãy đảm bảo dữ liệu JSON hợp lệ (không bị lỗi cú pháp). 
+                        Nếu có lỗi, import sẽ thất bại.
+                    </div>
+                    
+                    <div class="button-group">
+                        <button type="submit" class="btn-primary">
+                            🚀 Bắt Đầu Import
+                        </button>
+                        <button type="reset" class="btn-secondary">
+                            🔄 Xóa Dữ Liệu
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Hướng Dẫn Bước 2 -->
+            <div class="section">
+                <h2>Bước 2: Xác Minh Kết Quả</h2>
+                <div class="info-box">
+                    <strong>📌 Sau khi import hoàn thành:</strong>
+                </div>
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <strong>Làm Mới Trang</strong>
+                        <p>Nhấn Ctrl+R hoặc F5 để làm mới trình duyệt</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <strong>Mở Quản Lý</strong>
+                        <p>Nhấp nút "Quản Lý" ở góc trên cùng trang chính</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <strong>Kích Hoạt Chặng 1</strong>
+                        <p>Tìm "Chặng 1: Ôn thi JLPT N2" rồi nhấp "Sử Dụng"</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <strong>Kiểm Tra Dữ Liệu</strong>
+                        <p>Quay lại trang chính, xem lịch học, biểu đồ, thống kê</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <script>
+        // Khởi tạo Firebase (nếu cần)
+        function initFirebase() {
+            const config = {
+                apiKey: "AIzaSyBvyUokBl5Bqbj9OiPDfIUakT_jmMkqCiI",
+                authDomain: "tt-studyplan-default-rtdb.firebaseapp.com",
+                databaseURL: "https://tt-studyplan-default-rtdb.firebaseio.com",
+                projectId: "tt-studyplan",
+                storageBucket: "tt-studyplan.appspot.com",
+                messagingSenderId: "157879936823",
+                appId: "1:157879936823:web:9c5a1eef8f89dddc0e7f86"
+            };
+            
+            if (!firebase.apps.length) {
+                firebase.initializeApp(config);
+            }
+        }
+        
+        // Import dữ liệu
+        document.getElementById('importForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const oldDataText = document.getElementById('oldData').value;
+            const successBox = document.getElementById('successBox');
+            const errorBox = document.getElementById('errorBox');
+            const progress = document.getElementById('progress');
+            
+            successBox.classList.remove('show');
+            errorBox.classList.remove('show');
+            progress.classList.add('show');
+            
+            try {
+                // Parse JSON
+                let oldData;
+                try {
+                    oldData = JSON.parse(oldDataText);
+                } catch (e) {
+                    throw new Error('JSON không hợp lệ: ' + e.message);
+                }
+                
+                // Khởi tạo Firebase
+                initFirebase();
+                const db = firebase.database();
+                
+                // Phase ID
+                const phaseId = '-Og-LkUoqmCx3ArnT1RP';
+                
+                // Cập nhật tiến độ
+                const steps = [
+                    { name: 'Lịch Học', key: 'schedule' },
+                    { name: 'Đánh Giá Kỹ Năng', key: 'skillAssessments' },
+                    { name: 'Điểm JLPT', key: 'jlptScores' },
+                    { name: 'Buổi Học', key: 'studySessions' }
+                ];
+                
+                let completed = 0;
+                
+                for (const step of steps) {
+                    updateProgress(completed, steps.length, `Đang import ${step.name}...`);
+                    
+                    if (!oldData[step.key]) continue;
+                    
+                    const updates = {};
+                    const path = `phaseData/${phaseId}/${step.key}`;
+                    
+                    // Tạo cấu trúc update
+                    if (step.key === 'studySessions') {
+                        // Special handling cho studySessions (nested)
+                        Object.entries(oldData[step.key]).forEach(([date, sessions]) => {
+                            Object.entries(sessions).forEach(([sessionId, data]) => {
+                                updates[`${path}/${date}/${sessionId}`] = data;
+                            });
+                        });
+                    } else {
+                        // Các key khác
+                        Object.entries(oldData[step.key]).forEach(([id, data]) => {
+                            updates[`${path}/${id}`] = data;
+                        });
+                    }
+                    
+                    // Lưu vào Firebase
+                    if (Object.keys(updates).length > 0) {
+                        await db.ref().update(updates);
+                    }
+                    
+                    completed++;
+                }
+                
+                updateProgress(steps.length, steps.length, 'Hoàn thành!');
+                
+                // Hiển thị thành công
+                setTimeout(() => {
+                    progress.classList.remove('show');
+                    successBox.classList.add('show');
+                }, 500);
+                
+            } catch (error) {
+                progress.classList.remove('show');
+                errorBox.classList.add('show');
+                errorBox.textContent = '❌ Lỗi: ' + error.message;
+            }
+        });
+        
+        function updateProgress(current, total, text) {
+            const percentage = (current / total) * 100;
+            document.getElementById('progressFill').style.width = percentage + '%';
+            document.getElementById('progressText').textContent = text;
+        }
+    </script>
+</body>
+</html>
