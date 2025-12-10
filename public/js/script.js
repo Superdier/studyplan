@@ -635,96 +635,96 @@ function updateWeekHeader(dates) {
 }
 
 async function loadSchedule(dates) {
-    const grid = document.getElementById("weekly-schedule");
-    if (!grid) return;
+  const grid = document.getElementById("weekly-schedule");
+  if (!grid) return;
 
-    grid.innerHTML = "";
+  grid.innerHTML = "";
 
-    const promises = dates.map(date => {
-        return loadScheduleDataFromAllPhases(date);
-    });
+  const promises = dates.map(date => {
+    return loadScheduleDataFromAllPhases(date);
+  });
 
-    const cards = await Promise.all(promises);
-    grid.innerHTML = cards.join("");
-    
-    // Reset drag listeners
-    grid.hasDragListeners = false;
-    setupDragListeners(grid);
-    
-    updateProgress();
+  const cards = await Promise.all(promises);
+  grid.innerHTML = cards.join("");
+
+  // Reset drag listeners
+  grid.hasDragListeners = false;
+  setupDragListeners(grid);
+
+  updateProgress();
 }
 
 // Load schedule data from current phase, all other phases, all archived phases, and global schedule
 async function loadScheduleDataFromAllPhases(date) {
-    try {
-        let allTasks = [];
-        const taskPromises = [];
+  try {
+    let allTasks = [];
+    const taskPromises = [];
 
-        // 1. Load from global schedule (fallback)
-        taskPromises.push(db.ref(`schedule/${date}`).once("value"));
+    // 1. Load from global schedule (fallback)
+    taskPromises.push(db.ref(`schedule/${date}`).once("value"));
 
-        // 2. Load from ALL phases (active and inactive)
-        const phasesSnapshot = await db.ref('phases').once("value");
-        if (phasesSnapshot.exists()) {
-            const allPhases = phasesSnapshot.val();
-            for (const phaseId of Object.keys(allPhases)) {
-                taskPromises.push(db.ref(`phaseData/${phaseId}/schedule/${date}`).once("value"));
-            }
-        }
-
-        // 3. Load from all archived phases
-        const archivesSnapshot = await db.ref('archives').once("value");
-        if (archivesSnapshot.exists()) {
-            const archives = archivesSnapshot.val();
-            Object.values(archives).forEach(archive => {
-                const archiveSchedule = archive.scheduleSnapshot || {};
-                if (archiveSchedule[date] && archiveSchedule[date].tasks) {
-                    allTasks = allTasks.concat(archiveSchedule[date].tasks);
-                }
-            });
-        }
-
-        // Execute all promises in parallel
-        const snapshots = await Promise.all(taskPromises);
-
-        // Process results
-        snapshots.forEach(snapshot => {
-            if (snapshot.exists()) {
-                const data = snapshot.val();
-                if (data.tasks) {
-                    allTasks = allTasks.concat(data.tasks);
-                }
-            }
-        });
-
-        // Remove duplicate tasks based on title and note (simple check)
-        const uniqueTasks = allTasks.filter((task, index, self) =>
-            index === self.findIndex((t) => (
-                t.title === task.title && t.note === task.note
-            ))
-        );
-
-        // Recalculate total time from the final list of tasks
-        const mergedData = { time: "0 phút", tasks: uniqueTasks };
-        if (mergedData.tasks.length > 0) {
-            let totalCompletedMinutes = 0;
-            mergedData.tasks.forEach(task => {
-                if (task.done) {
-                    totalCompletedMinutes += task.duration || 0;
-                }
-            });
-            const hours = Math.floor(totalCompletedMinutes / 60);
-            const remainingMins = totalCompletedMinutes % 60;
-            mergedData.time = hours > 0
-                ? `Thời gian: ${hours} giờ ${remainingMins} phút`
-                : `Thời gian: ${totalCompletedMinutes} phút`;
-        }
-
-        return generateDayCardHTML(date, mergedData);
-    } catch (error) {
-        console.error(`Lỗi khi tải lịch cho ${date}:`, error);
-        return generateDayCardHTML(date, { time: "0 phút", tasks: [] });
+    // 2. Load from ALL phases (active and inactive)
+    const phasesSnapshot = await db.ref('phases').once("value");
+    if (phasesSnapshot.exists()) {
+      const allPhases = phasesSnapshot.val();
+      for (const phaseId of Object.keys(allPhases)) {
+        taskPromises.push(db.ref(`phaseData/${phaseId}/schedule/${date}`).once("value"));
+      }
     }
+
+    // 3. Load from all archived phases
+    const archivesSnapshot = await db.ref('archives').once("value");
+    if (archivesSnapshot.exists()) {
+      const archives = archivesSnapshot.val();
+      Object.values(archives).forEach(archive => {
+        const archiveSchedule = archive.scheduleSnapshot || {};
+        if (archiveSchedule[date] && archiveSchedule[date].tasks) {
+          allTasks = allTasks.concat(archiveSchedule[date].tasks);
+        }
+      });
+    }
+
+    // Execute all promises in parallel
+    const snapshots = await Promise.all(taskPromises);
+
+    // Process results
+    snapshots.forEach(snapshot => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        if (data.tasks) {
+          allTasks = allTasks.concat(data.tasks);
+        }
+      }
+    });
+
+    // Remove duplicate tasks based on title and note (simple check)
+    const uniqueTasks = allTasks.filter((task, index, self) =>
+      index === self.findIndex((t) => (
+        t.title === task.title && t.note === task.note
+      ))
+    );
+
+    // Recalculate total time from the final list of tasks
+    const mergedData = { time: "0 phút", tasks: uniqueTasks };
+    if (mergedData.tasks.length > 0) {
+      let totalCompletedMinutes = 0;
+      mergedData.tasks.forEach(task => {
+        if (task.done) {
+          totalCompletedMinutes += task.duration || 0;
+        }
+      });
+      const hours = Math.floor(totalCompletedMinutes / 60);
+      const remainingMins = totalCompletedMinutes % 60;
+      mergedData.time = hours > 0
+        ? `Thời gian: ${hours} giờ ${remainingMins} phút`
+        : `Thời gian: ${totalCompletedMinutes} phút`;
+    }
+
+    return generateDayCardHTML(date, mergedData);
+  } catch (error) {
+    console.error(`Lỗi khi tải lịch cho ${date}:`, error);
+    return generateDayCardHTML(date, { time: "0 phút", tasks: [] });
+  }
 }
 
 function setupTabNavigation() {
@@ -758,10 +758,10 @@ function setupTabNavigation() {
 
 // Hàm escape HTML để chống XSS
 function escapeHTML(str) {
-    if (typeof str !== 'string') return str;
-    return str.replace(/[&<>"']/g, function(match) {
-        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[match];
-    });
+  if (typeof str !== 'string') return str;
+  return str.replace(/[&<>"']/g, function (match) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[match];
+  });
 }
 
 // Task management functions
@@ -782,11 +782,11 @@ async function openEditDayModal(date) {
 
     // Nếu không có dữ liệu ở chặng hiện tại, tìm ở các chặng khác
     if (!snapshot.exists()) {
-        const foundPath = await findTaskPath(date, null, true); // Tìm đường dẫn của ngày
-        if (foundPath) {
-            dataPath = foundPath;
-            snapshot = await db.ref(dataPath).once("value");
-        }
+      const foundPath = await findTaskPath(date, null, true); // Tìm đường dẫn của ngày
+      if (foundPath) {
+        dataPath = foundPath;
+        snapshot = await db.ref(dataPath).once("value");
+      }
     }
 
     const data = snapshot.val() || { time: "0 phút", tasks: [] };
@@ -819,104 +819,104 @@ function parseStudyTime(timeStr) {
 
 // Cập nhật hàm renderTasksInModal để hỗ trợ subject dropdown và giữ trạng thái done
 function renderTasksInModal(tasks) {
-    if (!tasksContainer) return;
+  if (!tasksContainer) return;
 
-    tasksContainer.innerHTML = "";
-    let totalMinutes = 0;
+  tasksContainer.innerHTML = "";
+  let totalMinutes = 0;
 
-    tasks.forEach((task, index) => {
-        const duration = task.duration || 0;
-        const note = task.note || "";
-        const subject = task.subject || 'language';
-        const isDone = task.done || false;
-        totalMinutes += duration;
+  tasks.forEach((task, index) => {
+    const duration = task.duration || 0;
+    const note = task.note || "";
+    const subject = task.subject || 'language';
+    const isDone = task.done || false;
+    totalMinutes += duration;
 
-        const taskEl = document.createElement("div");
-        taskEl.className = "task-item";
+    const taskEl = document.createElement("div");
+    taskEl.className = "task-item";
 
-        // Row 1
-        const row1 = document.createElement('div');
-        row1.className = 'task-row-extended';
+    // Row 1
+    const row1 = document.createElement('div');
+    row1.className = 'task-row-extended';
 
-        const subjectSelect = document.createElement('select');
-        subjectSelect.className = 'task-subject';
-        subjectSelect.dataset.index = index;
-        subjectSelect.innerHTML = `
+    const subjectSelect = document.createElement('select');
+    subjectSelect.className = 'task-subject';
+    subjectSelect.dataset.index = index;
+    subjectSelect.innerHTML = `
             <option value="language" ${subject === 'language' ? 'selected' : ''}>Ngôn ngữ</option>
             <option value="it" ${subject === 'it' ? 'selected' : ''}>IT</option>
             <option value="other" ${subject === 'other' ? 'selected' : ''}>Khác</option>
         `;
-        row1.appendChild(subjectSelect);
+    row1.appendChild(subjectSelect);
 
-        const taskTypeField = createTaskTypeElement(index, subject, task.type);
-        row1.appendChild(taskTypeField);
+    const taskTypeField = createTaskTypeElement(index, subject, task.type);
+    row1.appendChild(taskTypeField);
 
-        const titleInput = document.createElement('input');
-        titleInput.type = 'text';
-        titleInput.className = 'task-input';
-        titleInput.value = task.title;
-        titleInput.dataset.index = index;
-        row1.appendChild(titleInput);
+    const titleInput = document.createElement('input');
+    titleInput.type = 'text';
+    titleInput.className = 'task-input';
+    titleInput.value = task.title;
+    titleInput.dataset.index = index;
+    row1.appendChild(titleInput);
 
-        const durationInput = document.createElement('input');
-        durationInput.type = 'number';
-        durationInput.min = 0;
-        durationInput.className = 'task-duration';
-        durationInput.value = duration;
-        durationInput.placeholder = 'Phút';
-        durationInput.dataset.index = index;
-        row1.appendChild(durationInput);
+    const durationInput = document.createElement('input');
+    durationInput.type = 'number';
+    durationInput.min = 0;
+    durationInput.className = 'task-duration';
+    durationInput.value = duration;
+    durationInput.placeholder = 'Phút';
+    durationInput.dataset.index = index;
+    row1.appendChild(durationInput);
 
-        // Row 2
-        const row2 = document.createElement('div');
-        row2.className = 'task-row';
+    // Row 2
+    const row2 = document.createElement('div');
+    row2.className = 'task-row';
 
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'btn-delete delete-task';
-        deleteBtn.dataset.index = index;
-        deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
-        row2.appendChild(deleteBtn);
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'btn-delete delete-task';
+    deleteBtn.dataset.index = index;
+    deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+    row2.appendChild(deleteBtn);
 
-        const noteTextarea = document.createElement('textarea');
-        noteTextarea.className = 'task-note';
-        noteTextarea.dataset.index = index;
-        noteTextarea.placeholder = 'Thêm ghi chú cho nhiệm vụ...';
-        noteTextarea.value = note; // Sử dụng .value thay vì innerHTML
-        row2.appendChild(noteTextarea);
+    const noteTextarea = document.createElement('textarea');
+    noteTextarea.className = 'task-note';
+    noteTextarea.dataset.index = index;
+    noteTextarea.placeholder = 'Thêm ghi chú cho nhiệm vụ...';
+    noteTextarea.value = note; // Sử dụng .value thay vì innerHTML
+    row2.appendChild(noteTextarea);
 
-        // Hidden input for done status
-        const doneInput = document.createElement('input');
-        doneInput.type = 'hidden';
-        doneInput.className = 'task-done-status';
-        doneInput.dataset.index = index;
-        doneInput.value = isDone;
+    // Hidden input for done status
+    const doneInput = document.createElement('input');
+    doneInput.type = 'hidden';
+    doneInput.className = 'task-done-status';
+    doneInput.dataset.index = index;
+    doneInput.value = isDone;
 
-        taskEl.appendChild(row1);
-        taskEl.appendChild(row2);
-        taskEl.appendChild(doneInput);
-        tasksContainer.appendChild(taskEl);
+    taskEl.appendChild(row1);
+    taskEl.appendChild(row2);
+    taskEl.appendChild(doneInput);
+    tasksContainer.appendChild(taskEl);
+  });
+
+  // Thêm event listeners cho subject dropdowns
+  document.querySelectorAll('.task-subject').forEach(select => {
+    select.addEventListener('change', function () {
+      const index = this.getAttribute('data-index');
+      const subject = this.value;
+      const taskTypeContainer = this.parentNode;
+      const oldTaskType = taskTypeContainer.querySelector('.task-type-select, .task-type-container');
+
+      if (oldTaskType) {
+        const newTaskTypeField = createTaskTypeElement(index, subject, '');
+        taskTypeContainer.replaceChild(newTaskTypeField, oldTaskType);
+      }
     });
+  });
 
-    // Thêm event listeners cho subject dropdowns
-    document.querySelectorAll('.task-subject').forEach(select => {
-        select.addEventListener('change', function () {
-            const index = this.getAttribute('data-index');
-            const subject = this.value;
-            const taskTypeContainer = this.parentNode;
-            const oldTaskType = taskTypeContainer.querySelector('.task-type-select, .task-type-container');
-
-            if (oldTaskType) {
-                const newTaskTypeField = createTaskTypeElement(index, subject, '');
-                taskTypeContainer.replaceChild(newTaskTypeField, oldTaskType);
-            }
-        });
-    });
-
-    // Thêm tổng thời gian
-    const totalElement = document.createElement("div");
-    totalElement.className = "total-duration";
-    totalElement.innerHTML = `<strong>Tổng thời gian: ${totalMinutes} phút</strong>`;
-    tasksContainer.appendChild(totalElement);
+  // Thêm tổng thời gian
+  const totalElement = document.createElement("div");
+  totalElement.className = "total-duration";
+  totalElement.innerHTML = `<strong>Tổng thời gian: ${totalMinutes} phút</strong>`;
+  tasksContainer.appendChild(totalElement);
 }
 
 function renderTaskTypeField(index, subject, currentType = '') {
@@ -1099,60 +1099,60 @@ function addNewTask() {
   // Tính index mới
   const taskCount = tasksContainer.querySelectorAll('.task-item:not(.total-duration)').length;
 
-    const taskEl = document.createElement("div");
-    taskEl.className = "task-item";
+  const taskEl = document.createElement("div");
+  taskEl.className = "task-item";
 
-    // Row 1
-    const row1 = document.createElement('div');
-    row1.className = 'task-row-extended';
+  // Row 1
+  const row1 = document.createElement('div');
+  row1.className = 'task-row-extended';
 
-    const subjectSelect = document.createElement('select');
-    subjectSelect.className = 'task-subject';
-    subjectSelect.dataset.index = taskCount;
-    subjectSelect.innerHTML = `
+  const subjectSelect = document.createElement('select');
+  subjectSelect.className = 'task-subject';
+  subjectSelect.dataset.index = taskCount;
+  subjectSelect.innerHTML = `
         <option value="language" selected>Ngôn ngữ</option>
         <option value="it">IT</option>
         <option value="other">Khác</option>
     `;
-    row1.appendChild(subjectSelect);
+  row1.appendChild(subjectSelect);
 
-    const taskTypeField = createTaskTypeElement(taskCount, 'language', '');
-    row1.appendChild(taskTypeField);
+  const taskTypeField = createTaskTypeElement(taskCount, 'language', '');
+  row1.appendChild(taskTypeField);
 
-    const titleInput = document.createElement('input');
-    titleInput.type = 'text';
-    titleInput.className = 'task-input';
-    titleInput.placeholder = 'Nhập nhiệm vụ mới';
-    titleInput.dataset.index = taskCount;
-    row1.appendChild(titleInput);
+  const titleInput = document.createElement('input');
+  titleInput.type = 'text';
+  titleInput.className = 'task-input';
+  titleInput.placeholder = 'Nhập nhiệm vụ mới';
+  titleInput.dataset.index = taskCount;
+  row1.appendChild(titleInput);
 
-    const durationInput = document.createElement('input');
-    durationInput.type = 'number';
-    durationInput.min = 0;
-    durationInput.className = 'task-duration';
-    durationInput.value = 30;
-    durationInput.placeholder = 'Phút';
-    durationInput.dataset.index = taskCount;
-    row1.appendChild(durationInput);
+  const durationInput = document.createElement('input');
+  durationInput.type = 'number';
+  durationInput.min = 0;
+  durationInput.className = 'task-duration';
+  durationInput.value = 30;
+  durationInput.placeholder = 'Phút';
+  durationInput.dataset.index = taskCount;
+  row1.appendChild(durationInput);
 
-    // Row 2
-    const row2 = document.createElement('div');
-    row2.className = 'task-row';
-    row2.innerHTML = `
+  // Row 2
+  const row2 = document.createElement('div');
+  row2.className = 'task-row';
+  row2.innerHTML = `
         <button class="btn-delete delete-task" data-index="${taskCount}"><i class="fas fa-trash"></i></button>
         <textarea class="task-note" data-index="${taskCount}" placeholder="Ghi chú..."></textarea>
     `;
 
-    // Hidden input
-    const doneInput = document.createElement('input');
-    doneInput.type = 'hidden';
-    doneInput.className = 'task-done-status';
-    doneInput.dataset.index = taskCount;
-    doneInput.value = 'false';
+  // Hidden input
+  const doneInput = document.createElement('input');
+  doneInput.type = 'hidden';
+  doneInput.className = 'task-done-status';
+  doneInput.dataset.index = taskCount;
+  doneInput.value = 'false';
 
-    taskEl.appendChild(row1);
-    taskEl.appendChild(row2);
-    taskEl.appendChild(doneInput);
+  taskEl.appendChild(row1);
+  taskEl.appendChild(row2);
+  taskEl.appendChild(doneInput);
   tasksContainer.appendChild(taskEl);
 
   // Thêm event listener cho subject dropdown
@@ -1238,8 +1238,8 @@ async function saveDayData() {
     let schedulePath = getPhaseDataPath(`schedule/${currentEditingDay}`);
     const existingData = await db.ref(schedulePath).once('value');
     if (!existingData.exists()) {
-        const foundPath = await findTaskPath(currentEditingDay, null, true);
-        if (foundPath) schedulePath = foundPath;
+      const foundPath = await findTaskPath(currentEditingDay, null, true);
+      if (foundPath) schedulePath = foundPath;
     }
 
     const weekNumber = Math.floor((new Date(currentEditingDay) - new Date("2025-07-07")) / (7 * 86400000)) + 1;
@@ -1279,130 +1279,130 @@ let dragSourceDate = null;
 
 // Initialize Drag and Drop
 function initializeDragAndDrop() {
-    // Sử dụng MutationObserver để theo dõi thay đổi DOM
-    const observer = new MutationObserver(() => {
-        const scheduleGrid = document.getElementById('weekly-schedule');
-        if (scheduleGrid && !scheduleGrid.hasDragListeners) {
-            setupDragListeners(scheduleGrid);
-            scheduleGrid.hasDragListeners = true;
-        }
-    });
-
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
-
-    // Khởi tạo ngay lập tức nếu có sẵn
+  // Sử dụng MutationObserver để theo dõi thay đổi DOM
+  const observer = new MutationObserver(() => {
     const scheduleGrid = document.getElementById('weekly-schedule');
-    if (scheduleGrid) {
-        setupDragListeners(scheduleGrid);
-        scheduleGrid.hasDragListeners = true;
+    if (scheduleGrid && !scheduleGrid.hasDragListeners) {
+      setupDragListeners(scheduleGrid);
+      scheduleGrid.hasDragListeners = true;
     }
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+
+  // Khởi tạo ngay lập tức nếu có sẵn
+  const scheduleGrid = document.getElementById('weekly-schedule');
+  if (scheduleGrid) {
+    setupDragListeners(scheduleGrid);
+    scheduleGrid.hasDragListeners = true;
+  }
 }
 
 function setupDragListeners(scheduleGrid) {
-    // Xóa listeners cũ nếu có
-    scheduleGrid.removeEventListener('dragstart', handleDragStart);
-    scheduleGrid.removeEventListener('dragover', handleDragOver);
-    scheduleGrid.removeEventListener('dragenter', handleDragEnter);
-    scheduleGrid.removeEventListener('dragleave', handleDragLeave);
-    scheduleGrid.removeEventListener('drop', handleDrop);
-    scheduleGrid.removeEventListener('dragend', handleDragEnd);
+  // Xóa listeners cũ nếu có
+  scheduleGrid.removeEventListener('dragstart', handleDragStart);
+  scheduleGrid.removeEventListener('dragover', handleDragOver);
+  scheduleGrid.removeEventListener('dragenter', handleDragEnter);
+  scheduleGrid.removeEventListener('dragleave', handleDragLeave);
+  scheduleGrid.removeEventListener('drop', handleDrop);
+  scheduleGrid.removeEventListener('dragend', handleDragEnd);
 
-    // Thêm listeners mới
-    scheduleGrid.addEventListener('dragstart', handleDragStart);
-    scheduleGrid.addEventListener('dragover', handleDragOver);
-    scheduleGrid.addEventListener('dragenter', handleDragEnter);
-    scheduleGrid.addEventListener('dragleave', handleDragLeave);
-    scheduleGrid.addEventListener('drop', handleDrop);
-    scheduleGrid.addEventListener('dragend', handleDragEnd);
+  // Thêm listeners mới
+  scheduleGrid.addEventListener('dragstart', handleDragStart);
+  scheduleGrid.addEventListener('dragover', handleDragOver);
+  scheduleGrid.addEventListener('dragenter', handleDragEnter);
+  scheduleGrid.addEventListener('dragleave', handleDragLeave);
+  scheduleGrid.addEventListener('drop', handleDrop);
+  scheduleGrid.addEventListener('dragend', handleDragEnd);
 }
 
 // Thêm touch event listeners
 function setupTouchDragAndDrop(scheduleGrid) {
-    let touchStartX, touchStartY;
-    let touchedTask = null;
+  let touchStartX, touchStartY;
+  let touchedTask = null;
 
-    scheduleGrid.addEventListener('touchstart', (e) => {
-        const taskItem = e.target.closest('.study-item');
-        if (!taskItem) return;
+  scheduleGrid.addEventListener('touchstart', (e) => {
+    const taskItem = e.target.closest('.study-item');
+    if (!taskItem) return;
 
-        touchedTask = taskItem;
-        const touch = e.touches[0];
-        touchStartX = touch.clientX;
-        touchStartY = touch.clientY;
-        
-        e.preventDefault();
-    });
+    touchedTask = taskItem;
+    const touch = e.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
 
-    scheduleGrid.addEventListener('touchend', (e) => {
-        if (!touchedTask) return;
+    e.preventDefault();
+  });
 
-        const touch = e.changedTouches[0];
-        const endX = touch.clientX;
-        const endY = touch.clientY;
-        
-        // Simple touch-based drag (có thể mở rộng thành drag thực sự)
-        if (Math.abs(endX - touchStartX) > 10 || Math.abs(endY - touchStartY) > 10) {
-            // Xử lý touch-based drag
-            console.log('Touch drag detected');
-        }
-        
-        touchedTask = null;
-        e.preventDefault();
-    });
+  scheduleGrid.addEventListener('touchend', (e) => {
+    if (!touchedTask) return;
+
+    const touch = e.changedTouches[0];
+    const endX = touch.clientX;
+    const endY = touch.clientY;
+
+    // Simple touch-based drag (có thể mở rộng thành drag thực sự)
+    if (Math.abs(endX - touchStartX) > 10 || Math.abs(endY - touchStartY) > 10) {
+      // Xử lý touch-based drag
+      console.log('Touch drag detected');
+    }
+
+    touchedTask = null;
+    e.preventDefault();
+  });
 }
 
 // Drag Start Handler
 function handleDragStart(e) {
-    console.log('Drag started');
-    const taskItem = e.target.closest('.study-item');
-    if (!taskItem) {
-        console.log('No task item found');
-        return;
-    }
+  console.log('Drag started');
+  const taskItem = e.target.closest('.study-item');
+  if (!taskItem) {
+    console.log('No task item found');
+    return;
+  }
 
-    console.log('Dragging task:', taskItem.dataset.taskIndex, 'from date:', taskItem.closest('.day-card').dataset.date);
+  console.log('Dragging task:', taskItem.dataset.taskIndex, 'from date:', taskItem.closest('.day-card').dataset.date);
 
-    draggedTask = taskItem;
-    dragSourceDate = taskItem.closest('.day-card').dataset.date;
-    
-    taskItem.classList.add('dragging');
-    
-    // Sửa DataTransfer để tương thích tốt hơn
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', taskItem.dataset.taskIndex);
-    e.dataTransfer.setData('application/source-date', dragSourceDate);
-    
-    // Thêm fallback cho mobile/tablet
-    if (e.dataTransfer.setDragImage) {
-        e.dataTransfer.setDragImage(taskItem, 20, 20);
-    }
+  draggedTask = taskItem;
+  dragSourceDate = taskItem.closest('.day-card').dataset.date;
+
+  taskItem.classList.add('dragging');
+
+  // Sửa DataTransfer để tương thích tốt hơn
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', taskItem.dataset.taskIndex);
+  e.dataTransfer.setData('application/source-date', dragSourceDate);
+
+  // Thêm fallback cho mobile/tablet
+  if (e.dataTransfer.setDragImage) {
+    e.dataTransfer.setDragImage(taskItem, 20, 20);
+  }
 }
 
 // Drag Over Handler
 function handleDragOver(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = 'move';
+  e.preventDefault();
+  e.stopPropagation();
+  e.dataTransfer.dropEffect = 'move';
 }
 
 // Drag Enter Handler
 function handleDragEnter(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const dayCard = e.target.closest('.day-card');
-    const taskItem = e.target.closest('.study-item');
-    
-    if (dayCard) {
-        dayCard.classList.add('drop-zone');
-    }
-    
-    if (taskItem && !taskItem.classList.contains('dragging')) {
-        taskItem.classList.add('drag-over');
-    }
+  e.preventDefault();
+  e.stopPropagation();
+
+  const dayCard = e.target.closest('.day-card');
+  const taskItem = e.target.closest('.study-item');
+
+  if (dayCard) {
+    dayCard.classList.add('drop-zone');
+  }
+
+  if (taskItem && !taskItem.classList.contains('dragging')) {
+    taskItem.classList.add('drag-over');
+  }
 }
 
 // Drag Leave Handler
@@ -1423,25 +1423,25 @@ function handleDragLeave(e) {
 // Drop Handler
 function handleDrop(e) {
   console.log('Drop event triggered');
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const targetDayCard = e.target.closest('.day-card');
-    console.log('Target day card:', targetDayCard);
-    const targetDate = targetDayCard ? targetDayCard.dataset.date : null;
-    
-    if (!targetDate || !draggedTask) return;
-    
-    // Lấy data với fallback
-    const taskIndex = e.dataTransfer.getData('text/plain');
-    const sourceDate = e.dataTransfer.getData('application/source-date') || dragSourceDate;
-    
-    // Clean up visual feedback
-    cleanupDragFeedback();
-    
-    if (sourceDate !== targetDate) {
-        moveTaskBetweenDays(sourceDate, parseInt(taskIndex), targetDate);
-    }
+  e.preventDefault();
+  e.stopPropagation();
+
+  const targetDayCard = e.target.closest('.day-card');
+  console.log('Target day card:', targetDayCard);
+  const targetDate = targetDayCard ? targetDayCard.dataset.date : null;
+
+  if (!targetDate || !draggedTask) return;
+
+  // Lấy data với fallback
+  const taskIndex = e.dataTransfer.getData('text/plain');
+  const sourceDate = e.dataTransfer.getData('application/source-date') || dragSourceDate;
+
+  // Clean up visual feedback
+  cleanupDragFeedback();
+
+  if (sourceDate !== targetDate) {
+    moveTaskBetweenDays(sourceDate, parseInt(taskIndex), targetDate);
+  }
 }
 
 // Drag End Handler
@@ -1460,13 +1460,13 @@ function handleDragEnd(e) {
 }
 
 function cleanupDragFeedback() {
-    document.querySelectorAll('.day-card').forEach(card => {
-        card.classList.remove('drop-zone');
-    });
-    document.querySelectorAll('.study-item').forEach(item => {
-        item.classList.remove('drag-over');
-        item.classList.remove('dragging');
-    });
+  document.querySelectorAll('.day-card').forEach(card => {
+    card.classList.remove('drop-zone');
+  });
+  document.querySelectorAll('.study-item').forEach(item => {
+    item.classList.remove('drag-over');
+    item.classList.remove('dragging');
+  });
 }
 
 // Move task between different days
@@ -2346,7 +2346,7 @@ async function calculateStreak() {
   try {
     const schedulePath = getPhaseDataPath('schedule');
     const sessionsPath = getPhaseDataPath('studySessions');
-    
+
     const [scheduleSnapshot, sessionsSnapshot] = await Promise.all([
       db.ref(schedulePath).once('value'),
       db.ref(sessionsPath).once('value')
@@ -3998,19 +3998,6 @@ function getWeekNumber(date) {
   return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
 }
 
-function updateRemainingDays() {
-  const examDate = new Date("2025-12-06");
-  const today = new Date();
-
-  const diffTime = examDate - today;
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-  const remainingDaysElement = document.querySelector('.stat-card:nth-child(3) .stat-value');
-  if (remainingDaysElement) {
-    remainingDaysElement.textContent = diffDays > 0 ? diffDays : "0";
-  }
-}
-
 function setupEventListeners() {
   document.getElementById("prev-week")?.addEventListener("click", () => {
     currentWeekStart.setDate(currentWeekStart.getDate() - 7);
@@ -4223,55 +4210,55 @@ async function toggleTaskDone(date, taskIndex) {
 }
 
 async function findTaskPath(date, taskTitle, findDayPath = false) {
-    // 1. Check current phase
-    if (currentPhaseId) {
-        const phasePath = `phaseData/${currentPhaseId}/schedule/${date}/tasks`;
-        const dayPath = `phaseData/${currentPhaseId}/schedule/${date}`;
-        const phaseSnapshot = await db.ref(dayPath).once('value');
-        if (phaseSnapshot.exists()) {
-            if (findDayPath) return dayPath;
-            if (!taskTitle) return `${phasePath}/0`; // Fallback
+  // 1. Check current phase
+  if (currentPhaseId) {
+    const phasePath = `phaseData/${currentPhaseId}/schedule/${date}/tasks`;
+    const dayPath = `phaseData/${currentPhaseId}/schedule/${date}`;
+    const phaseSnapshot = await db.ref(dayPath).once('value');
+    if (phaseSnapshot.exists()) {
+      if (findDayPath) return dayPath;
+      if (!taskTitle) return `${phasePath}/0`; // Fallback
 
-            const tasks = phaseSnapshot.val().tasks || [];
-            const taskIndex = tasks.findIndex(t => t && t.title === taskTitle);
-            if (taskIndex !== -1) return `${phasePath}/${taskIndex}`;
-        }
+      const tasks = phaseSnapshot.val().tasks || [];
+      const taskIndex = tasks.findIndex(t => t && t.title === taskTitle);
+      if (taskIndex !== -1) return `${phasePath}/${taskIndex}`;
     }
+  }
 
-    // 2. Check all other phases
-    const phasesSnapshot = await db.ref('phases').once("value");
-    if (phasesSnapshot.exists()) {
-        const allPhases = phasesSnapshot.val();
-        for (const phaseId of Object.keys(allPhases)) {
-            if (phaseId === currentPhaseId) continue;
-            const phasePath = `phaseData/${phaseId}/schedule/${date}/tasks`;
-            const dayPath = `phaseData/${phaseId}/schedule/${date}`;
-            const phaseSnapshot = await db.ref(dayPath).once('value');
-            if (phaseSnapshot.exists()) {
-                if (findDayPath) return dayPath;
-                if (!taskTitle) return `${phasePath}/0`; // Fallback
-
-                const tasks = phaseSnapshot.val().tasks || [];
-                const taskIndex = tasks.findIndex(t => t && t.title === taskTitle);
-                if (taskIndex !== -1) return `${phasePath}/${taskIndex}`;
-            }
-        }
-    }
-
-    // 3. Check global schedule (fallback)
-    const globalPath = `schedule/${date}/tasks`;
-    const dayPath = `schedule/${date}`;
-    const globalSnapshot = await db.ref(dayPath).once('value');
-    if (globalSnapshot.exists()) {
+  // 2. Check all other phases
+  const phasesSnapshot = await db.ref('phases').once("value");
+  if (phasesSnapshot.exists()) {
+    const allPhases = phasesSnapshot.val();
+    for (const phaseId of Object.keys(allPhases)) {
+      if (phaseId === currentPhaseId) continue;
+      const phasePath = `phaseData/${phaseId}/schedule/${date}/tasks`;
+      const dayPath = `phaseData/${phaseId}/schedule/${date}`;
+      const phaseSnapshot = await db.ref(dayPath).once('value');
+      if (phaseSnapshot.exists()) {
         if (findDayPath) return dayPath;
-        if (!taskTitle) return `${globalPath}/0`; // Fallback
+        if (!taskTitle) return `${phasePath}/0`; // Fallback
 
-        const tasks = globalSnapshot.val().tasks || [];
+        const tasks = phaseSnapshot.val().tasks || [];
         const taskIndex = tasks.findIndex(t => t && t.title === taskTitle);
-        if (taskIndex !== -1) return `${globalPath}/${taskIndex}`;
+        if (taskIndex !== -1) return `${phasePath}/${taskIndex}`;
+      }
     }
+  }
 
-    return null; // Task not found
+  // 3. Check global schedule (fallback)
+  const globalPath = `schedule/${date}/tasks`;
+  const dayPath = `schedule/${date}`;
+  const globalSnapshot = await db.ref(dayPath).once('value');
+  if (globalSnapshot.exists()) {
+    if (findDayPath) return dayPath;
+    if (!taskTitle) return `${globalPath}/0`; // Fallback
+
+    const tasks = globalSnapshot.val().tasks || [];
+    const taskIndex = tasks.findIndex(t => t && t.title === taskTitle);
+    if (taskIndex !== -1) return `${globalPath}/${taskIndex}`;
+  }
+
+  return null; // Task not found
 }
 
 function updateStreakDisplay(streakData) {
@@ -4655,7 +4642,7 @@ function showNotification(title, message) {
 function setupRealTimeListeners() {
   const schedulePath = getPhaseDataPath('schedule');
   const sessionsPath = getPhaseDataPath('studySessions');
-  
+
   db.ref(schedulePath).on('value', async () => {
     const newStreak = await calculateStreak();
     updateStreakDisplay(newStreak);
@@ -4908,41 +4895,40 @@ async function loadAndDisplayPhase() {
       const phaseSnapshot = await db.ref(`phases/${activePhaseId}`).once('value');
       if (phaseSnapshot.exists()) {
         const phase = phaseSnapshot.val();
-        
+
         console.log('Phase data loaded:', phase); // Debug log
-        
+
         document.getElementById('phase-name-display').textContent = phase.name;
 
-        // Sửa cách xử lý ngày để tránh vấn đề timezone
-        const createLocalDate = (dateString) => {
-          const [year, month, day] = dateString.split('-').map(Number);
-          return new Date(year, month - 1, day);
-        };
-
-        const startDate = createLocalDate(phase.startDate);
-        const endDate = createLocalDate(phase.endDate);
+        // Sử dụng cách tạo ngày đơn giản và chính xác hơn
+        const startDate = new Date(phase.startDate);
+        const endDate = new Date(phase.endDate);
         const today = new Date();
-        
-        // Reset giờ để so sánh chỉ ngày tháng
+
+        // Chỉ lấy phần ngày (bỏ giờ phút giây)
         today.setHours(0, 0, 0, 0);
         startDate.setHours(0, 0, 0, 0);
         endDate.setHours(0, 0, 0, 0);
 
-        console.log('Dates:', { startDate, endDate, today }); // Debug log
+        console.log('Dates:', {
+          startDate: startDate.toDateString(),
+          endDate: endDate.toDateString(),
+          today: today.toDateString()
+        }); // Debug log
 
-        // Tính tuần chính xác
+        // Tính số tuần
         const timeDiff = endDate.getTime() - startDate.getTime();
         const daysDiff = timeDiff / (1000 * 3600 * 24);
         const weeks = Math.ceil(daysDiff / 7);
 
-        // Tính ngày còn lại
+        // Tính ngày còn lại - QUAN TRỌNG: cần tính từ hôm nay đến endDate
         const remainingTime = endDate.getTime() - today.getTime();
-        const remainingDays = Math.ceil(remainingTime / (1000 * 3600 * 24));
+        const remainingDays = Math.round(remainingTime / (1000 * 3600 * 24));
 
-        console.log('Calculated:', { weeks, remainingDays }); // Debug log
+        console.log('Calculated:', { weeks, remainingDays, remainingTime }); // Debug log
 
         // Hiển thị thông tin phase
-        document.getElementById('phase-dates-display').textContent = 
+        document.getElementById('phase-dates-display').textContent =
           `${formatDateDisplay(phase.startDate)} - ${formatDateDisplay(phase.endDate)}`;
         document.getElementById('phase-weeks-display').textContent = weeks;
 
@@ -4954,9 +4940,10 @@ async function loadAndDisplayPhase() {
 
         if (summaryWeeksEl) summaryWeeksEl.textContent = weeks;
         if (summaryGoalEl) summaryGoalEl.textContent = phase.goal || 'Chưa có';
-        
+
+        // Sửa lỗi hiển thị ngày còn lại
         if (summaryRemainingDaysEl) {
-          if (remainingDays < 0) {
+          if (remainingDays <= 0) { 
             summaryRemainingDaysEl.textContent = "Đã hoàn thành";
             if (completedBadge) {
               completedBadge.style.display = 'inline-block';
@@ -4966,6 +4953,9 @@ async function loadAndDisplayPhase() {
             if (completedBadge) completedBadge.style.display = 'none';
           }
         }
+
+        console.log("Remaining days: ", remainingDays);
+        console.log("Displayed as: ", summaryRemainingDaysEl?.textContent);
       }
     }
   } catch (error) {
@@ -4973,112 +4963,118 @@ async function loadAndDisplayPhase() {
   }
 }
 
+// Sửa hàm formatDateDisplay để hiển thị đúng định dạng Việt Nam
 function formatDateDisplay(dateStr) {
   const date = new Date(dateStr);
-  return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+  // Đảm bảo không có vấn đề timezone bằng cách sử dụng UTC
+  const day = date.getUTCDate();
+  const month = date.getUTCMonth() + 1; // Tháng bắt đầu từ 0
+  const year = date.getUTCFullYear();
+
+  return `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`;
 }
 
 // --- START: AUTH & DB ABSTRACTION LAYER ---
 
 class FirebaseHandler {
-    constructor() {
-        try {
-            if (!firebase.apps.length) {
-                firebase.initializeApp(firebaseConfig);
-            }
-            this.db = firebase.database();
-            console.log("Firebase Initialized for Admin.");
-        } catch (e) {
-            console.error("Firebase initialization error:", e);
-        }
+  constructor() {
+    try {
+      if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+      }
+      this.db = firebase.database();
+      console.log("Firebase Initialized for Admin.");
+    } catch (e) {
+      console.error("Firebase initialization error:", e);
     }
+  }
 
-    ref(path) {
-        return this.db.ref(path);
-    }
+  ref(path) {
+    return this.db.ref(path);
+  }
 }
 
 class LocalStorageHandler {
-    constructor() {
-        this.storageKey = 'studyPlanGuestData';
-        this.data = this._loadData();
-        console.log("LocalStorage DB Initialized for Guest.");
-    }
+  constructor() {
+    this.storageKey = 'studyPlanGuestData';
+    this.data = this._loadData();
+    console.log("LocalStorage DB Initialized for Guest.");
+  }
 
-    _loadData() {
-        try {
-            const storedData = localStorage.getItem(this.storageKey);
-            return storedData ? JSON.parse(storedData) : {};
-        } catch (e) {
-            console.error("Error loading data from localStorage", e);
-            return {};
-        }
+  _loadData() {
+    try {
+      const storedData = localStorage.getItem(this.storageKey);
+      return storedData ? JSON.parse(storedData) : {};
+    } catch (e) {
+      console.error("Error loading data from localStorage", e);
+      return {};
     }
+  }
 
-    _saveData() {
-        try {
-            localStorage.setItem(this.storageKey, JSON.stringify(this.data));
-        } catch (e) {
-            console.error("Error saving data to localStorage", e);
-        }
+  _saveData() {
+    try {
+      localStorage.setItem(this.storageKey, JSON.stringify(this.data));
+    } catch (e) {
+      console.error("Error saving data to localStorage", e);
     }
+  }
 
-    _getNested(path) {
-        return path.split('/').reduce((obj, key) => (obj && obj[key] !== 'undefined') ? obj[key] : undefined, this.data);
-    }
+  _getNested(path) {
+    return path.split('/').reduce((obj, key) => (obj && obj[key] !== 'undefined') ? obj[key] : undefined, this.data);
+  }
 
-    _setNested(path, value) {
-        const keys = path.split('/');
-        const lastKey = keys.pop();
-        let current = this.data;
-        for (const key of keys) {
-            if (!current[key]) {
-                current[key] = {};
-            }
-            current = current[key];
-        }
-        current[lastKey] = value;
-        this._saveData();
+  _setNested(path, value) {
+    const keys = path.split('/');
+    const lastKey = keys.pop();
+    let current = this.data;
+    for (const key of keys) {
+      if (!current[key]) {
+        current[key] = {};
+      }
+      current = current[key];
     }
+    current[lastKey] = value;
+    this._saveData();
+  }
 
-    _removeNested(path) {
-        const keys = path.split('/');
-        const lastKey = keys.pop();
-        let parent = this.data;
-        for (const key of keys) {
-            if (!parent[key]) return;
-            parent = parent[key];
-        }
-        if (parent) {
-            delete parent[lastKey];
-            this._saveData();
-        }
+  _removeNested(path) {
+    const keys = path.split('/');
+    const lastKey = keys.pop();
+    let parent = this.data;
+    for (const key of keys) {
+      if (!parent[key]) return;
+      parent = parent[key];
     }
+    if (parent) {
+      delete parent[lastKey];
+      this._saveData();
+    }
+  }
 
-    ref(path) {
-        const self = this;
-        return {
-            once: (eventType) => {
-                return Promise.resolve({
-                    val: () => self._getNested(path),
-                    exists: () => self._getNested(path) !== undefined
-                });
-            },
-            set: (value) => {
-                self._setNested(path, value);
-                return Promise.resolve();
-            },
-            update: (value) => {
-                const existing = self._getNested(path) || {};
-                self._setNested(path, { ...existing, ...value });
-                return Promise.resolve();
-            },
-            remove: () => {
-                self._removeNested(path);
-                return Promise.resolve();
-            }
-        };
-    }
+  ref(path) {
+    const self = this;
+    return {
+      once: (eventType) => {
+        return Promise.resolve({
+          val: () => self._getNested(path),
+          exists: () => self._getNested(path) !== undefined
+        });
+      },
+      set: (value) => {
+        self._setNested(path, value);
+        return Promise.resolve();
+      },
+      update: (value) => {
+        const existing = self._getNested(path) || {};
+        self._setNested(path, { ...existing, ...value });
+        return Promise.resolve();
+      },
+      remove: () => {
+        self._removeNested(path);
+        return Promise.resolve();
+      }
+    };
+  }
 }
 
 // Initialize the app
@@ -5097,7 +5093,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.addEventListener('click', enableAudioOnInteraction);
   document.addEventListener('touchstart', enableAudioOnInteraction);
   document.addEventListener('keydown', enableAudioOnInteraction);
-  
+
   // --- START: LOGIN LOGIC ---
   const loginModal = document.getElementById('login-modal');
   const loginForm = document.getElementById('login-form');
@@ -5123,70 +5119,69 @@ document.addEventListener("DOMContentLoaded", async () => {
   // --- END: SESSION & PIN VISIBILITY LOGIC ---
 
   const startApp = async (role) => {
-      userRole = role;
-      if (role === 'admin') {
-          db = new FirebaseHandler();
-      } else {
-          db = new LocalStorageHandler();
-          // Hide admin button for guests
-          const adminBtn = document.getElementById('admin-btn');
-          if(adminBtn) adminBtn.style.display = 'none';
-      }
-
-      hideModal(loginModal);
-
-      // --- Regular App Initialization ---
-      await loadAndDisplayPhase();
+    userRole = role;
+    if (role === 'admin') {
+      db = new FirebaseHandler();
+    } else {
+      db = new LocalStorageHandler();
+      // Hide admin button for guests
       const adminBtn = document.getElementById('admin-btn');
-      if (adminBtn) {
-          adminBtn.addEventListener('click', () => {
-              window.location.href = 'admin.html';
-          });
-      }
-      currentWeekStart = getStartOfWeek();
-      updateRemainingDays();
-      await loadCustomTaskTypes();
-      loadCurrentWeek();
-      setupSkillAssessmentEventListeners();
-      await loadSkillAssessments();
-      setupEventListeners();
-      setupTabNavigation();
-      if (userRole === 'admin') {
-          setupRealTimeListeners();
-      }
-      setupJLptScoresEventListeners();
-      await loadJLptScores();
-      if (studyMinutesInput) {
-          timeLeft = parseInt(studyMinutesInput.value) * 60;
-          updateTimerDisplay();
-      }
-      if (userRole === 'admin') {
-          migrateOldDataToLanguageCategory();
-      }
-      loadResources();
-      setupResourcesEventListeners();
-      initializeDragAndDrop();
-      initCharts();
-      displayEffectiveStudyTime();
+      if (adminBtn) adminBtn.style.display = 'none';
+    }
+
+    hideModal(loginModal);
+
+    // --- Regular App Initialization ---
+    await loadAndDisplayPhase();
+    const adminBtn = document.getElementById('admin-btn');
+    if (adminBtn) {
+      adminBtn.addEventListener('click', () => {
+        window.location.href = 'admin.html';
+      });
+    }
+    currentWeekStart = getStartOfWeek();
+    await loadCustomTaskTypes();
+    loadCurrentWeek();
+    setupSkillAssessmentEventListeners();
+    await loadSkillAssessments();
+    setupEventListeners();
+    setupTabNavigation();
+    if (userRole === 'admin') {
+      setupRealTimeListeners();
+    }
+    setupJLptScoresEventListeners();
+    await loadJLptScores();
+    if (studyMinutesInput) {
+      timeLeft = parseInt(studyMinutesInput.value) * 60;
+      updateTimerDisplay();
+    }
+    if (userRole === 'admin') {
+      migrateOldDataToLanguageCategory();
+    }
+    loadResources();
+    setupResourcesEventListeners();
+    initializeDragAndDrop();
+    initCharts();
+    displayEffectiveStudyTime();
   };
 
   loginForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      if (pinInput.value === '290302') {
-          // Save admin session
-          const session = { timestamp: new Date().getTime() };
-          localStorage.setItem('adminSession', JSON.stringify(session));
-          startApp('admin');
-      } else {
-          loginError.style.display = 'block';
-          localStorage.removeItem('adminSession');
-      }
+    e.preventDefault();
+    if (pinInput.value === '290302') {
+      // Save admin session
+      const session = { timestamp: new Date().getTime() };
+      localStorage.setItem('adminSession', JSON.stringify(session));
+      startApp('admin');
+    } else {
+      loginError.style.display = 'block';
+      localStorage.removeItem('adminSession');
+    }
   });
 
   guestBtn.addEventListener('click', () => {
-      // Clear admin session when logging in as guest
-      localStorage.removeItem('adminSession');
-      startApp('guest');
+    // Clear admin session when logging in as guest
+    localStorage.removeItem('adminSession');
+    startApp('guest');
   });
 
   // Check for existing session on page load
