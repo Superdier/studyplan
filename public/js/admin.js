@@ -144,6 +144,7 @@ function renderPhases(activePhaseId = null) {
                     <div><i class="fas fa-calendar"></i> <strong>${formatDate(phase.startDate)}</strong> - <strong>${formatDate(phase.endDate)}</strong></div>
                     <div><i class="fas fa-hourglass-half"></i> <strong>${weeks}</strong> tuần</div>
                     ${phase.goal ? `<div><i class="fas fa-bullseye"></i> Mục tiêu: <strong>${phase.goal}</strong></div>` : ''}
+                    ${phase.weeklyGoal ? `<div><i class="fas fa-clock"></i> Mục tiêu tuần: <strong>${phase.weeklyGoal}h</strong></div>` : ''}
                 </div>
 
                 <div class="phase-stats">
@@ -210,6 +211,9 @@ function editPhase(phaseId) {
     document.getElementById('phase-end-date').value = phase.endDate;
     document.getElementById('phase-description').value = phase.description || '';
     document.getElementById('phase-goal').value = phase.goal || '';
+    if (document.getElementById('phase-weekly-goal')) {
+        document.getElementById('phase-weekly-goal').value = phase.weeklyGoal || '';
+    }
     
     document.getElementById('phase-preview').style.display = 'block';
     updatePhasePreview();
@@ -236,6 +240,8 @@ async function savePhase(e) {
     const endDate = document.getElementById('phase-end-date').value;
     const description = document.getElementById('phase-description').value.trim();
     const goal = document.getElementById('phase-goal').value.trim();
+    const weeklyGoalInput = document.getElementById('phase-weekly-goal');
+    const weeklyGoal = weeklyGoalInput ? weeklyGoalInput.value.trim() : 0;
 
     if (!name || !startDate || !endDate) {
         showAlert('Vui lòng điền tất cả trường bắt buộc', 'danger');
@@ -254,6 +260,7 @@ async function savePhase(e) {
             endDate,
             description,
             goal,
+            weeklyGoal: parseInt(weeklyGoal) || 0,
             createdAt: new Date().toISOString(),
             completedTasksCount: 0,
             totalTasksCount: 0

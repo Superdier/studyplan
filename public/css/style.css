@@ -752,23 +752,60 @@ h1 {
 .modal-content {
   position: relative;
   background: white;
-  padding: 30px;
+  padding: 0;
   border-radius: 15px;
   max-width: 500px;
   width: 90%;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .close-modal {
-  position: absolute;
-  top: 15px;
-  right: 15px;
   font-size: 24px;
   cursor: pointer;
+  color: #aaa;
+  padding: 0 10px;
+  line-height: 1;
 }
 
 .close-modal:hover {
   color: #333;
+}
+
+.modal-header {
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  flex-shrink: 0;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #333;
+}
+
+.modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-footer {
+  padding: 15px 20px;
+  border-top: 1px solid #eee;
+  background: white;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 #countdown-modal {
@@ -1687,6 +1724,8 @@ footer {
   border-bottom: 1px solid #eee;
   background: #fff;
   border-radius: 12px 12px 0 0;
+  padding: 12px 16px;
+  display: flex;
 }
 
 .modal-title {
@@ -3285,4 +3324,21 @@ footer {
 
 .study-item:active .drag-handle {
   cursor: grabbing;
+}
+
+/* Confetti Effect */
+.confetti {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  z-index: 9999;
+  top: -10px;
+  pointer-events: none;
+  animation: confetti-fall linear forwards;
+}
+
+@keyframes confetti-fall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
 }

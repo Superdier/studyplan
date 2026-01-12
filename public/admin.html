@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -228,6 +229,7 @@
             from {
                 opacity: 0;
             }
+
             to {
                 opacity: 1;
             }
@@ -235,7 +237,7 @@
 
         .modal-content {
             background-color: #fefefe;
-            padding: 30px;
+            padding: 0;
             border-radius: 8px;
             width: 90%;
             max-width: 500px;
@@ -248,6 +250,7 @@
                 transform: translateY(-50px);
                 opacity: 0;
             }
+
             to {
                 transform: translateY(0);
                 opacity: 1;
@@ -503,6 +506,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="admin-container">
         <div class="admin-header">
@@ -550,48 +554,49 @@
     <!-- Add/Edit Phase Modal -->
     <div class="modal" id="phase-modal">
         <div class="modal-content">
-            <span class="close-modal" id="close-phase-modal">&times;</span>
-            <h2 id="phase-modal-title">Tạo Chặng Mới</h2>
-
-            <form id="phase-form">
-                <div class="form-group">
-                    <label for="phase-name">Tên chặng <span style="color: red;">*</span></label>
-                    <input type="text" id="phase-name" placeholder="Ví dụ: Chặng 2" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="phase-start-date">Ngày bắt đầu <span style="color: red;">*</span></label>
-                    <input type="date" id="phase-start-date" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="phase-end-date">Ngày kết thúc <span style="color: red;">*</span></label>
-                    <input type="date" id="phase-end-date" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="phase-description">Mô tả</label>
-                    <textarea id="phase-description" placeholder="Nhập mô tả về chặng này..."></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="phase-goal">Mục tiêu</label>
-                    <input type="text" id="phase-goal" placeholder="Ví dụ: Kaiwa TỐT">
-                </div>
-
-                <div class="phase-data-preview" id="phase-preview" style="display: none;">
-                    <p><strong>Thông tin chặng:</strong></p>
-                    <p>Tên: <span id="preview-name">-</span></p>
-                    <p>Ngày: <span id="preview-dates">-</span></p>
-                    <p>Tuần: <span id="preview-weeks">-</span></p>
-                    <p>Mục tiêu: <span id="preview-goal">-</span></p>
-                </div>
-
-                <div class="modal-buttons">
-                    <button type="submit" class="btn-primary">Lưu Chặng</button>
-                    <button type="button" class="btn-secondary" id="cancel-phase-btn">Hủy</button>
-                </div>
-            </form>
+            <div class="modal-header">
+                <h2 id="phase-modal-title">Tạo Chặng Mới</h2>
+                <span class="close-modal" id="close-phase-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="phase-form">
+                    <div class="form-group">
+                        <label for="phase-name">Tên chặng <span style="color: red;">*</span></label>
+                        <input type="text" id="phase-name" placeholder="Ví dụ: Chặng 2" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="phase-start-date">Ngày bắt đầu <span style="color: red;">*</span></label>
+                        <input type="date" id="phase-start-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="phase-end-date">Ngày kết thúc <span style="color: red;">*</span></label>
+                        <input type="date" id="phase-end-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="phase-description">Mô tả</label>
+                        <textarea id="phase-description" placeholder="Nhập mô tả về chặng này..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="phase-goal">Mục tiêu</label>
+                        <input type="text" id="phase-goal" placeholder="Ví dụ: Kaiwa TỐT">
+                    </div>
+                    <div class="form-group">
+                        <label for="phase-weekly-goal">Mục tiêu tuần (giờ):</label>
+                        <input type="number" id="phase-weekly-goal" min="0" placeholder="Ví dụ: 15">
+                    </div>
+                    <div class="phase-data-preview" id="phase-preview" style="display: none;">
+                        <p><strong>Thông tin chặng:</strong></p>
+                        <p>Tên: <span id="preview-name">-</span></p>
+                        <p>Ngày: <span id="preview-dates">-</span></p>
+                        <p>Tuần: <span id="preview-weeks">-</span></p>
+                        <p>Mục tiêu: <span id="preview-goal">-</span></p>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" form="phase-form" class="btn-primary" style="padding: 10px; border: none; border-radius: 4px; cursor: pointer;">Lưu Chặng</button>
+                <button type="button" class="btn-secondary" id="cancel-phase-btn" style="padding: 10px; border: none; border-radius: 4px; cursor: pointer;">Hủy</button>
+            </div>
         </div>
     </div>
 
@@ -611,4 +616,5 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script src="js/admin.js"></script>
 </body>
+
 </html>

@@ -16,6 +16,210 @@ let currentEditingDay = null;
 let notificationAudio = null;
 let isManualClose = false;
 let currentPhaseId = null; // Track current phase
+let basePhaseStartDate = new Date("2025-07-07"); // Ngày bắt đầu chặng (động)
+let currentPhaseTotalWeeks = 21; // Tổng số tuần của chặng (động)
+let currentPhaseWeeklyGoal = 0; // Mục tiêu giờ học mỗi tuần
+
+// Email Reminder Variables
+let reminderConfig = {
+  enabled: false,
+  email: "",
+  times: [] // Array of strings "HH:MM"
+};
+
+// ----------------------------
+// EMAIL REMINDER SYSTEM
+// ----------------------------
+
+function initReminderSystem() {
+  // Khởi tạo EmailJS (Thay thế bằng Public Key của bạn)
+  // Bạn cần đăng ký tại emailjs.com để lấy key
+  try {
+    emailjs.init("5efp51mSAgISD--du"); // <--- THAY THẾ PUBLIC KEY Ở ĐÂY
+  } catch (e) {
+    console.error("EmailJS init error:", e);
+  }
+
+  // Tải cấu hình từ LocalStorage
+  const savedConfig = localStorage.getItem('studyPlanReminderConfig');
+  if (savedConfig) {
+    reminderConfig = JSON.parse(savedConfig);
+  }
+
+  // Thiết lập Event Listeners
+  document.getElementById('reminder-settings-btn')?.addEventListener('click', () => {
+    openReminderModal();
+  });
+
+  document.getElementById('close-reminder-modal')?.addEventListener('click', () => {
+    hideModal(document.getElementById('reminder-settings-modal'));
+  });
+
+  document.getElementById('save-reminder-settings')?.addEventListener('click', saveReminderSettings);
+  
+  document.getElementById('test-email-btn')?.addEventListener('click', async () => {
+    const email = document.getElementById('reminder-email').value;
+    if (!email) return showCustomAlert("Vui lòng nhập email trước khi thử.");
+    await checkAndSendEmail(true, email); // Force send
+  });
+
+  // Bắt đầu bộ đếm thời gian kiểm tra mỗi phút
+  setInterval(checkScheduledReminders, 60000);
+}
+
+function openReminderModal() {
+  const modal = document.getElementById('reminder-settings-modal');
+  document.getElementById('reminder-enabled').checked = reminderConfig.enabled;
+  document.getElementById('reminder-email').value = reminderConfig.email || '';
+  document.getElementById('reminder-times').value = reminderConfig.times.join(', ');
+  showModal(modal);
+}
+
+function saveReminderSettings() {
+  const enabled = document.getElementById('reminder-enabled').checked;
+  const email = document.getElementById('reminder-email').value.trim();
+  const timesStr = document.getElementById('reminder-times').value.trim();
+
+  // Validate time format HH:MM
+  const times = timesStr.split(',').map(t => t.trim()).filter(t => /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(t));
+
+  if (enabled && !email) {
+    showCustomAlert("Vui lòng nhập email để bật nhắc nhở.");
+    return;
+  }
+
+  reminderConfig = { enabled, email, times };
+  localStorage.setItem('studyPlanReminderConfig', JSON.stringify(reminderConfig));
+  
+  hideModal(document.getElementById('reminder-settings-modal'));
+  showCustomAlert("Đã lưu cài đặt nhắc nhở!");
+}
+
+function checkScheduledReminders() {
+  if (!reminderConfig.enabled || !reminderConfig.email || reminderConfig.times.length === 0) return;
+
+  const now = new Date();
+  const currentHours = String(now.getHours()).padStart(2, '0');
+  const currentMinutes = String(now.getMinutes()).padStart(2, '0');
+  const currentTime = `${currentHours}:${currentMinutes}`;
+
+  if (reminderConfig.times.includes(currentTime)) {
+    checkAndSendEmail();
+  }
+}
+
+async function checkAndSendEmail(force = false, overrideEmail = null) {
+  const todayStr = getTodayDateString();
+  const emailToSend = overrideEmail || reminderConfig.email;
+
+  // Lấy dữ liệu tasks của ngày hôm nay (Raw data)
+  let tasks = [];
+  try {
+    // Logic lấy task tương tự loadScheduleDataFromAllPhases nhưng chỉ lấy data
+    // 1. Global
+    const globalSnap = await db.ref(`schedule/${todayStr}`).once("value");
+    if (globalSnap.exists() && globalSnap.val().tasks) tasks = tasks.concat(globalSnap.val().tasks);
+
+    // 2. Phases
+    const phasesSnap = await db.ref('phases').once("value");
+    if (phasesSnap.exists()) {
+      const allPhases = phasesSnap.val();
+      for (const phaseId of Object.keys(allPhases)) {
+        const pSnap = await db.ref(`phaseData/${phaseId}/schedule/${todayStr}`).once("value");
+        if (pSnap.exists() && pSnap.val().tasks) tasks = tasks.concat(pSnap.val().tasks);
+      }
+    }
+  } catch (e) {
+    console.error("Error fetching tasks for email:", e);
+  }
+
+  // Lọc task trùng lặp
+  const uniqueTasks = tasks.filter((task, index, self) =>
+      index === self.findIndex((t) => (t.title === task.title))
+  );
+
+  let message = "";
+  let subject = "";
+
+  const d = new Date();
+  const dateStr = `${d.getDate()}/${d.getMonth() + 1}`;
+
+  if (uniqueTasks.length === 0) {
+    // Trường hợp chưa có nhiệm vụ
+    subject = `⚠️ [${dateStr}] Bạn chưa có kế hoạch học tập cho hôm nay!`;
+    message = "Chào bạn,\n\nHôm nay bạn chưa thêm nhiệm vụ nào vào Study Plan. Hãy dành chút thời gian để lên kế hoạch học tập nhé!\n\nTruy cập ngay: " + window.location.href;
+  } else {
+    // Trường hợp đã có nhiệm vụ -> Gửi danh sách và tiến độ
+    const completed = uniqueTasks.filter(t => t.done).length;
+    const total = uniqueTasks.length;
+    const pending = uniqueTasks.filter(t => !t.done);
+
+    subject = `📅 [${dateStr}] Nhắc nhở học tập: Hoàn thành ${completed}/${total} nhiệm vụ`;
+    
+    let taskListStr = pending.length > 0 ? "Các nhiệm vụ cần làm:\n" : "Chúc mừng! Bạn đã hoàn thành hết nhiệm vụ:\n";
+    
+    if (pending.length > 0) {
+        pending.forEach(t => taskListStr += `- [ ] ${t.title} (${t.duration}p)\n`);
+    } else {
+        uniqueTasks.forEach(t => taskListStr += `- [x] ${t.title}\n`);
+    }
+
+    message = `Chào bạn,\n\nTiến độ hôm nay của bạn: ${completed}/${total} nhiệm vụ.\n\n${taskListStr}\n\nHãy tiếp tục cố gắng nhé!`;
+  }
+
+  // Thêm báo cáo thống kê tuần vào nội dung email
+  try {
+    const stats = await getStudyStatistics();
+    const today = new Date();
+    const currentWeekNum = Math.floor((today - basePhaseStartDate) / (7 * 86400000)) + 1;
+    const currentWeekStats = stats.weeklyProgress.find(w => w.week === currentWeekNum);
+    
+    message += `\n\n📊 Thống kê Tuần ${currentWeekNum}:\n`;
+    message += `- Chuỗi Streak: ${stats.streakDays} ngày 🔥\n`;
+    
+    if (currentWeekStats) {
+        const hours = Math.floor(currentWeekStats.studyTime / 60);
+        const mins = currentWeekStats.studyTime % 60;
+        message += `- Thời gian học: ${hours}h ${mins}p\n`;
+        message += `- Tỷ lệ hoàn thành: ${currentWeekStats.progress}%`;
+    } else {
+        message += `- Chưa có dữ liệu tuần này.`;
+    }
+  } catch (e) {
+    console.error("Error adding stats to email:", e);
+  }
+
+  // Thêm câu danh ngôn động lực ngẫu nhiên
+  const quotes = [
+    "Học tập là hạt giống của kiến thức, kiến thức là hạt giống của hạnh phúc.",
+    "Đừng xấu hổ khi không biết, chỉ xấu hổ khi không học.",
+    "Mỗi ngày là một cơ hội để tốt hơn ngày hôm qua.",
+    "Thành công không phải là đích đến, mà là một hành trình.",
+    "Kiên trì là chìa khóa của mọi thành công.",
+    "Không có áp lực, không có kim cương.",
+    "Hôm nay bạn làm những điều người khác không làm, ngày mai bạn sẽ có những điều người khác không có.",
+    "Việc học như con thuyền đi trên dòng nước ngược, không tiến ắt sẽ lùi."
+  ];
+  const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+  message += `\n\n💡 Danh ngôn: "${randomQuote}"`;
+
+  // Gửi qua EmailJS
+  const templateParams = {
+    to_email: emailToSend,
+    subject: subject,
+    message: message,
+    app_name: "Study Plan App"
+  };
+
+  try {
+    await emailjs.send('service_remind_tasks', 'template_99rl2xd', templateParams);
+    if (force) showCustomAlert("Đã gửi email thành công!");
+    console.log("Email reminder sent to " + emailToSend);
+  } catch (error) {
+    console.error("Failed to send email:", error);
+    if (force) showCustomAlert("Gửi email thất bại. Kiểm tra console.");
+  }
+}
 
 // --- START: AUTH & DB ABSTRACTION ---
 let db; // This will be our database handler (Firebase or Local)
@@ -504,7 +708,7 @@ function hideBreakModal() {
 
 // Thêm audio controls vào timer modal
 function addAudioControlsToModal() {
-  const countdownModalContent = document.querySelector('#countdown-modal .modal-content');
+  const countdownModalContent = document.querySelector('#countdown-modal .modal-body') || document.querySelector('#countdown-modal .modal-content');
   if (countdownModalContent && !document.getElementById('audio-controls')) {
     const audioControlsHTML = `
       <div id="audio-controls" class="audio-controls">
@@ -623,7 +827,7 @@ function formatDate(date) {
 function updateWeekHeader(dates) {
   const start = new Date(dates[0]);
   const end = new Date(dates[6]);
-  const weekIndex = Math.floor((start - new Date("2025-07-07")) / (7 * 86400000)) + 1;
+  const weekIndex = Math.floor((start - basePhaseStartDate) / (7 * 86400000)) + 1;
 
   const weekDisplay = document.getElementById("current-week-display");
   if (weekDisplay) {
@@ -1242,7 +1446,7 @@ async function saveDayData() {
       if (foundPath) schedulePath = foundPath;
     }
 
-    const weekNumber = Math.floor((new Date(currentEditingDay) - new Date("2025-07-07")) / (7 * 86400000)) + 1;
+    const weekNumber = Math.floor((new Date(currentEditingDay) - basePhaseStartDate) / (7 * 86400000)) + 1;
 
     // Lưu dữ liệu nhiệm vụ trước
     await db.ref(schedulePath).set({
@@ -1550,6 +1754,7 @@ function generateDayCardHTML(date, data) {
   const tasksHTML = tasks.map((task, i) => `
         <li class="study-item ${task.done ? "done" : ""}" 
             data-task-index="${i}" 
+            data-duration="${task.duration || 0}"
             draggable="true">
             <div class="drag-handle" title="Kéo để di chuyển">
                 <i class="fas fa-grip-vertical"></i>
@@ -1587,7 +1792,26 @@ function detectTaskType(title) {
   return "other";
 }
 
-function updateProgress() {
+// Hàm tạo hiệu ứng Confetti (Pháo hoa giấy)
+function triggerConfetti() {
+  const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ffa500', '#fdbb2d', '#1a2a6c'];
+  const confettiCount = 100;
+
+  for (let i = 0; i < confettiCount; i++) {
+    const confetti = document.createElement('div');
+    confetti.classList.add('confetti');
+    confetti.style.left = Math.random() * 100 + 'vw';
+    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+    confetti.style.animationDuration = (Math.random() * 3 + 2) + 's'; // 2-5s
+    confetti.style.opacity = Math.random();
+    confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+    
+    document.body.appendChild(confetti);
+    setTimeout(() => confetti.remove(), 5000); // Xóa sau khi rơi xong
+  }
+}
+
+function updateProgress(animate = false) {
   const allTasks = document.querySelectorAll('.study-item');
   const completedTasks = document.querySelectorAll('.study-item.done');
 
@@ -1598,17 +1822,50 @@ function updateProgress() {
   const progressFill = document.getElementById('progress-fill');
   const weekProgress = document.getElementById("week-progress");
 
+  // Tính tổng thời gian đã học
+  let currentMinutes = 0;
+  completedTasks.forEach(task => {
+    currentMinutes += parseInt(task.dataset.duration) || 0;
+  });
+  const currentHours = currentMinutes / 60;
+
   if (progressFill) {
     progressFill.style.width = `${progress}%`;
     progressFill.style.transition = 'width 0.5s ease';
+
+    // Thay đổi màu sắc nếu đạt mục tiêu tuần
+    if (currentPhaseWeeklyGoal > 0 && currentHours >= currentPhaseWeeklyGoal) {
+      // Mục tiêu đạt được: Gradient màu xanh lá
+      progressFill.style.background = 'linear-gradient(90deg, #11998e, #38ef7d)';
+    } else {
+      // Mặc định: Gradient xanh dương - cam
+      progressFill.style.background = 'linear-gradient(90deg, #1a2a6c, #fdbb2d)';
+    }
   }
 
-  if (weekProgress) weekProgress.textContent = progress + '%';
+  if (weekProgress) {
+    let displayText = progress + '%';
+    if (currentPhaseWeeklyGoal > 0) {
+      const currentHoursDisplay = currentHours.toFixed(1);
+      displayText += ` (${currentHoursDisplay}/${currentPhaseWeeklyGoal}h)`;
+      
+      // Thêm biểu tượng ăn mừng nếu đạt mục tiêu
+      if (currentHours >= currentPhaseWeeklyGoal) {
+         displayText += ' 🎉';
+         
+         // Kích hoạt confetti nếu có yêu cầu animation và vừa đạt/vượt mục tiêu
+         if (animate) {
+           triggerConfetti();
+         }
+      }
+    }
+    weekProgress.textContent = displayText;
+  }
 
   const completedCount = document.getElementById('completed-count');
   if (completedCount) completedCount.textContent = completed;
   const totalCount = document.getElementById('total-tasks');
-  if (totalCount >= completedCount) totalCount.textContent = total;
+  if (totalCount) totalCount.textContent = total;
 }
 
 // ----------------------------
@@ -1698,7 +1955,13 @@ async function getStudyStatistics() {
     Object.entries(scheduleData).forEach(([date, dayData]) => {
       if (!dayData.tasks) return;
 
-      const weekNumber = dayData.weekNumber || 1;
+      // Tính toán lại weekNumber dựa trên ngày bắt đầu của chặng hiện tại
+      // Điều này giúp sửa lỗi hiển thị cho các task cũ khi chuyển chặng
+      const taskDate = new Date(date);
+      const weekNumber = Math.floor((taskDate - basePhaseStartDate) / (7 * 86400000)) + 1;
+      
+      // Bỏ qua nếu task nằm trước ngày bắt đầu chặng
+      if (weekNumber < 1) return;
 
       // Khởi tạo dữ liệu tuần nếu chưa có
       if (!weekProgressMap.has(weekNumber)) {
@@ -1762,7 +2025,8 @@ async function getStudyStatistics() {
 
     // Tạo mảng tiến độ tuần
     const weeklyProgress = [];
-    for (let week = 1; week <= 21; week++) {
+    // Sử dụng tổng số tuần của chặng hiện tại thay vì cố định 21
+    for (let week = 1; week <= currentPhaseTotalWeeks; week++) {
       const weekData = weekProgressMap.get(week) || {
         completedTasks: 0,
         totalTasks: 0,
@@ -4197,7 +4461,7 @@ async function toggleTaskDone(date, taskIndex) {
     const newStreak = await calculateStreak();
     updateStreakDisplay(newStreak);
 
-    updateProgress();
+    updateProgress(true); // Truyền true để kích hoạt confetti nếu đạt mục tiêu
 
     const activeTab = document.querySelector('.tab.active');
     if (activeTab && activeTab.dataset.tab === 'stats') {
@@ -4898,6 +5162,22 @@ async function loadAndDisplayPhase() {
 
         console.log('Phase data loaded:', phase); // Debug log
 
+        // Cập nhật biến toàn cục cho ngày bắt đầu và tổng số tuần
+        if (phase.startDate) {
+          // Chuẩn hóa về đầu tuần (Thứ 2) để khớp với cách tính lịch
+          basePhaseStartDate = getStartOfWeek(new Date(phase.startDate));
+          
+          if (phase.endDate) {
+            const start = new Date(phase.startDate);
+            const end = new Date(phase.endDate);
+            const diffTime = Math.abs(end - start);
+            const diffWeeks = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 7)); 
+            currentPhaseTotalWeeks = diffWeeks > 0 ? diffWeeks : 1;
+          }
+        }
+
+        currentPhaseWeeklyGoal = phase.weeklyGoal || 0;
+
         document.getElementById('phase-name-display').textContent = phase.name;
 
         // Sử dụng cách tạo ngày đơn giản và chính xác hơn
@@ -5161,6 +5441,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     loadResources();
     setupResourcesEventListeners();
     initializeDragAndDrop();
+    initReminderSystem(); // Khởi tạo hệ thống nhắc nhở
     initCharts();
     displayEffectiveStudyTime();
   };
